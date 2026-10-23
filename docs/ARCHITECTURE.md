@@ -324,7 +324,7 @@ Kriteria "impor 1 juta segitiga di bawah 5 detik" diuji terpisah di `run_integra
 
 ## 8. Keputusan terbuka dan risiko dibawa ke fase berikutnya
 
-- **`scipy` (backlog, untuk fase yang benar-benar memakainya).** RESEARCH.md menyebut scipy untuk sparse solver Laplacian, yang dipakai morphing tooth library (deformasi RBF/Laplacian) di Fase 2. Fase 0 tidak punya kode yang memakainya, jadi tidak dibundel. Pin kandidat yang sudah diverifikasi di PyPI pada 2026-10-23:
+- **`scipy` (backlog, untuk fase yang benar-benar memakainya).** Diputuskan masuk di Fase 2 bersama build per platform (docs/PHASE2.md §6, K1); dikerjakan sebagai langkah implementasi pertama Fase 2. RESEARCH.md menyebut scipy untuk sparse solver Laplacian, yang dipakai morphing tooth library (deformasi RBF/Laplacian) di Fase 2. Fase 0 tidak punya kode yang memakainya, jadi tidak dibundel. Pin kandidat yang sudah diverifikasi di PyPI pada 2026-10-23:
   - `scipy==1.18.1` (BSD-3-Clause, rilis 2026-08-21, `requires_python >=3.12`), `requires_dist`: `numpy>=2.0.0,<2.8`. Rentang ini mencakup numpy 2.3.4 di Blender 5.2 LTS.
   - Wheel cp313 yang dipilih: `scipy-1.18.1-cp313-cp313-win_amd64.whl`, `scipy-1.18.1-cp313-cp313-macosx_12_0_arm64.whl`, `scipy-1.18.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl`. Untuk macOS arm64 pakai `macosx_12_0_arm64` (OpenBLAS), bukan `macosx_14_0_arm64` (Accelerate), karena minimum macOS Blender adalah 13. Perintah unduhnya sama dengan pola `manifold3d` di §5.
   - Total ±100MB untuk tiga platform, jadi saat scipy ditambahkan, `--split-platforms` kemungkinan besar diperlukan.

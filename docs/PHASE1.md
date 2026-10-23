@@ -1,6 +1,19 @@
-# Fase 1: Model Creator (rancangan)
+# Fase 1: Model Creator
 
-Status: **rancangan, belum ada kode.** Keputusan K1 sampai K6 sudah diambil maintainer (§10); K5 menunggu tabel praktik lab di §9.1. Dokumen ini harus disetujui sebelum implementasi dimulai (CLAUDE.md).
+Status: **diparkir, menunggu izin printer** (sejak 2026-10-23). Maintainer belum punya izin memakai printer lab, jadi kupon tidak bisa dicetak dan kalibrasi tidak bisa berjalan. Kode dan file kupon tetap disimpan dan tidak dihapus.
+
+| Bagian | Status | Catatan |
+|---|---|---|
+| Kupon 1 (dimensi per sumbu) | selesai | `core/calibration.py`, commit 9dde3ea, CI hijau di Windows, macOS, Linux |
+| Kupon 2 (clearance die-socket) | selesai | idem |
+| Kupon 3 (hollow, lubang drainase di dasar) | selesai | idem |
+| Preset Photon P1 dan AccuFab-F1, `apply_calibration.py`, operator Blender | selesai | idem |
+| Kalibrasi (cetak kupon, isi lembar ukur, tulis preset) | tertunda | menunggu izin printer |
+| K5: tabel praktik lab §9.1 | tertunda | belum diisi maintainer |
+| Kupon 4 (label dan ditching) dan kupon 5 (peg) | tertunda | menunggu K5 |
+| Fitur 5.0 sampai 5.7 (orientasi sampai ekspor) | belum dimulai | sebagian menunggu K5 dan kalibrasi |
+
+Keputusan K1 sampai K6 sudah diambil maintainer (§10).
 
 Dasar dokumen ini:
 - RESEARCH.md §3, baris P1 "Model cetak": alur *Trim → base (hollow/solid) → sectioned model → removable die + ditching → pin/keying → label → plug articulator → ekspor*, dengan parameter kunci *clearance die-socket 0,05-0,1 mm, tebal dinding hollow 2-3 mm, lubang drainase resin*.
