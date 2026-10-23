@@ -39,7 +39,7 @@ python -m venv .venv && .venv/Scripts/python -m pip install -r requirements-dev.
 .venv/Scripts/python scripts/run_blender_tests.py --blender "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe"
 .venv/Scripts/python scripts/export_coupons.py                                      # kupon kalibrasi -> dist/kupon/
 .venv/Scripts/python scripts/apply_calibration.py <preset.json> <lembar_ukur.csv> --date YYYY-MM-DD [--write]
-.venv/Scripts/python scripts/margin_benchmark.py --set tuning --seeds 3           # akurasi margin (Fase 2); set: tuning, tuning2, uji
+.venv/Scripts/python scripts/margin_benchmark.py --set tuning --seeds 3           # akurasi margin (Fase 2); set: tuning, tuning2, tuning3, uji
 ```
 
 `run_blender_tests.py` adalah gerbang Fase 0 lengkap: build `dist/dentalcad-<version>.zip`, validate, instal ke profil Blender sementara (`BLENDER_USER_RESOURCES`, profil pengguna tidak tersentuh), lalu Lapis 2.

@@ -65,10 +65,18 @@ class DENTALCAD_PT_main(bpy.types.Panel):
         col.operator("dentalcad.margin_detect", icon="CURVE_BEZCIRCLE")
         col.operator("dentalcad.margin_draw", icon="GREASEPENCIL")
         col.operator("dentalcad.margin_update", icon="FILE_REFRESH")
+        layout.operator("dentalcad.margin_confirm", icon="CHECKMARK")
         if obj is not None and obj.get("dentalcad_margin_role") == "controls":
             box = layout.box()
             box.label(text=f"Die: {obj.get('dentalcad_margin_die', '?')}", icon="MESH_DATA")
             box.label(text=f"{len(obj.data.splines[0].points)} control points")
+            flagged = obj.get("dentalcad_margin_review_segments", 0)
+            if obj.get("dentalcad_margin_status") == "confirmed":
+                box.label(text="Status: confirmed", icon="CHECKMARK")
+            else:
+                box.label(text="Status: draft, not usable for the crown yet", icon="ERROR")
+            if flagged:
+                box.label(text=f"{flagged} segments need review (red)", icon="ERROR")
             box.label(text="Edit Mode: move (G) or delete (X) points, then Update", icon="INFO")
         else:
             layout.label(text="Select the die, Detect Margin, click near the margin", icon="INFO")

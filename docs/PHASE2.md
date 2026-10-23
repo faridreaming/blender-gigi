@@ -1,6 +1,6 @@
 # Fase 2: Crown zirkonia single (rancangan)
 
-Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis terimplementasi**, termasuk pengaman, alat gambar margin manual, dan uji pada set uji yang dikunci. Set uji menemukan kurva buruk tanpa pesan pada die kecil ber-scallop dalam (insisif sentral), jadi deteksi otomatis **belum aman untuk margin anterior** (§5.1). Fitur §5.2 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
+Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis terimplementasi**, termasuk pengaman, alat gambar margin manual, dan uji pada set uji yang dikunci. Hasil Detect dan Draw selalu berstatus **draf** dengan segmen meragukan berwarna merah, dan hanya margin yang sudah di-**Confirm** yang boleh dipakai langkah crown dan ekspor. Di keempat set benchmark tidak ada kurva buruk tanpa pesan atau tanpa segmen merah, tetapi penanda merah belum andal menunjuk **lokasi** kesalahan (§5.1). Fitur §5.2 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
 
 Dasar dokumen ini:
 - RESEARCH.md Roadmap, Fase 2: deliverable *margin semi-auto, sumbu insersi/undercut, spacer, library CC0 + morphing, kontak, heatmap ketebalan, ekspor STL ke MillBox*; kriteria selesai *20 kasus: deviasi margin vs desain exocad ≤50 µm (median), lolos cek ketebalan, 5 crown dimilling dan dicoba di die*.
@@ -43,6 +43,7 @@ Material: preset `data/materials/zircad_prime.json` dari Fase 0 dipakai, dengan 
 | **EXW** | exocad wiki, "Designing the inside of the crown" (wiki.exocad.com/wiki/index.php/Designing_the_inside_of_the_crown). Server aslinya menolak koneksi saat dicek; yang dibaca adalah arsip Wayback Machine snapshot 2026-10-05 | "You can add spacing in axial direction that will be applied everywhere using the slider Axial [4]. To add horizontal spacing perpendicular to the axial direction, use the slider Radial [5]." Definisi border crown sama dengan DTX. Versi ini mengatur zona cement gap dengan kuas, tanpa slider "From margin". |
 | **DKT** | Diker B, Tak Ö. "Comparing the accuracy of six intraoral scanners on prepared teeth and effect of scanning sequence." J Adv Prosthodont 2020;12(5):299-306 (PMC7604233). Halaman PMC menampilkan reCAPTCHA yang tidak dilewati; teks lengkap yang sama dibaca lewat API resmi Europe PMC. Halaman akhir 306 berasal dari permintaan maintainer, belum dicek sendiri. | In vitro, preparasi single crown, analisis 3D di Geomagic Studio 12. Abstrak, presisi: Primescan 10, Trios 11, iTero 12, Omnicam 18, Virtuo Vivo 37, **Emerald 60 µm** (terburuk dari enam scanner). Bagian diskusi menulis Emerald 64 ± 27 µm, tidak sama dengan abstrak. Dipakai sebagai ambang pengaman derau §5.1. |
 | **GLC** | Gallucci GO, Belser UC, Bernard JP, Magne P. "Modeling and Characterization of the CEJ for Optimization of Esthetic Implant Design." Int J Periodontics Restorative Dent 2004;24(1):19-29. Link dari maintainer (admin.quintessence-publishing.com) mengarah ke halaman login; yang dibaca adalah abstrak di halaman publik quintessence-publishing.com/usa/en/article/853057 (dicek 2026-10-23). Teks lengkap berbayar, tidak dibaca. | 137 gigi anterior rahang atas hasil ekstraksi (45 insisif sentral, 46 lateral, 46 kaninus), citra digital terstandar tampak proksimal. Lengkungan CEJ mesial vs distal: insisif sentral 3,46 vs 3,13 mm, lateral 2,97 vs 2,38 mm, kaninus 2,55 vs 1,60 mm. Dipakai sebagai rentang tinggi puncak-lembah scallop di set tuning §5.1. Catatan: ini CEJ gigi asli, bukan garis finish preparasi, dan die sintetis memakai scallop simetris (mesial = distal). |
+| **JPM** | Badar SB, Zafar K, Ghafoor R, Khan FR. "Radiographic evaluation of the margins of clinically acceptable metal-ceramic crowns." JPMA 2022;72(2 Suppl 1):S-35, doi:10.47391/JPMA.AKU-08 (archive.jpma.org.pk/supplement-article-details/735, teks lengkap HTML, dicek 2026-10-23). | Studi prospektif, 115 crown metal-keramik, 230 sisi interproksimal, radiografi bitewing sebelum sementasi. Metode: "A marginal discrepancy >0.05mm on the proximal sites was labelled as a 'deficiency'"; abstrak menulis >0.5mm, jadi **ada ketidaksesuaian di paper**. 49,1% sisi proksimal crown yang lolos pemeriksaan klinis punya diskrepansi. Pendahuluan: pemeriksaan margin interproksimal dan subgingiva "poses a clinical challege". Paper juga mengutip Schaefer dkk. (0,05-0,15 mm dianggap dapat diterima). Yang diukur adalah celah crown di radiografi, bukan galat garis margin desain; dipakai sebagai alasan klinis untuk penanda segmen dan status draf §5.1, bukan sebagai ambang. |
 | **PAT** | Google Patents, US8359114B2 "Haptically enabled dental modeling system", DentsAble Inc (patents.google.com/patent/US8359114B2/en) | Diberikan 2013-01-22; status "Expired - Fee Related"; event "PATENT EXPIRED DUE TO NONPAYMENT OF MAINTENANCE FEES" (2017); expiration teradjust semula 2029-10-19. Google menulis: "The legal status is an assumption and is not a legal conclusion." |
 
 ## 3. Teeth3DS+: hasil pengecekan
@@ -114,8 +115,9 @@ Modul `core/synthetic.py`, numpy murni. Semua kurva dan permukaan didefinisikan 
    - Radius r = max(0,35 mm, 12 × σ), dengan σ derau yang diestimasi dari mesh (MAD perpindahan umbrella sepanjang normal; akurat 13/33/89 µm untuk derau 10/30/90 µm).
 2. **Graf biaya:** bobot edge = panjang × (0,02 + (1 − s)²), dengan s = skor **relatif terhadap titik klik** (dipotong di 1).
    - *Alasan:* tepi dasar die adalah crease yang lebih tajam daripada margin chamfer. Dengan skor absolut, jalur memutar 4 mm ke tepi dasar (terukur di S1).
-3. **Loop tertutup tanpa sumbu:** Dijkstra dari klik; titik jauh f = vertex "di punggungan" (biaya jalur ≤ 0,35 × jarak Euclid) yang terjauh dari klik. Jalur 1 = klik → f; jalur 2 = klik → f setelah jalur 1 dan dua cincin tetangganya diblokir, jadi lewat sisi lain die. Loop = jalur 1 + jalur 2.
+3. **Loop tertutup tanpa sumbu:** Dijkstra dari klik; titik jauh f = vertex "di punggungan" (biaya jalur ≤ 0,35 × jarak Euclid) **dan di crease (skor relatif ≥ 0,5)** yang terjauh dari klik. Jalur 1 = klik → f; jalur 2 = klik → f setelah jalur 1 dan dua cincin tetangganya diblokir, jadi lewat sisi lain die. Loop = jalur 1 + jalur 2.
    - *Beda dari rancangan:* versi pertama memakai seam berbasis sumbu perkiraan. Sumbu yang miring (margin scallop, crease lain) menghasilkan "loop" 3 sampai 34 vertex di sekitar titik tembus sumbu, jadi diganti metode dua jalur ini.
+   - *Syarat crease untuk f* (ditambahkan setelah set uji pertama): kriteria punggungan sendiri mengizinkan simpangan yang sebanding dengan jarak. Pada insisif sentral (radius 3,6 / 3,2 mm, PL 3,2 mm), f jatuh 1,7 mm di dinding aksial di atas puncak proksimal (skor relatif 0,03-0,07, sementara di margin sekitar 1). Kedua jalur ikut naik ke sana, dan puncak proksimal terpotong sekitar 0,7 mm. Nilai 0,5: persentil 10 skor relatif vertex di margin benar dekat puncak adalah 0,52-0,65 pada kasus itu.
 4. **Penyempurnaan ke crease:** setiap titik sampel loop (jarak 0,15 mm) dipindah ke garis potong dua permukaan di kedua sisi crease.
    - Tetangga dalam radius max(0,6 mm, 12σ) dikelompokkan dengan 2-means pada normal halus.
    - Lintasan 1 memakai bidang; lintasan 2 (3 iterasi) memakai **bidang singgung kuadrik per sisi** di dalam pita sempit sekitar garis, supaya busur chamfer tidak membiaskan hasil (bidang sekan memberi bias sekitar 40 µm pada chamfer).
@@ -154,172 +156,229 @@ Modul `core/synthetic.py`, numpy murni. Semua kurva dan permukaan didefinisikan 
 | Titik crease cukup rapat untuk dihaluskan | ≥ 4 tetangga berbobot berarti | Sebelumnya bisa berakhir sebagai error aljabar linear yang tidak jelas. |
 
    Semua ambang di atas adalah ambang algoritma tanpa sumber klinis, dipilih dari sapuan pada **set tuning saja**. Setelah metrik panjang diganti, sapuan ulang pada set tuning dan tuning2 (semua ambang dibuka, 3 seed, derau 0 sampai 90 µm) memberi rasio 0,980 sampai 0,996 untuk semua 139 kurva baik. Rentang yang lebih sempit (0,93 sampai 1,05, 0,95 sampai 1,03, 0,96 sampai 1,02) tidak menangkap satu pun kurva buruk tambahan, jadi rentang 0,90 sampai 1,12 dipertahankan. Set uji di bawah tidak dipakai untuk memilih apa pun.
-3. **Bukti tidak ada kurva buruk tanpa pesan:** tes `test_every_90um_case_stops_with_the_noise_warning` (8 kasus derau 90 µm: shoulder/chamfer × scallop 0/1 mm × 2 seed) mewajibkan `MarginNoiseError`. Benchmark menghitung kolom "Kurva buruk tanpa pesan" (kurva dikembalikan tetapi median > 50 µm atau cakupan p95 > 150 µm) untuk setiap seed.
-4. **Temuan: lapis kedua belum lengkap.** Dengan pengaman derau dimatikan (`check_noise=False`), pemeriksaan kewajaran saja **meloloskan 3 dari 48** kurva buruk pada derau 90 µm (semua shoulder; median 184, 208, 247 µm), karena kurva itu tertutup, panjangnya wajar, dan dekat titik klik, hanya bergeser dari crease. Jadi pengaman derau adalah pelindung utama, bukan cadangan. Satu kasus yang lolos dicatat sebagai xfail ketat di `test_without_noise_guard_bad_90um_curves_are_still_rejected`, sehingga tes gagal bila suatu saat kasus itu tertangkap dan catatan ini perlu diperbarui.
+3. **Penanda segmen meragukan** (`review_curve`, merah di viewport, "N segments need review" di pesan): lihat bagian "Draf, penanda merah, dan konfirmasi" di bawah.
+4. **Bukti:** tes `test_every_90um_case_stops_with_the_noise_warning` (8 kasus derau 90 µm: shoulder/chamfer × scallop 0/1 mm × 2 seed) mewajibkan `MarginNoiseError`. Benchmark menghitung "Kurva buruk tanpa pesan" = kurva dikembalikan, median > 50 µm atau cakupan p95 > 150 µm, **dan** tanpa segmen merah.
+5. **Lapis kedua (pengaman derau dimatikan, `check_noise=False`), 48 kasus derau 90 µm:** pemeriksaan kewajaran saja meloloskan 3 kurva buruk (shoulder; median 184, 208, 247 µm), karena kurva itu tertutup, panjangnya wajar, dan dekat titik klik. Dengan segmen merah ikut dihitung: **0 dari 48** lolos tanpa pesan dan tanpa merah. Tes `test_without_noise_guard_bad_90um_curves_are_rejected_or_flagged` (8 kasus) mewajibkannya. Pengaman derau tetap pelindung utama.
 
-**Scallop: definisi.** `DieSpec.scallop_mm` adalah amplitudo A pada z = z0 + A·cos 2θ, jadi tinggi **puncak-lembah (PL) = 2A**. Lengkungan CEJ di GLC (§2.1) diukur dari titik terdalam ke puncak proksimal, jadi sebanding dengan PL. Tabel di bawah menulis PL. Varian "scallop 2 mm" di laporan sebelumnya adalah A = 2 mm, atau PL 4 mm, di atas lengkungan CEJ rata-rata terbesar di GLC (3,46 mm).
+**Scallop: definisi.** `DieSpec.scallop_mm` adalah amplitudo A pada z = z0 + A·cos 2θ, jadi tinggi **puncak-lembah (PL) = 2A**. Lengkungan CEJ di GLC (§2.1) diukur dari titik terdalam ke puncak proksimal, jadi sebanding dengan PL. Tabel di bawah menulis PL. Varian "scallop 2 mm" di laporan lama adalah A = 2 mm, atau PL 4 mm, di atas lengkungan CEJ rata-rata terbesar di GLC (3,46 mm).
 
-**Tiga set data.**
-- **tuning**: die standar (5,0 / 4,5 mm, tinggi 5 mm, taper 6°) tanpa scallop, PL 2,0 mm, serta varian lengkungan CEJ dari GLC: PL 2,5 mm (sekitar kaninus/lateral) dan PL 3,5 mm (sekitar insisif sentral mesial).
-- **tuning2**: dulu set "unseen" untuk uji overfitting. Hasilnya sudah dipakai untuk memperbaiki metrik panjang, jadi set ini tidak lagi belum dilihat.
-- **uji**: lima kombinasi baru, didefinisikan lalu **dikunci bersama semua parameter dan ambang di commit `a351e40`** sebelum dijalankan, lalu dijalankan sekali. Setelah itu tidak ada parameter yang diubah.
+**Draf, penanda merah, dan konfirmasi.** Alasan klinis (JPM, §2.1): pada crown yang lolos pemeriksaan klinis, hampir separuh sisi proksimal masih punya diskrepansi di radiografi, dan sisi interproksimal paling sulit diperiksa dokter. Jadi kurva otomatis tidak boleh langsung dipakai.
+- **Penanda segmen** (`core.margin.review_curve`): kurva diambil 256 titik sampel; tiap titik disempurnakan ulang ke crease lokal (cara yang sama dengan langkah 4). Titik ditandai bila **residual** (jarak titik kurva ke crease lokal) > 0,08 mm, tidak ada crease di sekitarnya, atau **sudut crease** < 30°. Run tertanda sepanjang ≥ 2 sampel menjadi satu segmen. Fungsi ini bekerja untuk kurva apa pun (Detect, Draw, setelah Update), karena hanya butuh mesh dan kurva.
+- **Ambang dipilih dari set tuning dan tuning2 saja** (140 kurva, 3 seed, derau 0/10/30 µm, `review_sweep`): residual kurva baik p50 12 µm, p99 92 µm, maks 278 µm; sudut crease kurva baik p0,1 37°. Hanya ada satu kurva buruk di kedua set (CEJ PL 3,5, chamfer 30 µm, median 53 µm), dengan residual maksimum 104 µm.
 
-| Set uji | Radius x/y | Tinggi | Taper | Lebar finish | PL scallop | Lainnya |
+| Residual | Run | Kurva baik bertanda | Kurva buruk bertanda |
+|---|---|---|---|
+| 0,06 mm | 2 | 51% | 1/1 |
+| **0,08 mm** | **2** | **32%** (derau 0: 6%, 10: 19%, 30: 74%) | **1/1** |
+| 0,10 mm | 2 | 17% (derau 0: 2%, 10: 10%, 30: 42%) | 1/1, hanya selisih 4 µm |
+| 0,12 mm | 2 | 11% | 0/1 |
+
+  Dipilih 0,08 mm (sensitivitas di atas kenyamanan, sesuai alasan klinis). Harganya: pada derau 30 µm, kebanyakan kurva baik juga punya segmen merah. Sudut 30° tidak mengubah apa pun di data tuning (sama dengan sudut minimum penyempurnaan).
+- **Keterbatasan yang terukur:** penanda ini lemah dalam menunjuk **lokasi** kesalahan. Di tuning dan tuning2, hanya 83 dari 367 titik sampel yang galatnya > 0,1 mm berada di dalam atau di sebelah segmen merah. Pada satu-satunya kurva buruk di set tuning (CEJ PL 3,5), segmen merahnya berjarak sekitar 7,5 mm dari bagian yang melenceng; kurva itu tertangkap karena kebetulan. Pada kurva buruk di set uji (premolar taper 16°), segmen merahnya berada di bagian yang melenceng (median 0,17 mm). Jadi segmen merah adalah tanda "periksa kurva ini", bukan peta galat yang lengkap.
+- **Status draf:** setiap Detect, Draw, dan Update menulis `dentalcad_margin_status = "draft"`. **Confirm Margin** mengubahnya ke "confirmed", menolak kurva yang titiknya diedit tanpa Update, dan, bila masih ada segmen merah, meminta persetujuan eksplisit (dialog konfirmasi, atau `accept_flagged=True`).
+- **Gerbang:** `ops.margin.require_confirmed_margin(die)` hanya lolos untuk margin berstatus confirmed yang titik kontrolnya sama dengan saat dikonfirmasi. **Operator §5.2 sampai §5.7 (sumbu insersi, spacer, crown, ekspor STL crown) wajib memanggil gerbang ini dan menolak jalan untuk margin draf.** Operator itu belum ada, jadi yang diuji sekarang adalah gerbangnya sendiri. Ekspor kupon Fase 1 tidak memakai margin dan tidak terpengaruh.
+
+**Riwayat set.**
+- **tuning**: die standar (5,0 / 4,5 mm, tinggi 5 mm, taper 6°) tanpa scallop, PL 2,0 mm, dan varian lengkungan CEJ dari GLC (PL 2,5 dan 3,5 mm).
+- **tuning2**: set "unseen" pertama; dipakai untuk memperbaiki metrik panjang.
+- **tuning3**: set uji pertama, dikunci di commit `a351e40` dan dijalankan sekali. Hasilnya saat itu: 3 kurva buruk tanpa pesan, semuanya insisif sentral (median 20-27 µm, tetapi cakupan p95 266-304 µm, puncak proksimal terpotong 660-690 µm). Kasus itu dipakai untuk memperbaiki pemilihan titik jauh, jadi set ini sekarang set tuning.
+- **uji**: set uji kedua, didefinisikan dan dikunci bersama semua parameter, ambang kewajaran, dan ambang penanda di commit `3e17128`, lalu dijalankan sekali.
+
+| Set uji kedua | Radius x/y | Tinggi | Taper | Lebar finish | PL scallop | Lainnya |
 |---|---|---|---|---|---|---|
-| insisif sentral | 3,6 / 3,2 mm | 5,5 mm | 8° | 0,8 mm | 3,2 mm | |
-| kaninus | 3,4 / 4,0 mm | 6,0 mm | 5° | 1,0 mm | 2,4 mm | sumbu panjang di y |
-| molar pendek | 5,6 / 5,0 mm | 3,5 mm | 12° | 1,0 mm | 0,8 mm | |
-| premolar elips | 4,4 / 3,1 mm | 4,5 mm | 7° | 1,0 mm | 1,6 mm | |
-| undercut 8 derajat | 4,8 / 4,3 mm | 5,0 mm | 3° | 1,0 mm | 1,2 mm | sektor undercut 8° di 90° |
+| lateral | 3,2 / 2,9 mm | 5,0 mm | 6° | 0,7 mm | 2,9 mm | |
+| kaninus lebar | 3,6 / 4,4 mm | 6,5 mm | 9° | 1,0 mm | 2,5 mm | sumbu panjang di y |
+| molar lebar pendek | 6,4 / 5,8 mm | 4,0 mm | 8° | 1,2 mm | 1,4 mm | |
+| premolar taper 16 | 4,0 / 3,6 mm | 4,5 mm | 16° | 1,0 mm | 1,0 mm | |
+| undercut di puncak | 4,6 / 4,1 mm | 5,5 mm | 4° | 1,0 mm | 2,0 mm | sektor undercut 12° tepat di puncak proksimal (0°) |
 
-Semua tabel: `python scripts/margin_benchmark.py --set <set> --seeds 3`, 2026-10-23, pengaman aktif. Die sintetis dengan rotasi acak, mesh ber-jitter, titik klik acak di sekitar margin (simpangan 0,15 mm). Nilai per baris = **nilai terburuk dari 3 seed**, hanya dari seed yang menghasilkan kurva. Kriteria: median ≤ 50 µm dan cakupan p95 ≤ 150 µm. Tidak ada baris yang disembunyikan.
+Semua tabel: `python scripts/margin_benchmark.py --set <set> --seeds 3`, 2026-10-23, parameter dari `3e17128`, pengaman aktif. Die sintetis dengan rotasi acak, mesh ber-jitter, titik klik acak di sekitar margin (simpangan 0,15 mm). Nilai per baris = **nilai terburuk dari 3 seed**, hanya dari seed yang menghasilkan kurva. Kriteria: median ≤ 50 µm dan cakupan p95 ≤ 150 µm. "kurva+merah" = kurva dengan ≥ 1 segmen merah. Tidak ada baris yang disembunyikan.
 
 **Set tuning:**
 
-| Die | Finish | Derau | Hasil per seed | Median | p95 | Cakupan p95 | Memenuhi kriteria | Kurva buruk tanpa pesan |
-|---|---|---|---|---|---|---|---|---|
-| standar | shoulder | 0 µm | kurva 3 | 14,7 µm | 27,6 µm | 28,8 µm | ya | 0 |
-| standar | shoulder | 10 µm | kurva 3 | 19,1 µm | 31,4 µm | 31,3 µm | ya | 0 |
-| standar | shoulder | 30 µm | kurva 3 | 36,2 µm | 106,2 µm | 104,4 µm | ya | 0 |
-| standar | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| standar | chamfer | 0 µm | kurva 3 | 26,7 µm | 64,0 µm | 64,1 µm | ya | 0 |
-| standar | chamfer | 10 µm | kurva 3 | 30,8 µm | 69,9 µm | 69,3 µm | ya | 0 |
-| standar | chamfer | 30 µm | kurva 3 | 42,1 µm | 119,6 µm | 117,5 µm | ya | 0 |
-| standar | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| scallop PL 2,0 mm | shoulder | 0 µm | kurva 3 | 16,7 µm | 48,7 µm | 45,0 µm | ya | 0 |
-| scallop PL 2,0 mm | shoulder | 10 µm | kurva 3 | 18,2 µm | 38,5 µm | 38,6 µm | ya | 0 |
-| scallop PL 2,0 mm | shoulder | 30 µm | kurva 3 | 30,6 µm | 68,3 µm | 66,7 µm | ya | 0 |
-| scallop PL 2,0 mm | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| scallop PL 2,0 mm | chamfer | 0 µm | kurva 3 | 31,8 µm | 54,9 µm | 55,1 µm | ya | 0 |
-| scallop PL 2,0 mm | chamfer | 10 µm | kurva 3 | 34,3 µm | 67,2 µm | 65,9 µm | ya | 0 |
-| scallop PL 2,0 mm | chamfer | 30 µm | kurva 3 | 49,5 µm | 100,2 µm | 100,0 µm | ya | 0 |
-| scallop PL 2,0 mm | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| CEJ PL 2,5 mm | shoulder | 0 µm | kurva 3 | 15,2 µm | 42,4 µm | 51,1 µm | ya | 0 |
-| CEJ PL 2,5 mm | shoulder | 10 µm | kurva 3 | 17,5 µm | 32,9 µm | 33,0 µm | ya | 0 |
-| CEJ PL 2,5 mm | shoulder | 30 µm | kurva 3 | 28,3 µm | 68,1 µm | 66,8 µm | ya | 0 |
-| CEJ PL 2,5 mm | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| CEJ PL 2,5 mm | chamfer | 0 µm | kurva 3 | 35,3 µm | 61,3 µm | 61,4 µm | ya | 0 |
-| CEJ PL 2,5 mm | chamfer | 10 µm | kurva 3 | 37,3 µm | 74,9 µm | 73,6 µm | ya | 0 |
-| CEJ PL 2,5 mm | chamfer | 30 µm | kurva 3 | 45,3 µm | 107,5 µm | 109,6 µm | ya | 0 |
-| CEJ PL 2,5 mm | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| CEJ PL 3,5 mm | shoulder | 0 µm | kurva 3 | 15,2 µm | 35,4 µm | 35,4 µm | ya | 0 |
-| CEJ PL 3,5 mm | shoulder | 10 µm | kurva 3 | 18,7 µm | 31,2 µm | 31,6 µm | ya | 0 |
-| CEJ PL 3,5 mm | shoulder | 30 µm | kurva 3 | 28,1 µm | 65,2 µm | 64,8 µm | ya | 0 |
-| CEJ PL 3,5 mm | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| CEJ PL 3,5 mm | chamfer | 0 µm | kurva 3 | 38,3 µm | 69,9 µm | 70,7 µm | ya | 0 |
-| CEJ PL 3,5 mm | chamfer | 10 µm | kurva 3 | 41,3 µm | 69,0 µm | 69,8 µm | ya | 0 |
-| CEJ PL 3,5 mm | chamfer | 30 µm | kurva 3 | 52,7 µm | 106,1 µm | 107,6 µm | **tidak** | 1 |
-| CEJ PL 3,5 mm | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
+| Die | Finish | Derau | Hasil per seed | Median | p95 | Cakupan p95 | Memenuhi kriteria | Buruk, bertanda merah | Baik, bertanda merah | Kurva buruk tanpa pesan |
+|---|---|---|---|---|---|---|---|---|---|---|
+| standar | shoulder | 0 µm | kurva 3 | 14,7 µm | 24,6 µm | 24,6 µm | ya | 0 | 0 | 0 |
+| standar | shoulder | 10 µm | kurva 3 | 18,7 µm | 29,7 µm | 29,6 µm | ya | 0 | 0 | 0 |
+| standar | shoulder | 30 µm | kurva 1, kurva+merah 2 | 34,7 µm | 81,6 µm | 80,9 µm | ya | 0 | 2 | 0 |
+| standar | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| standar | chamfer | 0 µm | kurva 3 | 26,4 µm | 64,0 µm | 64,1 µm | ya | 0 | 0 | 0 |
+| standar | chamfer | 10 µm | kurva 3 | 28,9 µm | 71,4 µm | 70,7 µm | ya | 0 | 0 | 0 |
+| standar | chamfer | 30 µm | kurva+merah 3 | 41,0 µm | 123,9 µm | 121,8 µm | ya | 0 | 3 | 0 |
+| standar | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| scallop PL 2,0 mm | shoulder | 0 µm | kurva 3 | 15,9 µm | 30,2 µm | 30,9 µm | ya | 0 | 0 | 0 |
+| scallop PL 2,0 mm | shoulder | 10 µm | kurva 3 | 18,2 µm | 35,8 µm | 35,9 µm | ya | 0 | 0 | 0 |
+| scallop PL 2,0 mm | shoulder | 30 µm | kurva 1, kurva+merah 2 | 30,0 µm | 75,0 µm | 73,1 µm | ya | 0 | 2 | 0 |
+| scallop PL 2,0 mm | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| scallop PL 2,0 mm | chamfer | 0 µm | kurva 2, kurva+merah 1 | 31,8 µm | 54,9 µm | 55,1 µm | ya | 0 | 1 | 0 |
+| scallop PL 2,0 mm | chamfer | 10 µm | kurva 2, kurva+merah 1 | 33,1 µm | 69,7 µm | 68,7 µm | ya | 0 | 1 | 0 |
+| scallop PL 2,0 mm | chamfer | 30 µm | kurva+merah 3 | 49,5 µm | 100,2 µm | 100,0 µm | ya | 0 | 3 | 0 |
+| scallop PL 2,0 mm | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| CEJ PL 2,5 mm | shoulder | 0 µm | kurva 3 | 15,2 µm | 31,6 µm | 32,0 µm | ya | 0 | 0 | 0 |
+| CEJ PL 2,5 mm | shoulder | 10 µm | kurva 3 | 17,4 µm | 33,3 µm | 33,7 µm | ya | 0 | 0 | 0 |
+| CEJ PL 2,5 mm | shoulder | 30 µm | kurva 1, kurva+merah 2 | 27,5 µm | 63,4 µm | 63,0 µm | ya | 0 | 2 | 0 |
+| CEJ PL 2,5 mm | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| CEJ PL 2,5 mm | chamfer | 0 µm | kurva 2, kurva+merah 1 | 32,4 µm | 61,3 µm | 61,4 µm | ya | 0 | 1 | 0 |
+| CEJ PL 2,5 mm | chamfer | 10 µm | kurva 1, kurva+merah 2 | 37,5 µm | 63,9 µm | 64,3 µm | ya | 0 | 2 | 0 |
+| CEJ PL 2,5 mm | chamfer | 30 µm | kurva+merah 3 | 45,3 µm | 107,5 µm | 109,6 µm | ya | 0 | 3 | 0 |
+| CEJ PL 2,5 mm | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| CEJ PL 3,5 mm | shoulder | 0 µm | kurva 3 | 15,5 µm | 33,8 µm | 34,6 µm | ya | 0 | 0 | 0 |
+| CEJ PL 3,5 mm | shoulder | 10 µm | kurva 2, kurva+merah 1 | 17,8 µm | 29,9 µm | 31,1 µm | ya | 0 | 1 | 0 |
+| CEJ PL 3,5 mm | shoulder | 30 µm | kurva 1, kurva+merah 2 | 27,4 µm | 71,3 µm | 71,3 µm | ya | 0 | 2 | 0 |
+| CEJ PL 3,5 mm | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| CEJ PL 3,5 mm | chamfer | 0 µm | kurva 3 | 36,7 µm | 69,7 µm | 70,4 µm | ya | 0 | 0 | 0 |
+| CEJ PL 3,5 mm | chamfer | 10 µm | kurva 2, kurva+merah 1 | 40,4 µm | 69,2 µm | 69,6 µm | ya | 0 | 1 | 0 |
+| CEJ PL 3,5 mm | chamfer | 30 µm | kurva+merah 3 | 52,7 µm | 106,1 µm | 107,6 µm | **tidak** | 1 | 2 | 0 |
+| CEJ PL 3,5 mm | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
 
 **Set tuning2:**
 
-| Die | Finish | Derau | Hasil per seed | Median | p95 | Cakupan p95 | Memenuhi kriteria | Kurva buruk tanpa pesan |
-|---|---|---|---|---|---|---|---|---|
-| premolar kecil (PL 1,0) | shoulder | 0 µm | kurva 3 | 14,6 µm | 38,8 µm | 40,6 µm | ya | 0 |
-| premolar kecil (PL 1,0) | shoulder | 10 µm | kurva 3 | 17,9 µm | 34,2 µm | 36,0 µm | ya | 0 |
-| premolar kecil (PL 1,0) | shoulder | 30 µm | kurva 3 | 33,6 µm | 73,6 µm | 73,3 µm | ya | 0 |
-| premolar kecil (PL 1,0) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| premolar kecil (PL 1,0) | chamfer | 0 µm | kurva 3 | 22,9 µm | 45,4 µm | 45,3 µm | ya | 0 |
-| premolar kecil (PL 1,0) | chamfer | 10 µm | kurva 3 | 29,8 µm | 56,6 µm | 56,8 µm | ya | 0 |
-| premolar kecil (PL 1,0) | chamfer | 30 µm | error 1, kurva 2 | 44,0 µm | 108,6 µm | 106,4 µm | **tidak** | 0 |
-| premolar kecil (PL 1,0) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| molar besar (PL 3,0) | shoulder | 0 µm | kurva 3 | 15,6 µm | 50,8 µm | 58,8 µm | ya | 0 |
-| molar besar (PL 3,0) | shoulder | 10 µm | kurva 3 | 16,6 µm | 29,8 µm | 30,0 µm | ya | 0 |
-| molar besar (PL 3,0) | shoulder | 30 µm | kurva 3 | 26,7 µm | 73,5 µm | 73,8 µm | ya | 0 |
-| molar besar (PL 3,0) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| molar besar (PL 3,0) | chamfer | 0 µm | kurva 3 | 40,9 µm | 69,6 µm | 69,6 µm | ya | 0 |
-| molar besar (PL 3,0) | chamfer | 10 µm | kurva 3 | 43,7 µm | 77,2 µm | 77,2 µm | ya | 0 |
-| molar besar (PL 3,0) | chamfer | 30 µm | kurva 3 | 46,0 µm | 106,1 µm | 107,3 µm | ya | 0 |
-| molar besar (PL 3,0) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| taper lebar (PL 0,6) | shoulder | 0 µm | kurva 3 | 14,8 µm | 35,3 µm | 38,0 µm | ya | 0 |
-| taper lebar (PL 0,6) | shoulder | 10 µm | kurva 3 | 18,9 µm | 38,6 µm | 40,7 µm | ya | 0 |
-| taper lebar (PL 0,6) | shoulder | 30 µm | kurva 3 | 36,0 µm | 90,4 µm | 89,6 µm | ya | 0 |
-| taper lebar (PL 0,6) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| taper lebar (PL 0,6) | chamfer | 0 µm | kurva 3 | 27,0 µm | 56,1 µm | 56,3 µm | ya | 0 |
-| taper lebar (PL 0,6) | chamfer | 10 µm | kurva 3 | 29,8 µm | 62,7 µm | 63,4 µm | ya | 0 |
-| taper lebar (PL 0,6) | chamfer | 30 µm | error 1, kurva 2 | 45,1 µm | 113,6 µm | 111,1 µm | **tidak** | 0 |
-| taper lebar (PL 0,6) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| scallop dalam (PL 4,0) | shoulder | 0 µm | kurva 3 | 16,1 µm | 35,5 µm | 36,1 µm | ya | 0 |
-| scallop dalam (PL 4,0) | shoulder | 10 µm | kurva 3 | 18,6 µm | 35,1 µm | 35,6 µm | ya | 0 |
-| scallop dalam (PL 4,0) | shoulder | 30 µm | kurva 3 | 28,2 µm | 65,5 µm | 65,6 µm | ya | 0 |
-| scallop dalam (PL 4,0) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| scallop dalam (PL 4,0) | chamfer | 0 µm | kurva 3 | 34,5 µm | 68,0 µm | 67,2 µm | ya | 0 |
-| scallop dalam (PL 4,0) | chamfer | 10 µm | kurva 3 | 36,7 µm | 76,3 µm | 77,3 µm | ya | 0 |
-| scallop dalam (PL 4,0) | chamfer | 30 µm | error 1, kurva 1, tidak wajar 1 | 45,6 µm | 96,3 µm | 99,7 µm | **tidak** | 0 |
-| scallop dalam (PL 4,0) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
+| Die | Finish | Derau | Hasil per seed | Median | p95 | Cakupan p95 | Memenuhi kriteria | Buruk, bertanda merah | Baik, bertanda merah | Kurva buruk tanpa pesan |
+|---|---|---|---|---|---|---|---|---|---|---|
+| premolar kecil (PL 1,0) | shoulder | 0 µm | kurva 3 | 14,3 µm | 29,1 µm | 29,2 µm | ya | 0 | 0 | 0 |
+| premolar kecil (PL 1,0) | shoulder | 10 µm | kurva 3 | 17,7 µm | 31,7 µm | 31,8 µm | ya | 0 | 0 | 0 |
+| premolar kecil (PL 1,0) | shoulder | 30 µm | kurva 1, kurva+merah 2 | 32,5 µm | 73,6 µm | 73,7 µm | ya | 0 | 2 | 0 |
+| premolar kecil (PL 1,0) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| premolar kecil (PL 1,0) | chamfer | 0 µm | kurva 3 | 21,9 µm | 46,6 µm | 46,6 µm | ya | 0 | 0 | 0 |
+| premolar kecil (PL 1,0) | chamfer | 10 µm | kurva 3 | 26,1 µm | 47,8 µm | 48,0 µm | ya | 0 | 0 | 0 |
+| premolar kecil (PL 1,0) | chamfer | 30 µm | error 1, kurva+merah 2 | 44,5 µm | 118,9 µm | 117,9 µm | **tidak** | 0 | 2 | 0 |
+| premolar kecil (PL 1,0) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| molar besar (PL 3,0) | shoulder | 0 µm | kurva 3 | 15,8 µm | 29,1 µm | 29,6 µm | ya | 0 | 0 | 0 |
+| molar besar (PL 3,0) | shoulder | 10 µm | kurva 2, kurva+merah 1 | 16,2 µm | 29,9 µm | 30,0 µm | ya | 0 | 1 | 0 |
+| molar besar (PL 3,0) | shoulder | 30 µm | kurva 1, kurva+merah 2 | 25,4 µm | 53,2 µm | 53,2 µm | ya | 0 | 2 | 0 |
+| molar besar (PL 3,0) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| molar besar (PL 3,0) | chamfer | 0 µm | kurva 2, kurva+merah 1 | 40,8 µm | 69,5 µm | 69,6 µm | ya | 0 | 1 | 0 |
+| molar besar (PL 3,0) | chamfer | 10 µm | kurva 3 | 43,7 µm | 77,2 µm | 77,2 µm | ya | 0 | 0 | 0 |
+| molar besar (PL 3,0) | chamfer | 30 µm | kurva 2, kurva+merah 1 | 48,3 µm | 106,1 µm | 107,3 µm | ya | 0 | 1 | 0 |
+| molar besar (PL 3,0) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| taper lebar (PL 0,6) | shoulder | 0 µm | kurva 3 | 14,0 µm | 25,3 µm | 25,6 µm | ya | 0 | 0 | 0 |
+| taper lebar (PL 0,6) | shoulder | 10 µm | kurva 3 | 18,6 µm | 32,0 µm | 32,0 µm | ya | 0 | 0 | 0 |
+| taper lebar (PL 0,6) | shoulder | 30 µm | kurva 1, kurva+merah 2 | 33,7 µm | 89,7 µm | 89,0 µm | ya | 0 | 2 | 0 |
+| taper lebar (PL 0,6) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| taper lebar (PL 0,6) | chamfer | 0 µm | kurva 3 | 26,0 µm | 53,2 µm | 53,5 µm | ya | 0 | 0 | 0 |
+| taper lebar (PL 0,6) | chamfer | 10 µm | kurva 1, kurva+merah 2 | 32,4 µm | 66,8 µm | 66,8 µm | ya | 0 | 2 | 0 |
+| taper lebar (PL 0,6) | chamfer | 30 µm | error 1, kurva+merah 2 | 43,9 µm | 113,0 µm | 110,3 µm | **tidak** | 0 | 2 | 0 |
+| taper lebar (PL 0,6) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| scallop dalam (PL 4,0) | shoulder | 0 µm | kurva 3 | 14,7 µm | 35,4 µm | 36,1 µm | ya | 0 | 0 | 0 |
+| scallop dalam (PL 4,0) | shoulder | 10 µm | kurva 3 | 18,4 µm | 35,8 µm | 36,2 µm | ya | 0 | 0 | 0 |
+| scallop dalam (PL 4,0) | shoulder | 30 µm | kurva 2, kurva+merah 1 | 28,6 µm | 65,8 µm | 65,8 µm | ya | 0 | 1 | 0 |
+| scallop dalam (PL 4,0) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| scallop dalam (PL 4,0) | chamfer | 0 µm | kurva 3 | 34,0 µm | 67,6 µm | 66,9 µm | ya | 0 | 0 | 0 |
+| scallop dalam (PL 4,0) | chamfer | 10 µm | kurva 2, kurva+merah 1 | 36,8 µm | 76,7 µm | 77,6 µm | ya | 0 | 1 | 0 |
+| scallop dalam (PL 4,0) | chamfer | 30 µm | error 1, kurva+merah 1, tidak wajar 1 | 45,6 µm | 96,3 µm | 99,7 µm | **tidak** | 0 | 1 | 0 |
+| scallop dalam (PL 4,0) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
 
-**Set uji (dijalankan sekali, parameter dari `a351e40`):**
+**Set tuning3:**
 
-| Die | Finish | Derau | Hasil per seed | Median | p95 | Cakupan p95 | Memenuhi kriteria | Kurva buruk tanpa pesan |
-|---|---|---|---|---|---|---|---|---|
-| insisif sentral (PL 3,2) | shoulder | 0 µm | kurva 3 | 11,9 µm | 26,7 µm | 27,1 µm | ya | 0 |
-| insisif sentral (PL 3,2) | shoulder | 10 µm | kurva 3 | 14,5 µm | 27,3 µm | 28,2 µm | ya | 0 |
-| insisif sentral (PL 3,2) | shoulder | 30 µm | kurva 3 | 28,3 µm | 401,5 µm | 266,1 µm | **tidak** | 1 |
-| insisif sentral (PL 3,2) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| insisif sentral (PL 3,2) | chamfer | 0 µm | kurva 3 | 21,6 µm | 401,7 µm | 304,3 µm | **tidak** | 1 |
-| insisif sentral (PL 3,2) | chamfer | 10 µm | kurva 3 | 27,4 µm | 351,3 µm | 244,6 µm | **tidak** | 1 |
-| insisif sentral (PL 3,2) | chamfer | 30 µm | kurva 2, tidak wajar 1 | 47,1 µm | 92,1 µm | 92,0 µm | **tidak** | 0 |
-| insisif sentral (PL 3,2) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| kaninus (PL 2,4) | shoulder | 0 µm | kurva 3 | 14,6 µm | 30,8 µm | 30,8 µm | ya | 0 |
-| kaninus (PL 2,4) | shoulder | 10 µm | kurva 3 | 19,6 µm | 31,4 µm | 31,4 µm | ya | 0 |
-| kaninus (PL 2,4) | shoulder | 30 µm | kurva 3 | 33,0 µm | 73,3 µm | 74,6 µm | ya | 0 |
-| kaninus (PL 2,4) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| kaninus (PL 2,4) | chamfer | 0 µm | kurva 3 | 27,8 µm | 50,3 µm | 50,4 µm | ya | 0 |
-| kaninus (PL 2,4) | chamfer | 10 µm | kurva 3 | 29,9 µm | 54,4 µm | 54,5 µm | ya | 0 |
-| kaninus (PL 2,4) | chamfer | 30 µm | error 1, kurva 2 | 42,4 µm | 93,7 µm | 94,0 µm | **tidak** | 0 |
-| kaninus (PL 2,4) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| molar pendek (PL 0,8) | shoulder | 0 µm | kurva 3 | 15,3 µm | 31,1 µm | 31,2 µm | ya | 0 |
-| molar pendek (PL 0,8) | shoulder | 10 µm | kurva 3 | 17,2 µm | 32,1 µm | 33,0 µm | ya | 0 |
-| molar pendek (PL 0,8) | shoulder | 30 µm | kurva 3 | 30,0 µm | 59,3 µm | 59,4 µm | ya | 0 |
-| molar pendek (PL 0,8) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| molar pendek (PL 0,8) | chamfer | 0 µm | kurva 3 | 34,3 µm | 74,2 µm | 74,2 µm | ya | 0 |
-| molar pendek (PL 0,8) | chamfer | 10 µm | kurva 3 | 35,7 µm | 73,1 µm | 73,3 µm | ya | 0 |
-| molar pendek (PL 0,8) | chamfer | 30 µm | kurva 3 | 47,7 µm | 104,3 µm | 104,2 µm | ya | 0 |
-| molar pendek (PL 0,8) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| premolar elips (PL 1,6) | shoulder | 0 µm | kurva 3 | 15,3 µm | 53,9 µm | 65,3 µm | ya | 0 |
-| premolar elips (PL 1,6) | shoulder | 10 µm | kurva 3 | 19,4 µm | 52,3 µm | 63,2 µm | ya | 0 |
-| premolar elips (PL 1,6) | shoulder | 30 µm | kurva 3 | 33,1 µm | 103,2 µm | 100,9 µm | ya | 0 |
-| premolar elips (PL 1,6) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| premolar elips (PL 1,6) | chamfer | 0 µm | kurva 3 | 22,9 µm | 43,7 µm | 43,6 µm | ya | 0 |
-| premolar elips (PL 1,6) | chamfer | 10 µm | kurva 3 | 26,8 µm | 58,0 µm | 57,8 µm | ya | 0 |
-| premolar elips (PL 1,6) | chamfer | 30 µm | error 1, kurva 2 | 42,7 µm | 135,3 µm | 128,2 µm | **tidak** | 0 |
-| premolar elips (PL 1,6) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| undercut 8 derajat (PL 1,2) | shoulder | 0 µm | kurva 3 | 14,7 µm | 36,8 µm | 39,7 µm | ya | 0 |
-| undercut 8 derajat (PL 1,2) | shoulder | 10 µm | kurva 3 | 19,2 µm | 37,0 µm | 40,5 µm | ya | 0 |
-| undercut 8 derajat (PL 1,2) | shoulder | 30 µm | kurva 3 | 33,5 µm | 89,0 µm | 86,7 µm | ya | 0 |
-| undercut 8 derajat (PL 1,2) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
-| undercut 8 derajat (PL 1,2) | chamfer | 0 µm | kurva 3 | 28,0 µm | 55,3 µm | 55,9 µm | ya | 0 |
-| undercut 8 derajat (PL 1,2) | chamfer | 10 µm | kurva 3 | 31,3 µm | 63,7 µm | 62,8 µm | ya | 0 |
-| undercut 8 derajat (PL 1,2) | chamfer | 30 µm | kurva 3 | 44,2 µm | 122,6 µm | 122,2 µm | ya | 0 |
-| undercut 8 derajat (PL 1,2) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 |
+| Die | Finish | Derau | Hasil per seed | Median | p95 | Cakupan p95 | Memenuhi kriteria | Buruk, bertanda merah | Baik, bertanda merah | Kurva buruk tanpa pesan |
+|---|---|---|---|---|---|---|---|---|---|---|
+| insisif sentral (PL 3,2) | shoulder | 0 µm | kurva 3 | 11,6 µm | 27,7 µm | 27,9 µm | ya | 0 | 0 | 0 |
+| insisif sentral (PL 3,2) | shoulder | 10 µm | kurva 3 | 14,3 µm | 29,4 µm | 30,1 µm | ya | 0 | 0 | 0 |
+| insisif sentral (PL 3,2) | shoulder | 30 µm | kurva 2, kurva+merah 1 | 27,2 µm | 61,1 µm | 61,2 µm | ya | 0 | 1 | 0 |
+| insisif sentral (PL 3,2) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| insisif sentral (PL 3,2) | chamfer | 0 µm | kurva 3 | 19,3 µm | 44,9 µm | 45,8 µm | ya | 0 | 0 | 0 |
+| insisif sentral (PL 3,2) | chamfer | 10 µm | kurva 3 | 24,5 µm | 46,7 µm | 46,8 µm | ya | 0 | 0 | 0 |
+| insisif sentral (PL 3,2) | chamfer | 30 µm | kurva+merah 2, tidak wajar 1 | 46,1 µm | 95,2 µm | 95,2 µm | **tidak** | 0 | 2 | 0 |
+| insisif sentral (PL 3,2) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| kaninus (PL 2,4) | shoulder | 0 µm | kurva 3 | 14,7 µm | 30,5 µm | 30,6 µm | ya | 0 | 0 | 0 |
+| kaninus (PL 2,4) | shoulder | 10 µm | kurva 3 | 18,4 µm | 31,4 µm | 31,4 µm | ya | 0 | 0 | 0 |
+| kaninus (PL 2,4) | shoulder | 30 µm | kurva 2, kurva+merah 1 | 32,2 µm | 78,3 µm | 79,8 µm | ya | 0 | 1 | 0 |
+| kaninus (PL 2,4) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| kaninus (PL 2,4) | chamfer | 0 µm | kurva 3 | 26,5 µm | 50,5 µm | 50,5 µm | ya | 0 | 0 | 0 |
+| kaninus (PL 2,4) | chamfer | 10 µm | kurva 3 | 28,6 µm | 54,4 µm | 54,5 µm | ya | 0 | 0 | 0 |
+| kaninus (PL 2,4) | chamfer | 30 µm | error 1, kurva+merah 2 | 42,4 µm | 93,7 µm | 94,0 µm | **tidak** | 0 | 2 | 0 |
+| kaninus (PL 2,4) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| molar pendek (PL 0,8) | shoulder | 0 µm | kurva 3 | 15,5 µm | 26,9 µm | 27,3 µm | ya | 0 | 0 | 0 |
+| molar pendek (PL 0,8) | shoulder | 10 µm | kurva 3 | 17,1 µm | 30,4 µm | 30,4 µm | ya | 0 | 0 | 0 |
+| molar pendek (PL 0,8) | shoulder | 30 µm | kurva 1, kurva+merah 2 | 29,7 µm | 66,8 µm | 66,5 µm | ya | 0 | 2 | 0 |
+| molar pendek (PL 0,8) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| molar pendek (PL 0,8) | chamfer | 0 µm | kurva 2, kurva+merah 1 | 33,5 µm | 74,5 µm | 74,6 µm | ya | 0 | 1 | 0 |
+| molar pendek (PL 0,8) | chamfer | 10 µm | kurva 2, kurva+merah 1 | 34,7 µm | 73,4 µm | 73,3 µm | ya | 0 | 1 | 0 |
+| molar pendek (PL 0,8) | chamfer | 30 µm | kurva+merah 3 | 47,7 µm | 104,3 µm | 104,3 µm | ya | 0 | 3 | 0 |
+| molar pendek (PL 0,8) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| premolar elips (PL 1,6) | shoulder | 0 µm | kurva 3 | 15,1 µm | 29,5 µm | 31,9 µm | ya | 0 | 0 | 0 |
+| premolar elips (PL 1,6) | shoulder | 10 µm | kurva 3 | 19,2 µm | 34,2 µm | 34,5 µm | ya | 0 | 0 | 0 |
+| premolar elips (PL 1,6) | shoulder | 30 µm | kurva 2, kurva+merah 1 | 31,2 µm | 100,4 µm | 96,3 µm | ya | 0 | 1 | 0 |
+| premolar elips (PL 1,6) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| premolar elips (PL 1,6) | chamfer | 0 µm | kurva 3 | 22,9 µm | 48,9 µm | 49,0 µm | ya | 0 | 0 | 0 |
+| premolar elips (PL 1,6) | chamfer | 10 µm | kurva 1, kurva+merah 2 | 27,2 µm | 58,2 µm | 58,0 µm | ya | 0 | 2 | 0 |
+| premolar elips (PL 1,6) | chamfer | 30 µm | error 1, kurva+merah 2 | 42,7 µm | 135,3 µm | 128,2 µm | **tidak** | 0 | 2 | 0 |
+| premolar elips (PL 1,6) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| undercut 8 derajat (PL 1,2) | shoulder | 0 µm | kurva 3 | 14,9 µm | 27,2 µm | 27,3 µm | ya | 0 | 0 | 0 |
+| undercut 8 derajat (PL 1,2) | shoulder | 10 µm | kurva 3 | 19,3 µm | 30,4 µm | 30,6 µm | ya | 0 | 0 | 0 |
+| undercut 8 derajat (PL 1,2) | shoulder | 30 µm | kurva 1, kurva+merah 2 | 31,5 µm | 83,3 µm | 84,4 µm | ya | 0 | 2 | 0 |
+| undercut 8 derajat (PL 1,2) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| undercut 8 derajat (PL 1,2) | chamfer | 0 µm | kurva 3 | 28,5 µm | 46,5 µm | 46,6 µm | ya | 0 | 0 | 0 |
+| undercut 8 derajat (PL 1,2) | chamfer | 10 µm | kurva 1, kurva+merah 2 | 30,5 µm | 64,4 µm | 63,5 µm | ya | 0 | 2 | 0 |
+| undercut 8 derajat (PL 1,2) | chamfer | 30 µm | kurva+merah 3 | 44,4 µm | 130,7 µm | 126,8 µm | ya | 0 | 3 | 0 |
+| undercut 8 derajat (PL 1,2) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+
+**Set uji kedua (dijalankan sekali):**
+
+| Die | Finish | Derau | Hasil per seed | Median | p95 | Cakupan p95 | Memenuhi kriteria | Buruk, bertanda merah | Baik, bertanda merah | Kurva buruk tanpa pesan |
+|---|---|---|---|---|---|---|---|---|---|---|
+| lateral (PL 2,9) | shoulder | 0 µm | kurva 3 | 8,7 µm | 22,2 µm | 22,9 µm | ya | 0 | 0 | 0 |
+| lateral (PL 2,9) | shoulder | 10 µm | kurva 3 | 12,9 µm | 22,3 µm | 22,9 µm | ya | 0 | 0 | 0 |
+| lateral (PL 2,9) | shoulder | 30 µm | kurva 3 | 21,6 µm | 47,4 µm | 47,5 µm | ya | 0 | 0 | 0 |
+| lateral (PL 2,9) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| lateral (PL 2,9) | chamfer | 0 µm | kurva 1, kurva+merah 2 | 17,8 µm | 40,5 µm | 41,0 µm | ya | 0 | 2 | 0 |
+| lateral (PL 2,9) | chamfer | 10 µm | kurva 1, kurva+merah 2 | 23,5 µm | 44,9 µm | 45,4 µm | ya | 0 | 2 | 0 |
+| lateral (PL 2,9) | chamfer | 30 µm | kurva+merah 3 | 39,2 µm | 71,9 µm | 71,1 µm | ya | 0 | 3 | 0 |
+| lateral (PL 2,9) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| kaninus lebar (PL 2,5) | shoulder | 0 µm | kurva 3 | 16,6 µm | 30,0 µm | 30,0 µm | ya | 0 | 0 | 0 |
+| kaninus lebar (PL 2,5) | shoulder | 10 µm | kurva 3 | 18,9 µm | 31,4 µm | 31,3 µm | ya | 0 | 0 | 0 |
+| kaninus lebar (PL 2,5) | shoulder | 30 µm | kurva 2, kurva+merah 1 | 30,0 µm | 72,3 µm | 72,2 µm | ya | 0 | 1 | 0 |
+| kaninus lebar (PL 2,5) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| kaninus lebar (PL 2,5) | chamfer | 0 µm | kurva 3 | 30,4 µm | 58,4 µm | 58,2 µm | ya | 0 | 0 | 0 |
+| kaninus lebar (PL 2,5) | chamfer | 10 µm | kurva 1, kurva+merah 2 | 31,6 µm | 56,5 µm | 56,4 µm | ya | 0 | 2 | 0 |
+| kaninus lebar (PL 2,5) | chamfer | 30 µm | error 1, kurva+merah 2 | 48,0 µm | 107,9 µm | 108,2 µm | **tidak** | 0 | 2 | 0 |
+| kaninus lebar (PL 2,5) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| molar lebar pendek (PL 1,4) | shoulder | 0 µm | kurva 3 | 17,8 µm | 30,9 µm | 31,0 µm | ya | 0 | 0 | 0 |
+| molar lebar pendek (PL 1,4) | shoulder | 10 µm | kurva 3 | 17,9 µm | 33,8 µm | 33,9 µm | ya | 0 | 0 | 0 |
+| molar lebar pendek (PL 1,4) | shoulder | 30 µm | kurva 2, kurva+merah 1 | 28,9 µm | 57,3 µm | 57,3 µm | ya | 0 | 1 | 0 |
+| molar lebar pendek (PL 1,4) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| molar lebar pendek (PL 1,4) | chamfer | 0 µm | kurva 3 | 42,2 µm | 84,0 µm | 84,2 µm | ya | 0 | 0 | 0 |
+| molar lebar pendek (PL 1,4) | chamfer | 10 µm | kurva 3 | 44,8 µm | 86,0 µm | 86,0 µm | ya | 0 | 0 | 0 |
+| molar lebar pendek (PL 1,4) | chamfer | 30 µm | error 1, tidak wajar 2 | - | - | - | **tidak** | 0 | 0 | 0 |
+| molar lebar pendek (PL 1,4) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| premolar taper 16 (PL 1,0) | shoulder | 0 µm | kurva 3 | 15,0 µm | 29,2 µm | 29,3 µm | ya | 0 | 0 | 0 |
+| premolar taper 16 (PL 1,0) | shoulder | 10 µm | kurva 3 | 19,0 µm | 31,8 µm | 31,8 µm | ya | 0 | 0 | 0 |
+| premolar taper 16 (PL 1,0) | shoulder | 30 µm | kurva+merah 3 | 34,2 µm | 78,1 µm | 78,0 µm | ya | 0 | 3 | 0 |
+| premolar taper 16 (PL 1,0) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| premolar taper 16 (PL 1,0) | chamfer | 0 µm | kurva 3 | 22,2 µm | 47,3 µm | 47,4 µm | ya | 0 | 0 | 0 |
+| premolar taper 16 (PL 1,0) | chamfer | 10 µm | kurva 3 | 29,2 µm | 54,6 µm | 54,5 µm | ya | 0 | 0 | 0 |
+| premolar taper 16 (PL 1,0) | chamfer | 30 µm | error 1, kurva+merah 2 | 41,0 µm | 158,0 µm | 152,7 µm | **tidak** | 1 | 1 | 0 |
+| premolar taper 16 (PL 1,0) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| undercut di puncak (PL 2,0) | shoulder | 0 µm | kurva 3 | 15,1 µm | 31,3 µm | 31,6 µm | ya | 0 | 0 | 0 |
+| undercut di puncak (PL 2,0) | shoulder | 10 µm | kurva 3 | 18,9 µm | 32,6 µm | 32,7 µm | ya | 0 | 0 | 0 |
+| undercut di puncak (PL 2,0) | shoulder | 30 µm | kurva 1, kurva+merah 2 | 32,7 µm | 75,3 µm | 75,2 µm | ya | 0 | 2 | 0 |
+| undercut di puncak (PL 2,0) | shoulder | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
+| undercut di puncak (PL 2,0) | chamfer | 0 µm | kurva 3 | 26,9 µm | 46,8 µm | 46,9 µm | ya | 0 | 0 | 0 |
+| undercut di puncak (PL 2,0) | chamfer | 10 µm | kurva 1, kurva+merah 2 | 32,1 µm | 60,0 µm | 59,4 µm | ya | 0 | 2 | 0 |
+| undercut di puncak (PL 2,0) | chamfer | 30 µm | kurva+merah 3 | 47,4 µm | 125,5 µm | 122,4 µm | ya | 0 | 3 | 0 |
+| undercut di puncak (PL 2,0) | chamfer | 90 µm | derau 3 | - | - | - | **tidak** | 0 | 0 | 0 |
 
 Kesimpulan:
-- **Perbaikan metrik berhasil di data tuning:** scallop PL 2,5, 3,5, dan 4,0 mm tidak lagi ditolak oleh pemeriksaan panjang. Di set tuning2, "scallop dalam" (PL 4,0) sekarang lolos kriteria untuk shoulder 0 sampai 30 µm dan chamfer 0 sampai 10 µm. Pada chamfer 30 µm, 1 dari 3 seed berakhir error dan 1 ditolak kewajaran.
-- **Set tuning: 1 kurva buruk tanpa pesan.** CEJ PL 3,5 mm, chamfer, derau 30 µm, satu seed: median 52,7 µm, sedikit di atas 50 µm. Semua metrik kewajarannya normal. Pemeriksaan kewajaran dirancang untuk kegagalan kasar, bukan selisih akurasi beberapa mikrometer.
-- **Set uji: 3 kurva buruk tanpa pesan**, semuanya insisif sentral (PL 3,2 mm, radius 3,6 / 3,2 mm): shoulder 30 µm, chamfer 0 µm, dan chamfer 10 µm, semuanya seed 1.
-  - Mediannya baik (20 sampai 27 µm), tetapi cakupan p95 266 sampai 304 µm.
-  - Diagnosis setelah benchmark (tidak mengubah parameter): kurva memotong **puncak scallop proksimal** (θ sekitar 0° sampai 20°) sampai 660 sampai 690 µm, di 6 sampai 7% panjang margin.
-  - Semua metrik kewajaran normal: fraksi crease 0,88 sampai 0,90, rasio panjang 0,99 sampai 1,00, lubang 1,02 sampai 1,03.
-  - Pada die kecil, puncak scallop yang dalam menikung tajam. Kurva memotong tikungan itu dan tetap tertutup, dengan panjang yang wajar.
-  - Artinya: **untuk gigi anterior dengan scallop dalam, deteksi otomatis bisa salah di puncak proksimal tanpa peringatan.** Pengguna harus memeriksa daerah proksimal dan memperbaikinya dengan edit, atau memakai Draw Margin.
-- **Set uji, selain itu:** kaninus, molar pendek, undercut 8°, dan premolar elips memenuhi kriteria untuk semua kurva yang dihasilkan. Kaninus chamfer 30 µm dan premolar elips chamfer 30 µm masing-masing punya 1 dari 3 seed yang berakhir error, dan insisif sentral chamfer 30 µm punya 1 seed yang ditolak kewajaran. Semua kasus 90 µm berakhir dengan peringatan derau.
-- **Pola yang berulang di ketiga set:** chamfer + derau 30 µm adalah kombinasi yang paling sering gagal dengan error (jalur tidak membentuk cincin, atau crease terlalu pendek). Error itu tidak diam-diam, tetapi berarti pengguna harus menggambar margin manual.
-- Lapis kedua tanpa pengaman derau (`check_noise=False`) tetap meloloskan 3 dari 48 kurva buruk pada derau 90 µm setelah metrik diganti, sama dengan sebelumnya.
+- **Kriteria maintainer terpenuhi:** kurva buruk tanpa pesan dan tanpa segmen merah = **0** di keempat set (tuning, tuning2, tuning3, uji). Kurva buruk yang tersisa: 1 di tuning (CEJ PL 3,5, chamfer 30 µm, median 52,7 µm) dan 1 di set uji (premolar taper 16°, chamfer 30 µm, cakupan p95 152,7 µm); keduanya bertanda merah.
+- **Perbaikan titik jauh** menghapus ketiga kurva buruk insisif sentral di tuning3 tanpa memperburuk tuning dan tuning2.
+- **Alarm palsu:** kurva baik bertanda merah 26/72 (tuning), 18/68 (tuning2), 25/87 (tuning3), dan 24/85 (uji). Per derau dan finish (keempat set digabung): derau 0 µm shoulder 0/54, chamfer 6/54; 10 µm shoulder 2/54, chamfer 18/54; 30 µm shoulder 29/54, chamfer 38/40.
+- **Error eksplisit** masih paling sering pada chamfer + derau 30 µm. Di set uji, molar lebar pendek chamfer 30 µm gagal di ketiga seed (1 error, 2 ditolak kewajaran), jadi pengguna harus memakai Draw Margin di kasus itu.
+- **Lokasi penanda belum andal** (lihat keterbatasan di atas): jangan anggap bagian tanpa merah pasti benar. Sisi proksimal tetap harus diperiksa.
 - p95 dan maksimum bisa beberapa kali median, karena kurva bisa melenceng lokal. Ambang p95 belum ditetapkan karena tidak ada sumbernya.
 - Catatan: akurasi scanner 10-90 µm di paper Teeth3DS+ adalah akurasi rekonstruksi, bukan derau per vertex. Derau 90 µm per vertex adalah skenario uji terburuk, bukan kondisi scan tipikal.
 
 **Draw Margin (margin gambar manual).** Untuk kasus yang ditolak deteksi, atau kalau pengguna tidak percaya hasilnya:
 - Operator `dentalcad.margin_draw` (modal): klik titik di permukaan die sesuai urutan di sekeliling margin, Backspace menghapus titik terakhir, Enter menutup kurva, Esc membatalkan. Draf garis tampil selama menggambar.
 - `core.margin.draw_margin` memproyeksikan titik ke permukaan die, lalu membuang klik ganda (< 0,05 mm dari titik sebelumnya) dan klik penutup yang jatuh di titik pertama. Butuh minimal 4 titik berbeda.
-- Hasilnya objek `<die> Margin` dan `<die> Margin Preview` yang sama persis dengan hasil Detect Margin, jadi diedit dengan cara yang sama (Edit Mode G/X, lalu Update Margin).
+- Hasilnya objek `<die> Margin` dan `<die> Margin Preview` yang sama persis dengan hasil Detect Margin, juga berstatus draf dengan segmen merah, jadi diedit dan dikonfirmasi dengan cara yang sama. Dengan klik jarang (12 klik di uji headless), spline di antara klik keluar dari crease dan muncul 15-22 segmen merah; klik lebih rapat atau edit titik di bagian merah.
 - Jalur klik modal tidak bisa diuji headless; logikanya diuji lewat properti `points`.
 
 **Uji manual di Blender.** Tombol "Load Synthetic Case" di panel Dental (langkah Margin) membuat `Synthetic Die` (finish, scallop amplitudo, derau, sektor undercut, dan seed bisa diubah di panel redo) beserta kurva hijau `Synthetic Die Truth Margin` (margin benar, tidak bisa dipilih). Margin benar juga disimpan di properti `dentalcad_truth_margin`, sehingga "Detect Margin" melaporkan deviasi "vs true margin".
 
-**Modul core/.** `core/geometry.py` (normal, edge unik, `MeshProjector` titik terdekat di permukaan), `core/margin.py` (`crease_score`, `estimate_noise_sigma`, `closed_path_two_way`, `refine_on_crease`, `MarginCurve`, `detect_margin`, `draw_margin`, `margin_deviation`).
+**Modul core/.** `core/geometry.py` (normal, edge unik, `MeshProjector` titik terdekat di permukaan), `core/margin.py` (`crease_score`, `estimate_noise_sigma`, `closed_path_two_way`, `refine_on_crease`, `MarginCurve`, `detect_margin`, `draw_margin`, `ReviewContext`, `review_curve`, `margin_deviation`).
 
 **Pengujian.**
-- Lapis 1 (`tests/core/test_margin.py`, 56 kasus tes):
+- Lapis 1 (`tests/core/test_margin.py`, 61 kasus tes):
   - akurasi 12 kombinasi (shoulder/chamfer × scallop 0/1 mm × derau 0/10/30 µm, rotasi acak) dengan median ≤ 50 µm dan cakupan p95 ≤ 150 µm (ambang uji);
   - invarian rotasi dan invarian posisi klik;
   - regresi loop 3 vertex;
@@ -330,10 +389,13 @@ Kesimpulan:
   - penghalusan yang tidak menyusutkan kurva;
   - pengaman: semua kasus derau 90 µm berhenti dengan peringatan derau, setiap pemeriksaan kewajaran bisa memicu error, titik jarang memberi error eksplisit, dan batas lapis kedua (xfail ketat);
   - scallop CEJ PL 3,5 mm tidak ditolak pemeriksaan panjang, dan rasio panjang tidak bergantung pada tinggi scallop;
-  - Draw Margin: proyeksi ke permukaan, kurva tertutup, klik ganda dan klik penutup dibuang, minimal 4 titik, edit seperti hasil deteksi.
-- Lapis 2 (`run_integration.py`): die chamfer + scallop dengan transformasi dunia (geser + putar) → deteksi lewat operator (median dibandingkan dengan margin analitis) → edit (hapus satu titik, geser satu titik) → Update; titik yang digeser terproyeksi, titik lain tidak berubah. Ditambah: "Load Synthetic Case" → "Detect Margin" (median dibandingkan dengan margin benar yang tersimpan), dan kasus derau 90 µm yang harus berakhir dengan error "Scan too noisy" yang menyebut Draw Margin, tanpa objek kurva. Lalu Draw Margin pada die yang sama dengan transformasi dunia: 12 klik → kurva tertutup 12 titik di permukaan, peran dan pratinjau sama dengan hasil deteksi, tanpa objek draf tertinggal, bisa di-Update; 3 klik ditolak.
+  - Draw Margin: proyeksi ke permukaan, kurva tertutup, klik ganda dan klik penutup dibuang, minimal 4 titik, edit seperti hasil deteksi;
+  - titik jauh tetap di crease pada insisif sentral (regresi tuning3); penanda: deteksi bersih tanpa segmen merah, kurva yang digeser 0,35 mm ditandai di bagian yang digeser, margin gambar kasar ditandai, run melingkar.
+- Lapis 2 (`run_integration.py`): die chamfer + scallop dengan transformasi dunia (geser + putar) → deteksi lewat operator (median dibandingkan dengan margin analitis) → edit (hapus satu titik, geser satu titik) → Update; titik yang digeser terproyeksi, titik lain tidak berubah. Ditambah: "Load Synthetic Case" → "Detect Margin" (median dibandingkan dengan margin benar yang tersimpan), dan kasus derau 90 µm yang harus berakhir dengan error "Scan too noisy" yang menyebut Draw Margin, tanpa objek kurva. Lalu Draw Margin pada die yang sama dengan transformasi dunia: 12 klik → kurva tertutup 12 titik di permukaan, peran dan pratinjau sama dengan hasil deteksi, tanpa objek draf tertinggal, bisa di-Update; 3 klik ditolak. Terakhir: status draf, gerbang menolak draf, Confirm menolak kurva yang diedit tanpa Update, menolak segmen merah tanpa persetujuan, menerima dengan `accept_flagged`, gerbang menolak lagi setelah titik diedit, dan Update mengembalikan status ke draf.
 
 ### 5.2 Sumbu insersi dan undercut
+
+**Gerbang margin (berlaku untuk §5.2 sampai §5.7):** setiap operator wajib memanggil `require_confirmed_margin(die)` dan menolak jalan bila margin masih draf (§5.1).
 
 **Algoritma** (RESEARCH.md §4):
 1. **Sumbu default:** rata-rata normal berbobot luas dari face preparasi (di atas margin), dinormalisasi. Pengguna bisa memutarnya lewat gizmo.
@@ -508,7 +570,7 @@ Ditambah:
 |---|---|---|---|
 | S0 | Apakah angka IFU ZirCAD Prime (0,8/1,0 mm) masih sesuai revisi terbaru, dan apakah dokumen IVO yang dibaca sama dengan dokumen 43360 yang ditautkan maintainer? | Baca IFU terbaru di situs Ivoclar (RESEARCH.md Caveats); coba lagi link icde-fr saat servernya pulih dan bandingkan revisinya. | Perbarui `zircad_prime.json` dan catat revisinya. |
 | S4 | Bagaimana exocad mendefinisikan "Add. distance x/y", "Beginning of cement", dan parameter border crown? | **Sebagian besar terjawab** (2026-10-23) dari DTX dan EXW: "Beginning of cement" = "From margin"; "Add. distance x/y" = spacing Radial, tegak lurus sumbu, berlaku juga di zona tanpa gap; Horizontal, Angled, dan Angle didefinisikan di kedua sumber. **Tersisa:** acuan sudut "Angle" (diukur terhadap apa). | Uji visual dengan kasus sintetis saat §5.4 dikerjakan; tandai sebagai interpretasi di laporan ekspor. |
-| S1 | Seberapa akurat curvature + Dijkstra pada data sintetis berderau? | **Dijawab** (2026-10-23): lolos untuk derau sampai 30 µm, gagal di 90 µm; detail, perubahan algoritma, dan tabel di §5.1. Pengaman derau dan kewajaran ditambahkan; metrik panjang diperbaiki. Set uji yang dikunci: 3 kurva buruk tanpa pesan (insisif sentral, puncak scallop proksimal terpotong), set tuning: 1 (median 52,7 µm). | Deteksi puncak scallop tajam pada die kecil; lapis kewajaran tanpa pengaman derau meloloskan 3 dari 48 kurva buruk (§5.1). |
+| S1 | Seberapa akurat curvature + Dijkstra pada data sintetis berderau? | **Dijawab** (2026-10-23): lolos untuk derau sampai 30 µm, gagal di 90 µm; detail, perubahan algoritma, dan tabel di §5.1. Pengaman derau dan kewajaran ditambahkan; metrik panjang diperbaiki. Set uji pertama: 3 kurva buruk tanpa pesan (puncak proksimal insisif sentral), diperbaiki dengan syarat crease untuk titik jauh. Penanda merah + status draf ditambahkan; set uji kedua: 0 kurva buruk tanpa pesan atau merah. | Penanda merah belum andal menunjuk lokasi galat; alarm palsu tinggi pada derau 30 µm (§5.1). |
 | S2 | Apakah cKDTree + penyempurnaan titik-ke-segitiga cukup cepat untuk crown sekitar 100 ribu segitiga? | Ukur di host dan di Blender. | Kurangi sampel dengan sampling adaptif, atau batasi penyempurnaan eksak ke daerah dekat ambang. |
 | S3 | Apakah Laplacian dengan batas margin stabil (tanpa self-intersection) untuk scallop besar? | Uji pada varian A > 0. | Bobot cotangent dan pembatas lokal, atau iterasi kecil bertahap. |
 | R1 | Data sintetis terlalu "bersih" dibanding scan nyata (lubang, artefak, gingiva menutupi margin). | Tidak bisa dijawab tanpa scan nyata. | Dicatat sebagai keterbatasan validasi. Uji ketahanan pada scan nyata menunggu data (golden_private) atau keputusan K3. |

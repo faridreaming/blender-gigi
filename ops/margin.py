@@ -9,6 +9,10 @@ Alur pengguna:
 
 Kalau deteksi ditolak (scan berderau, kurva tidak wajar), "Draw Margin" membuat kurva yang sama dari titik
 yang diklik pengguna satu per satu; kurva ditutup otomatis dan diedit dengan cara yang sama.
+
+Setiap kurva yang dibuat atau diubah (Detect, Draw, Update) berstatus draf, dan segmen yang meragukan
+ditampilkan merah ("<die> Margin Review"). Pengguna memeriksanya lalu menjalankan "Confirm Margin". Langkah
+crown dan ekspor wajib memanggil require_confirmed_margin() dan menolak jalan untuk margin draf.
 """
 
 import bpy
@@ -28,7 +32,13 @@ KEY_ROLE = "dentalcad_margin_role"
 PREVIEW_SAMPLES = 512
 PREVIEW_BEVEL_MM = 0.05
 DRAFT_BEVEL_MM = 0.04
+REVIEW_BEVEL_MM = 0.09
+REVIEW_COLOR = (0.9, 0.05, 0.05, 1.0)
+KEY_STATUS = "dentalcad_margin_status"  # "draft" atau "confirmed"
+KEY_REVIEW_COUNT = "dentalcad_margin_review_segments"
+KEY_CONFIRMED = "dentalcad_margin_confirmed_controls"
 MANUAL_HINT = "Use Draw Margin to place the margin by hand."
+MANUAL_HINT_TAIL = "or use Draw Margin to place the margin by hand."
 
 
 def _spline_points(curve: bpy.types.Curve) -> np.ndarray:
@@ -57,13 +67,59 @@ def _curve_object(context, name: str, matrix: Matrix) -> bpy.types.Object:
     return obj
 
 
-def write_margin(context, die: bpy.types.Object, curve: core_margin.MarginCurve) -> bpy.types.Object:
-    """Buat atau perbarui objek kurva margin (titik kontrol) dan pratinjau (kurva halus) untuk die."""
+def _review_material() -> bpy.types.Material:
+    material = bpy.data.materials.get("DentalCAD Margin Review")
+    if material is None:
+        material = bpy.data.materials.new("DentalCAD Margin Review")
+    material.diffuse_color = REVIEW_COLOR
+    return material
+
+
+def _write_review(context, die: bpy.types.Object, review: core_margin.MarginReview) -> None:
+    """Segmen meragukan sebagai kurva merah tebal di atas pratinjau; objek dihapus bila tidak ada segmen."""
+    name = f"{die.name} Margin Review"
+    obj = bpy.data.objects.get(name)
+    if not review.segments:
+        if obj is not None:
+            data = obj.data
+            bpy.data.objects.remove(obj)
+            if data is not None and data.users == 0:
+                bpy.data.curves.remove(data)
+        return
+    obj = _curve_object(context, name, die.matrix_world)
+    curve = obj.data
+    curve.splines.clear()
+    curve.bevel_depth = REVIEW_BEVEL_MM
+    if not curve.materials:
+        curve.materials.append(_review_material())
+    n = len(review.samples)
+    for start, stop in review.segments:
+        idx = np.arange(start, min(stop + 1, start + n)) % n  # sertakan satu titik sesudahnya agar ruas terlihat
+        pts = review.samples[idx]
+        spline = curve.splines.new("POLY")
+        spline.points.add(len(pts) - 1)
+        spline.points.foreach_set("co", np.hstack([pts, np.ones((len(pts), 1))]).ravel())
+        spline.use_cyclic_u = stop - start >= n
+    obj[KEY_DIE] = die.name
+    obj[KEY_ROLE] = "review"
+    obj.hide_select = True
+
+
+def write_margin(context, die: bpy.types.Object, curve: core_margin.MarginCurve,
+                 review: core_margin.MarginReview | None = None) -> core_margin.MarginReview:
+    """Buat atau perbarui objek kurva margin (titik kontrol), pratinjau (kurva halus), dan segmen merah untuk
+    die. Status selalu kembali ke draf. Kalau review tidak diberikan, kurva diperiksa ulang terhadap mesh."""
+    if review is None:
+        review = core_margin.review_curve(curve, core_margin.ReviewContext.from_mesh(die_mesh(die)))
     controls = _curve_object(context, f"{die.name} Margin", die.matrix_world)
     _set_poly(controls.data, curve.control_points)
     controls[KEY_DIE] = die.name
     controls[KEY_ROLE] = "controls"
     controls[KEY_CONTROLS] = curve.control_points.ravel().tolist()
+    controls[KEY_STATUS] = "draft"
+    controls[KEY_REVIEW_COUNT] = review.count
+    if KEY_CONFIRMED in controls:
+        del controls[KEY_CONFIRMED]
 
     preview = _curve_object(context, f"{die.name} Margin Preview", die.matrix_world)
     _set_poly(preview.data, curve.sample(PREVIEW_SAMPLES))
@@ -71,7 +127,41 @@ def write_margin(context, die: bpy.types.Object, curve: core_margin.MarginCurve)
     preview[KEY_DIE] = die.name
     preview[KEY_ROLE] = "preview"
     preview.hide_select = True
-    return controls
+    _write_review(context, die, review)
+    return review
+
+
+def margin_controls(die: bpy.types.Object) -> bpy.types.Object | None:
+    obj = bpy.data.objects.get(f"{die.name} Margin")
+    return obj if obj is not None and obj.get(KEY_ROLE) == "controls" and obj.get(KEY_DIE) == die.name else None
+
+
+def _edited_since_update(controls: bpy.types.Object) -> bool:
+    stored = np.array(controls[KEY_CONTROLS], dtype=float).reshape(-1, 3)
+    current = _spline_points(controls.data)
+    return stored.shape != current.shape or not np.allclose(stored, current, atol=1e-6)
+
+
+def require_confirmed_margin(die: bpy.types.Object) -> tuple[bool, str]:
+    """Gerbang untuk langkah crown dan ekspor: (boleh lanjut, pesan untuk pengguna).
+
+    Hanya margin berstatus "confirmed" yang titik kontrolnya sama dengan saat dikonfirmasi yang lolos."""
+    controls = margin_controls(die)
+    if controls is None:
+        return False, f"{die.name} has no margin yet: Detect Margin or Draw Margin, then Confirm Margin"
+    if controls.get(KEY_STATUS) != "confirmed":
+        return False, f"The margin of {die.name} is a draft: review it, then Confirm Margin"
+    confirmed = np.array(controls.get(KEY_CONFIRMED, []), dtype=float).reshape(-1, 3)
+    current = _spline_points(controls.data)
+    if confirmed.shape != current.shape or not np.allclose(confirmed, current, atol=1e-6):
+        return False, f"The margin of {die.name} was edited after it was confirmed: Update Margin, then Confirm Margin"
+    return True, "Margin confirmed"
+
+
+def review_message(review: core_margin.MarginReview) -> str:
+    if review.count == 0:
+        return "no segments flagged; review it, then Confirm Margin"
+    return f"{review.count} segments need review (red); check them, then Confirm Margin"
 
 
 def ray_hit(context, event, obj: bpy.types.Object):
@@ -94,7 +184,7 @@ def die_mesh(die: bpy.types.Object):
 def detect_on(context, die: bpy.types.Object, seed_world) -> core_margin.MarginResult:
     seed_local = die.matrix_world.inverted() @ Vector(seed_world)
     result = core_margin.detect_margin(die_mesh(die), np.array(seed_local))
-    write_margin(context, die, result.curve)
+    write_margin(context, die, result.curve, result.review)
     return result
 
 
@@ -123,17 +213,18 @@ class DENTALCAD_OT_margin_detect(bpy.types.Operator):
             return {"CANCELLED"}
         except core_margin.MarginPlausibilityError as exc:
             self.report({"ERROR"}, "Margin rejected, the detected curve is implausible: "
-                                   + ", ".join(exc.failed) + ". Click closer to the margin, or " + MANUAL_HINT[0].lower() + MANUAL_HINT[1:])
+                                   + ", ".join(exc.failed) + ". Click closer to the margin, " + MANUAL_HINT_TAIL)
             return {"CANCELLED"}
         except core_margin.MarginError as exc:
-            self.report({"ERROR"}, f"Margin not found ({exc}). Click closer to the margin, or " + MANUAL_HINT[0].lower() + MANUAL_HINT[1:])
+            self.report({"ERROR"}, f"Margin not found ({exc}). Click closer to the margin, " + MANUAL_HINT_TAIL)
             return {"CANCELLED"}
-        message = f"Margin: {len(result.curve.control_points)} control points, {result.curve.length():.1f} mm"
+        message = (f"Draft margin: {len(result.curve.control_points)} control points, "
+                   f"{result.curve.length():.1f} mm, " + review_message(result.review))
         if KEY_TRUTH in die:
             truth = np.array(die[KEY_TRUTH], dtype=float).reshape(-1, 3)
             dev = core_margin.margin_deviation(result.curve.sample(1024), truth)
-            message += f"; vs true margin: median {1000 * dev['median']:.0f} um, p95 {1000 * dev['p95']:.0f} um"
-        self.report({"INFO"}, message)
+            message += f". Vs true margin: median {1000 * dev['median']:.0f} um, p95 {1000 * dev['p95']:.0f} um"
+        self.report({"WARNING"} if result.review.count else {"INFO"}, message)
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -188,8 +279,10 @@ class DENTALCAD_OT_margin_draw(bpy.types.Operator):
         except core_margin.MarginError as exc:
             self.report({"ERROR"}, f"Margin not drawn: {exc}")
             return {"CANCELLED"}
-        write_margin(context, die, curve)
-        self.report({"INFO"}, f"Margin drawn: {len(curve.control_points)} control points, {curve.length():.1f} mm")
+        review = write_margin(context, die, curve)
+        self.report({"WARNING"} if review.count else {"INFO"},
+                    f"Draft margin drawn: {len(curve.control_points)} control points, {curve.length():.1f} mm, "
+                    + review_message(review))
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -285,6 +378,54 @@ class DENTALCAD_OT_margin_update(bpy.types.Operator):
         except core_margin.MarginError as exc:
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
-        write_margin(context, die, curve)
-        self.report({"INFO"}, f"Margin updated: {stats['moved']} moved, {stats['kept']} kept, {stats['removed']} removed")
+        review = write_margin(context, die, curve)
+        self.report({"WARNING"} if review.count else {"INFO"},
+                    f"Draft margin updated: {stats['moved']} moved, {stats['kept']} kept, {stats['removed']} removed, "
+                    + review_message(review))
+        return {"FINISHED"}
+
+
+class DENTALCAD_OT_margin_confirm(bpy.types.Operator):
+    """Confirm the reviewed margin. Crown design and export only run on a confirmed margin"""
+
+    bl_idname = "dentalcad.margin_confirm"
+    bl_label = "Confirm Margin"
+    bl_options = {"REGISTER", "UNDO"}
+
+    accept_flagged: BoolProperty(
+        name="Accept Flagged Segments", default=False, options={"SKIP_SAVE"},
+        description="Confirm even though some segments are still flagged for review",
+    )
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj is not None and obj.get(KEY_ROLE) == "controls"
+
+    def invoke(self, context, event):
+        controls = context.active_object
+        if controls.get(KEY_REVIEW_COUNT, 0) and not _edited_since_update(controls):
+            self.accept_flagged = True  # pengguna menyetujui lewat dialog konfirmasi
+            return context.window_manager.invoke_confirm(
+                self, event, title="Confirm Margin",
+                message=f"{controls[KEY_REVIEW_COUNT]} segments are still flagged (red). Confirm anyway?",
+                confirm_text="Confirm", icon="WARNING")
+        return self.execute(context)
+
+    def execute(self, context):
+        controls = context.active_object
+        if controls.mode == "EDIT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        if _edited_since_update(controls):
+            self.report({"ERROR"}, "The control points were edited: run Update Margin first, then Confirm Margin")
+            return {"CANCELLED"}
+        flagged = controls.get(KEY_REVIEW_COUNT, 0)
+        if flagged and not self.accept_flagged:
+            self.report({"ERROR"}, f"{flagged} segments still need review (red): fix them and Update Margin, "
+                                   "or confirm with Accept Flagged Segments")
+            return {"CANCELLED"}
+        controls[KEY_STATUS] = "confirmed"
+        controls[KEY_CONFIRMED] = controls[KEY_CONTROLS]
+        note = f" with {flagged} flagged segments accepted" if flagged else ""
+        self.report({"INFO"}, f"Margin confirmed{note}")
         return {"FINISHED"}

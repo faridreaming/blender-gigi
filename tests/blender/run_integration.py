@@ -329,6 +329,59 @@ class Runner:
             if "minimal 4" not in str(exc):
                 problems.append(f"pesan untuk 3 titik tidak sesuai: {exc}")
         self.check("margin gambar manual: klik, tutup otomatis, edit, update", problems)
+        self.confirm_gate(package, die)
+
+    def confirm_gate(self, package: str, die) -> None:
+        """Status draf, Confirm Margin, dan gerbang require_confirmed_margin untuk langkah crown/ekspor."""
+        import numpy as np
+
+        ops_margin = importlib.import_module(f"{package}.ops.margin")
+        problems = []
+        controls = ops_margin.margin_controls(die)
+        ok, message = ops_margin.require_confirmed_margin(die)
+        if controls.get(ops_margin.KEY_STATUS) != "draft" or ok:
+            problems.append(f"margin hasil Update harus draf dan ditolak gerbang, didapat "
+                            f"{controls.get(ops_margin.KEY_STATUS)} / {ok}")
+        flagged = controls.get(ops_margin.KEY_REVIEW_COUNT, 0)
+        review_obj = bpy.data.objects.get(f"{die.name} Margin Review")
+        if bool(flagged) != (review_obj is not None):
+            problems.append(f"{flagged} segmen ditandai, objek merah {review_obj}")
+
+        bpy.context.view_layer.objects.active = controls
+        # Titik digeser tanpa Update: Confirm harus menolak.
+        points = ops_margin._spline_points(controls.data)
+        moved = points.copy()
+        moved[0] = moved[0] + np.array([0.2, 0.0, 0.0])
+        ops_margin._set_poly(controls.data, moved)
+        try:
+            bpy.ops.dentalcad.margin_confirm(accept_flagged=True)
+            problems.append("Confirm menerima kurva yang diedit tanpa Update")
+        except RuntimeError as exc:
+            if "Update Margin first" not in str(exc):
+                problems.append(f"pesan Confirm untuk kurva yang diedit tidak sesuai: {exc}")
+        ops_margin._set_poly(controls.data, points)
+
+        if flagged:
+            try:
+                bpy.ops.dentalcad.margin_confirm()
+                problems.append("Confirm tanpa persetujuan menerima segmen merah")
+            except RuntimeError as exc:
+                if "need review" not in str(exc):
+                    problems.append(f"pesan Confirm untuk segmen merah tidak sesuai: {exc}")
+        result = bpy.ops.dentalcad.margin_confirm(accept_flagged=True)
+        ok, message = ops_margin.require_confirmed_margin(die)
+        if result != {"FINISHED"} or not ok:
+            problems.append(f"Confirm mengembalikan {result}, gerbang: {ok} ({message})")
+
+        # Edit setelah dikonfirmasi: gerbang menolak sampai Update + Confirm lagi.
+        ops_margin._set_poly(controls.data, moved)
+        ok, message = ops_margin.require_confirmed_margin(die)
+        if ok or "edited after it was confirmed" not in message:
+            problems.append(f"gerbang menerima margin yang diedit setelah dikonfirmasi: {message}")
+        bpy.ops.dentalcad.margin_update()
+        if controls.get(ops_margin.KEY_STATUS) != "draft" or ops_margin.require_confirmed_margin(die)[0]:
+            problems.append("Update setelah konfirmasi tidak mengembalikan status draf")
+        self.check(f"margin: status draf, Confirm Margin, gerbang langkah crown ({flagged} segmen merah)", problems)
 
     def registration(self) -> None:
         problems = []
