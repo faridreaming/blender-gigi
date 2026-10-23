@@ -41,6 +41,7 @@ class MarginParams:
     refine_radius_min_mm: float = 0.6
     refine_radius_per_noise: float = 12.0
     ridge_ratio: float = 0.35
+    far_min_score: float = 0.5
     band_rings: int = 2
     cost_eps: float = 0.02
     cost_power: float = 2.0
@@ -58,6 +59,10 @@ class MarginParams:
     max_control_gap_ratio: float = 2.5
     girth_ratio_range: tuple[float, float] = (0.90, 1.12)
     max_out_of_plane_ratio: float = 0.35
+    # Penanda segmen meragukan (merah di viewport), dari sapuan pada set tuning dan tuning2 saja, PHASE2.md §5.1.
+    review_max_residual_mm: float = 0.08
+    review_min_angle_deg: float = 30.0
+    review_min_run: int = 2
 
 
 class MarginError(ValueError):
@@ -168,12 +173,16 @@ def closed_path_two_way(
     seed: int,
     ridge_ratio: float = 0.35,
     band_rings: int = 2,
+    far_candidates: np.ndarray | None = None,
 ) -> np.ndarray:
     """Jalur tertutup berbiaya minimum melalui seed, tanpa memerlukan sumbu die.
 
     1. Dijkstra dari seed. Vertex "di punggungan" = yang biaya jalurnya <= ridge_ratio x jarak Euclid-nya
        dari seed (di punggungan biaya per mm kecil; menyeberang permukaan biasa berbiaya sekitar 1 per mm).
     2. Titik jauh f = vertex punggungan terjauh (Euclid) dari seed, kira-kira di seberang cincin margin.
+       Kalau far_candidates diberikan, f hanya dipilih dari vertex itu (vertex crease): kriteria punggungan
+       sendiri mengizinkan simpangan sebanding jarak, sehingga tanpa batasan ini f bisa jatuh 1-2 mm di dinding
+       aksial di atas puncak scallop dalam dan kedua jalur ikut naik ke sana (PHASE2.md §5.1).
     3. Jalur 1 = jalur termurah seed -> f.
     4. Jalur 2 = jalur termurah seed -> f setelah jalur 1 beserta band_rings cincin tetangganya diblokir
        (kecuali dekat seed dan f), sehingga jalur 2 harus lewat sisi lain die.
@@ -184,6 +193,8 @@ def closed_path_two_way(
     dist, pred = dijkstra(graph, directed=False, indices=seed, return_predecessors=True)
     euclid = np.linalg.norm(vertices - vertices[seed], axis=1)
     ridge = np.isfinite(dist) & (dist <= ridge_ratio * euclid)
+    if far_candidates is not None:
+        ridge &= far_candidates
     edge_len = np.median(np.linalg.norm(vertices[edges[:, 0]] - vertices[edges[:, 1]], axis=1))
     if not ridge.any() or euclid[ridge].max() < 20 * edge_len:
         raise MarginError("crease di sekitar titik klik terlalu pendek untuk menjadi margin")
@@ -281,17 +292,19 @@ def refine_on_crease(
     tree: cKDTree,
     radius: float,
     min_angle_deg: float,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Pindahkan setiap titik ke garis potong dua bidang yang di-fit ke kedua sisi crease.
 
     Lintasan 1: tetangga dalam radius dikelompokkan dua menurut normal halus (2-means), satu bidang per
     kelompok, dan garis potongnya. Lintasan 2: bidang di-fit ulang hanya dari titik dalam pita sempit di
     sekitar garis itu (bobot Gauss jarak tegak lurus garis dan jarak sepanjang garis), sehingga bias dari
     kelengkungan permukaan (misalnya busur chamfer, akar yang melengkung) mengecil. Posisi akhir memakai
-    posisi vertex saja; normal hanya untuk pengelompokan. Mengembalikan (titik, berhasil).
+    posisi vertex saja; normal hanya untuk pengelompokan. Mengembalikan (titik, berhasil, sudut crease dalam
+    derajat antara normal rata-rata kedua sisi; 0 bila tetangga tidak terbagi dua).
     """
     refined = points.copy()
     ok = np.zeros(len(points), dtype=bool)
+    angle = np.zeros(len(points))
     cos_min = np.cos(np.radians(min_angle_deg))
     min_sin = np.sin(np.radians(min_angle_deg))
     band = 0.5 * radius
@@ -311,7 +324,10 @@ def refine_on_crease(
             c1 = n[label].mean(axis=0)
             c0 /= np.linalg.norm(c0)
             c1 /= np.linalg.norm(c1)
-        if label.sum() < 3 or (~label).sum() < 3 or c0 @ c1 > cos_min:
+        if label.sum() < 3 or (~label).sum() < 3:
+            continue
+        angle[idx] = np.degrees(np.arccos(np.clip(c0 @ c1, -1.0, 1.0)))
+        if c0 @ c1 > cos_min:
             continue
 
         w = np.exp(-(np.linalg.norm(p - q, axis=1) / (0.6 * radius)) ** 2)
@@ -342,7 +358,7 @@ def refine_on_crease(
             continue
         refined[idx] = point
         ok[idx] = True
-    return refined, ok
+    return refined, ok, angle
 
 
 def _smooth_closed(points: np.ndarray, sigma: float) -> np.ndarray:
@@ -513,6 +529,7 @@ class MarginResult:
     score: np.ndarray
     noise_sigma_mm: float = 0.0
     metrics: dict = field(default_factory=dict)
+    review: "MarginReview | None" = None
 
 
 def detect_margin(mesh: MeshData, seed_point, params: MarginParams = MarginParams()) -> MarginResult:
@@ -545,11 +562,12 @@ def detect_margin(mesh: MeshData, seed_point, params: MarginParams = MarginParam
     edge_score = 0.5 * (relative[edges[:, 0]] + relative[edges[:, 1]])
     cost = length * (params.cost_eps + (1.0 - edge_score) ** params.cost_power)
 
-    loop = closed_path_two_way(vertices, edges, cost, seed, params.ridge_ratio, params.band_rings)
+    loop = closed_path_two_way(vertices, edges, cost, seed, params.ridge_ratio, params.band_rings,
+                               far_candidates=relative >= params.far_min_score)
 
     samples = _resample_closed(vertices[loop], params.refine_spacing_mm)
-    refined, ok = refine_on_crease(samples, vertices, smooth_normals, tree, refine_radius,
-                                   params.min_crease_angle_deg)
+    refined, ok, _ = refine_on_crease(samples, vertices, smooth_normals, tree, refine_radius,
+                                      params.min_crease_angle_deg)
     if ok.sum() < 8:
         raise MarginPlausibilityError("crease tidak jelas: hampir tidak ada titik jalur yang menempel ke crease",
                                       ["no crease found along the path"])
@@ -561,10 +579,12 @@ def detect_margin(mesh: MeshData, seed_point, params: MarginParams = MarginParam
         raise MarginPlausibilityError("kurva margin tidak wajar: " + "; ".join(text for _, text in problems),
                                       [name for name, _ in problems], metrics)
     projector = MeshProjector(mesh)
+    curve = MarginCurve(controls, projector)
+    context = ReviewContext(vertices, smooth_normals, tree, refine_radius)
     # Titik kontrol hasil deteksi sengaja TIDAK diproyeksikan ke mesh: mesh memotong sudut crease di antara
     # vertex, sehingga proyeksi menarik margin ke dalam. Titik yang digeser pengguna tetap diproyeksikan.
     return MarginResult(
-        curve=MarginCurve(controls, projector),
+        curve=curve,
         path_vertices=loop,
         refined_points=refined,
         refined_ok=ok,
@@ -572,7 +592,93 @@ def detect_margin(mesh: MeshData, seed_point, params: MarginParams = MarginParam
         score=score,
         noise_sigma_mm=sigma,
         metrics=metrics,
+        review=review_curve(curve, context, params),
     )
+
+
+# Penanda segmen meragukan --------------------------------------------------------------------------
+
+REVIEW_SAMPLES = 256
+
+
+@dataclass
+class ReviewContext:
+    """Analisis mesh yang dipakai ulang untuk memeriksa kurva (hasil deteksi, gambar manual, atau edit)."""
+
+    vertices: np.ndarray
+    smooth_normals: np.ndarray
+    tree: cKDTree
+    refine_radius: float
+
+    @classmethod
+    def from_mesh(cls, mesh: MeshData, params: "MarginParams" = None) -> "ReviewContext":
+        params = params or MarginParams()
+        vertices = np.asarray(mesh.vertices, float)
+        faces = np.asarray(mesh.faces)
+        normals = vertex_normals(vertices, faces)
+        sigma = estimate_noise_sigma(vertices, faces, normals)
+        curvature_radius = max(params.curvature_radius_min_mm, params.curvature_radius_per_noise * sigma)
+        _, _, smooth_normals = crease_score(vertices, normals, curvature_radius)
+        refine_radius = max(params.refine_radius_min_mm, params.refine_radius_per_noise * sigma)
+        return cls(vertices, smooth_normals, cKDTree(vertices), refine_radius)
+
+
+@dataclass
+class MarginReview:
+    """Hasil pemeriksaan per titik sampel kurva (REVIEW_SAMPLES titik, urutan sama dengan curve.sample).
+
+    - residual: jarak titik kurva ke crease lokal (titik kurva disempurnakan ulang ke crease); inf bila tidak
+      ada crease di sekitarnya.
+    - angle: sudut crease lokal dalam derajat (0 bila tetangga tidak terbagi dua sisi).
+    - flagged: titik yang meragukan (residual > ambang atau crease lemah), setelah run pendek dibuang.
+    - segments: daftar (awal, akhir) indeks run flagged, akhir eksklusif; run yang melewati indeks 0 ditulis
+      dengan akhir > REVIEW_SAMPLES.
+    """
+
+    samples: np.ndarray
+    residual: np.ndarray
+    angle: np.ndarray
+    flagged: np.ndarray
+    segments: list
+
+    @property
+    def count(self) -> int:
+        return len(self.segments)
+
+
+def _closed_runs(mask: np.ndarray) -> list:
+    n = len(mask)
+    if mask.all():
+        return [(0, n)]
+    if not mask.any():
+        return []
+    start = int(np.flatnonzero(~mask)[0]) + 1  # mulai setelah titik yang tidak ditandai
+    runs, run_start = [], None
+    for k in range(n):
+        i = (start + k) % n
+        if mask[i] and run_start is None:
+            run_start = start + k
+        elif not mask[i] and run_start is not None:
+            runs.append((run_start, start + k))
+            run_start = None
+    if run_start is not None:
+        runs.append((run_start, start + n))
+    return [(a % n, a % n + (b - a)) for a, b in runs]
+
+
+def review_curve(curve: MarginCurve, context: ReviewContext, params: "MarginParams" = None) -> MarginReview:
+    """Tandai segmen kurva yang meragukan: kurva jauh dari crease lokal, atau crease-nya lemah/tidak ada."""
+    params = params or MarginParams()
+    samples = curve.sample(REVIEW_SAMPLES)
+    crease, ok, angle = refine_on_crease(samples, context.vertices, context.smooth_normals, context.tree,
+                                         context.refine_radius, params.min_crease_angle_deg)
+    residual = np.where(ok, np.linalg.norm(crease - samples, axis=1), np.inf)
+    raw = (residual > params.review_max_residual_mm) | (angle < params.review_min_angle_deg)
+    segments = [(a, b) for a, b in _closed_runs(raw) if b - a >= params.review_min_run]
+    flagged = np.zeros(len(samples), dtype=bool)
+    for a, b in segments:
+        flagged[np.arange(a, b) % len(samples)] = True
+    return MarginReview(samples, residual, angle, flagged, segments)
 
 
 MIN_DRAWN_POINTS = 4

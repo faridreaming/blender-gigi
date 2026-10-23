@@ -116,17 +116,10 @@ def test_every_90um_case_stops_with_the_noise_warning(finish, scallop, seed):
     assert info.value.sigma_mm > info.value.limit_mm == pytest.approx(0.060)
 
 
-KNOWN_SLIP = pytest.mark.xfail(strict=True, reason="batas yang diketahui (PHASE2.md §5.1): pemeriksaan kewajaran "
-                                "saja meloloskan kurva median 247 um; pengaman derau adalah pelindung utama")
-GUARD_OFF_CASES = [pytest.param(*c, marks=KNOWN_SLIP) if c == ("shoulder", 0.0, 0) else c for c in NOISY_CASES]
-
-
-@pytest.mark.parametrize("finish, scallop, seed", GUARD_OFF_CASES)
-def test_without_noise_guard_bad_90um_curves_are_still_rejected(finish, scallop, seed):
-    """Lapis kedua: dengan pengaman derau dimatikan, kurva yang melenceng harus ditolak pemeriksaan kewajaran.
-
-    Lapis ini belum lengkap: kasus yang ditandai xfail lolos tanpa pesan. strict=True membuat tes gagal bila
-    kasus itu suatu saat tertangkap, supaya catatannya diperbarui."""
+@pytest.mark.parametrize("finish, scallop, seed", NOISY_CASES)
+def test_without_noise_guard_bad_90um_curves_are_rejected_or_flagged(finish, scallop, seed):
+    """Lapis kedua: dengan pengaman derau dimatikan, kurva yang melenceng harus ditolak pemeriksaan kewajaran
+    atau punya segmen merah ("need review")."""
     die = synthetic.make_die(synthetic.DieSpec(finish=finish, scallop_mm=scallop), noise_sigma_mm=0.090, seed=seed)
     params = margin.MarginParams(check_noise=False)
     try:
@@ -134,7 +127,8 @@ def test_without_noise_guard_bad_90um_curves_are_still_rejected(finish, scallop,
     except margin.MarginError:
         return
     dev = deviation(die, result)
-    assert dev["median"] <= CRITERION_MEDIAN_MM and dev["coverage_p95"] <= 0.15, f"kurva buruk tanpa pesan: {dev}"
+    bad = not (dev["median"] <= CRITERION_MEDIAN_MM and dev["coverage_p95"] <= 0.15)
+    assert not bad or result.review.count > 0, f"kurva buruk tanpa pesan dan tanpa segmen merah: {dev}"
 
 
 def test_noise_estimate_is_reported_on_success():
@@ -308,3 +302,55 @@ def test_drawn_margin_is_edited_like_a_detected_one():
     edited = np.delete(curve.control_points, 1, axis=0)
     edited[3] += [0.4, 0.0, 0.0]
     assert curve.apply_edit(edited) == {"moved": 1, "kept": 6, "removed": 1}
+
+
+# Titik jauh di crease, penanda segmen meragukan ----------------------------------------------------------
+
+def test_far_point_stays_on_the_crease_for_a_small_deep_scallop():
+    """Regresi set uji pertama (sekarang tuning3): insisif sentral, puncak proksimal terpotong sekitar 0,7 mm
+    karena titik jauh f jatuh di dinding aksial di atas puncak."""
+    spec = synthetic.DieSpec(finish="chamfer", radius_x_mm=3.6, radius_y_mm=3.2, prep_height_mm=5.5, taper_deg=8.0,
+                             finish_width_mm=0.8, scallop_mm=1.6)
+    die = synthetic.make_die(spec, noise_sigma_mm=0.0, rotate=True, seed=1)
+    rng = np.random.default_rng(10_001)
+    theta = rng.uniform(0, 2 * np.pi)
+    click = synthetic.margin_points(spec, np.array([theta]))[0] @ die.rotation.T + rng.normal(0, 0.15, 3)
+    dev = deviation(die, margin.detect_margin(die.mesh, click))
+    assert dev["median"] <= CRITERION_MEDIAN_MM and dev["coverage_p95"] <= 0.15, dev
+
+
+def test_closed_runs_wrap_around():
+    mask = np.array([1, 1, 0, 0, 1, 0, 1, 1], dtype=bool)
+    assert margin._closed_runs(mask) == [(4, 5), (6, 10)]
+    assert margin._closed_runs(np.zeros(4, bool)) == []
+    assert margin._closed_runs(np.ones(3, bool)) == [(0, 3)]
+
+
+def _clean_detection():
+    die = synthetic.make_die(synthetic.DieSpec(scallop_mm=1.0), noise_sigma_mm=0.0, rotate=False, seed=2)
+    return die, margin.detect_margin(die.mesh, click_near(die, 0.7))
+
+
+def test_clean_detection_has_no_review_segments():
+    _, result = _clean_detection()
+    assert result.review.count == 0, result.review.segments
+    assert len(result.review.samples) == margin.REVIEW_SAMPLES
+
+
+def test_curve_pushed_off_the_crease_is_flagged_where_it_moved():
+    die, result = _clean_detection()
+    curve = result.curve
+    moved = curve.control_points.copy()
+    moved[5:8] += [0.0, 0.0, 0.35]  # tiga titik kontrol 0,35 mm di atas margin
+    curve.control_points = moved
+    review = margin.review_curve(curve, margin.ReviewContext.from_mesh(die.mesh))
+    assert review.count >= 1
+    near = synthetic.distance_to_polyline(review.samples[review.flagged], moved[5:8])
+    assert np.median(near) < 1.0  # segmen merah berada di bagian yang digeser
+
+
+def test_coarse_drawn_margin_is_flagged_between_clicks():
+    die = synthetic.make_die(synthetic.DieSpec(scallop_mm=1.0), noise_sigma_mm=0.0, rotate=False, seed=2)
+    curve = margin.draw_margin(die.mesh, die.margin_curve(5))
+    review = margin.review_curve(curve, margin.ReviewContext.from_mesh(die.mesh))
+    assert review.count >= 1
