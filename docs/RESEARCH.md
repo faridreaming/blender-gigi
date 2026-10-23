@@ -1,3 +1,5 @@
+> Dokumen ini arsip riset per 23 Oktober 2026. Jika bertentangan dengan docs/ARCHITECTURE.md, yang berlaku adalah ARCHITECTURE.md (contoh: scipy ditunda ke Fase 2, target Blender 5.2 LTS).
+
 # Rencana Produk dan Teknis: Add-on Dental CAD Open Source di Blender ("lebih powerful" dari B4D)
 
 Ini layak dibangun, dengan tiga syarat. Pertama, add-on harus GPL-3.0-or-later. Blender mewajibkannya untuk add-on yang memakai bpy, dan Extensions Platform hanya menerima lisensi itu.\[1\]\[2\]\[3\] Kedua, fase pertama fokus pada crown & bridge zirkonia plus model cetak, dengan alur ekspor STL yang bisa langsung dibaca MillBox. Ketiga, "lebih powerful" berarti unggul di sisi yang tidak dimiliki B4D: alur wizard yang dipandu, pemeriksaan ketebalan dan konektor otomatis berbasis parameter pabrikan, kode terbuka yang bisa diaudit, dan pipeline yang bisa diuji. Fitur mentah saja tidak cukup untuk disebut lebih powerful.
@@ -183,7 +185,7 @@ tests/         # pytest (core) + blender --background (integrasi)
 15. [🦷 Blender For Dental 4.0.1 (Full Modules) 🦷 - YouTube](https://www.youtube.com/watch?v=yOvNDJeAiMk)
 16. [blender for dental (B4D) 4.0.1 - dental software crack](https://dentalsoftcrack.net/product/blender-for-dental-b4d-4-0-1/)
 17. [exoCAD®](https://www.go3dpro.com/exocad-dental-cad-software.html)
-18. [3Shape Dental System — Functionality and Efficiency Always](https://esmdigitalsolutions.com/dental-system/)
+18. [3Shape Dental System: Functionality and Efficiency Always](https://esmdigitalsolutions.com/dental-system/)
 19. [DentalCAD add-on modules](https://shop.exocad.com/us_en/dentalcad-add-on-module.html)
 20. [3Shape Automate in Dental System - 3Shape](https://support.3shape.com/lab-dental-system-setup-how-to/3shape-automate-in-dental-system)
 21. [3Shape Introduces AI-Powered Workflows for Dental Laboratories](https://compendiumlive.com/news/?newsID=104786)
@@ -191,7 +193,7 @@ tests/         # pytest (core) + blender --background (integrasi)
 23. [Merge and Save restorations - exocad](https://wiki.exocad.com/wiki/index.php/Merge_and_Save_restorations)
 24. [Blender for Dental: An Honest Review of the Free Dental CAD](https://exoinstall.com/en/blog/blender-for-dental/)
 25. <https://www.caddent.de/fileadmin/PDF/DEU/Datenblaetter/Fraesen/747728_emax_ZirCAD_lab_GI_WW_REV1_9Oct23__1_.pdf>
-26. [IPS e.max® Zirconia — Technical Guide](https://content.ivoclar.com/en/digital-dentistry-and-dental-technology-the-dental-world-in-transition)
+26. [IPS e.max® Zirconia: Technical Guide](https://content.ivoclar.com/en/digital-dentistry-and-dental-technology-the-dental-world-in-transition)
 27. [KATANA™ ZIRCONIA RESTORATION SYSTEM - Abicart](https://cdn.abicart.com/shop/19433/art95/177817095-1a7832-20709_1%20Katana%20material%20brochure.pdf)
 28. [MULTI-LAYERED SERIES TECHNICAL GUIDE KATANA™ ZIRCONIA](https://www.bego.com/fileadmin/user_downloads/Mediathek/Medical/en_Keramik/KATANA_Zirconia/KATANA-stml-utml-technical-guide-en.pdf)
 29. [Kuraray Noritake KATANA™ Zirconia UTML](https://katanazirconia.com/katana-zirconia-utml/)
@@ -234,7 +236,7 @@ tests/         # pytest (core) + blender --background (integrasi)
 66. [Manifold Boolean feedback - Feature & Design Feedback - Developer Forum](https://devtalk.blender.org/t/manifold-boolean-feedback/40150)
 67. [manifold3d 3.5.2 on PyPI - Libraries.io - security & maintenance data for open source software](https://libraries.io/pypi/manifold3d)
 68. [Library for geometric robustness](https://pypi.org/project/manifold3d/)
-69. [Terms of Service — Blender Extensions](https://extensions.blender.org/terms-of-service/)
+69. [Terms of Service (Blender Extensions)](https://extensions.blender.org/terms-of-service/)
 70. [The GPL and the Legal Limits of What You Can Do with Blender - CG Cookie](https://cgcookie.com/posts/the-gpl-and-the-legal-limits-of-blender)
 71. [U.S. Food & Drug Administration 10903 New Hampshire Avenue](https://www.accessdata.fda.gov/cdrh_docs/pdf17/K171466.pdf)
 72. [GHTF & MDD Risk Rule FDA GHTF MDD Rule # Measurer, gingival fluid 872.1500 JEO](https://webgate.ec.europa.eu/circabc-ewpp/rest/download/fd305127-a2c4-45c6-8448-f9f0f0fca09d)
