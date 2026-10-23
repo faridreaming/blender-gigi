@@ -29,6 +29,7 @@ REQUIRED_PARAMS: dict[str, tuple[str, bool]] = {
     "margin_angled_length_mm": ("mm", False),
     "margin_angle_deg": ("deg", False),
     "milling_tool_diameter_mm": ("mm", True),
+    "blockout_free_zone_mm": ("mm", False),
 }
 
 

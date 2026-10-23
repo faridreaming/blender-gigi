@@ -300,3 +300,20 @@ def distance_to_polyline(points: np.ndarray, polyline: np.ndarray, closed: bool 
         nearest = start + u[..., None] * seg
         result[i : i + chunk] = np.sqrt(np.min(np.sum((p - nearest) ** 2, axis=-1), axis=1))
     return result
+
+
+def undercut_depth_truth(spec: DieSpec, theta: np.ndarray, t: np.ndarray, n_theta: int = 720,
+                         rows: tuple[int, int, int, int] = (12, 48, 160, 60)) -> np.ndarray:
+    """Jawaban benar kedalaman undercut terhadap sumbu sebenarnya (+Z die) di titik permukaan (theta, t).
+
+    Dihitung dengan uji bayangan eksak (core.insertion.ShadowField) pada triangulasi permukaan analitis yang
+    rapat, tanpa jitter dan tanpa derau (sel sekitar 0,03-0,05 mm), bukan dari mesh yang diuji.
+    """
+    from .insertion import ShadowField
+
+    dense = make_die(spec, n_theta=n_theta, rows=rows, jitter=0.0, noise_sigma_mm=0.0, rotate=False)
+    triangles = dense.mesh.vertices[dense.mesh.faces[dense.prep_faces()]]
+    field = ShadowField(triangles, np.array([0.0, 0.0, 1.0]), np.zeros(3), height_eps=0.005, step=0.005,
+                        max_depth=3.0)
+    t = np.minimum(np.asarray(t, float), 3.999)
+    return field.depth(surface_points(spec, theta, t))

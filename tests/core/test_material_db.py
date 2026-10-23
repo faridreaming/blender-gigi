@@ -45,14 +45,17 @@ def test_bundled_zircad_prime_matches_ivoclar_chart():
         "margin_angled_length_mm": 0.1,
         "margin_angle_deg": 65,
         "milling_tool_diameter_mm": 1.2,
+        "blockout_free_zone_mm": 0.1,
     }
     assert {name: p.value for name, p in preset.params.items()} == expected
     ivo = [name for name, p in preset.params.items() if p.source.startswith("IVO")]
-    assert set(ivo) == set(expected) - {"axial_spacing_um"}
+    assert set(ivo) == set(expected) - {"axial_spacing_um", "blockout_free_zone_mm"}
     assert all(preset.get(name).source_date == "2024-02-07" for name in ivo)
     assert preset.get("axial_spacing_um").status == "perlu_kalibrasi"
+    assert preset.get("blockout_free_zone_mm").status == "perlu_kalibrasi"
+    assert "exocad Quick Guide" in preset.get("blockout_free_zone_mm").source
     assert preset.min_thickness_mm("premolar") == 1.0
-    assert len(preset.warnings()) == 1
+    assert len(preset.warnings()) == 2
 
 
 def test_all_bundled_presets_are_valid():

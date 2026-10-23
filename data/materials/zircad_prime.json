@@ -93,6 +93,13 @@
       "status": "default_pabrikan",
       "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Anticipate milling: Yes, Diameter 1.2 mm'",
       "source_date": "2024-02-07"
+    },
+    "blockout_free_zone_mm": {
+      "value": 0.1,
+      "unit": "mm",
+      "status": "perlu_kalibrasi",
+      "source": "tidak tercantum di IVO. Angka dari exocad Quick Guide: Crown Bottoms (transkrip video, arsip Wayback 2024-02-25 dari voicetube.com/videos/46150): \"Don't block out zone near prepline\" \"The default value in our generic version is 0.1 mm\"; 3-axis biasanya 0, 5-axis disarankan sama dengan cement gap. Default software, bukan angka material; bergantung konfigurasi milling yang belum ada di Fase 2 (docs/PHASE2.md §5.2)",
+      "source_date": "2026-10-24"
     }
   }
 }

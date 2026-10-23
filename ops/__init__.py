@@ -5,6 +5,14 @@ import bpy
 
 from .coupons import DENTALCAD_OT_export_coupons
 from .import_mesh import DENTALCAD_OT_import_ply, DENTALCAD_OT_import_stl
+from .insertion import (
+    DENTALCAD_OT_block_out,
+    DENTALCAD_OT_insertion_detect,
+    DENTALCAD_OT_insertion_from_view,
+    DENTALCAD_OT_insertion_view,
+    register_handlers,
+    unregister_handlers,
+)
 from .margin import (
     DENTALCAD_OT_margin_confirm,
     DENTALCAD_OT_margin_detect,
@@ -24,6 +32,20 @@ classes = (
     DENTALCAD_OT_margin_update,
     DENTALCAD_OT_margin_confirm,
     DENTALCAD_OT_load_synthetic_case,
+    DENTALCAD_OT_insertion_detect,
+    DENTALCAD_OT_insertion_from_view,
+    DENTALCAD_OT_insertion_view,
+    DENTALCAD_OT_block_out,
 )
 
-register, unregister = bpy.utils.register_classes_factory(classes)
+_register_classes, _unregister_classes = bpy.utils.register_classes_factory(classes)
+
+
+def register():
+    _register_classes()
+    register_handlers()
+
+
+def unregister():
+    unregister_handlers()
+    _unregister_classes()

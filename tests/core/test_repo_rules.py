@@ -41,7 +41,7 @@ def test_core_never_imports_blender_modules():
 def test_core_imports_without_bpy_in_fresh_interpreter():
     code = (
         "import sys; sys.path.insert(0, sys.argv[1]);"
-        "import core.mesh_io, core.mesh_validate, core.material_db, core.units, core.solid, core.model_presets, core.calibration, core.synthetic, core.geometry, core.margin;"
+        "import core.mesh_io, core.mesh_validate, core.material_db, core.units, core.solid, core.model_presets, core.calibration, core.synthetic, core.geometry, core.margin, core.insertion;"
         "assert 'bpy' not in sys.modules"
     )
     subprocess.run([sys.executable, "-c", code, str(ROOT)], check=True)

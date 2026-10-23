@@ -42,14 +42,20 @@ class DENTALCAD_OT_load_synthetic_case(bpy.types.Operator):
     scallop_mm: FloatProperty(name="Scallop (mm)", default=1.0, min=0.0, max=2.5)
     noise_um: FloatProperty(name="Noise (um)", default=10.0, min=0.0, max=150.0)
     undercut: BoolProperty(name="Undercut Sector", default=False)
+    undercut_deg: FloatProperty(name="Undercut Angle", default=10.0, min=0.0, max=20.0)
+    undercut_center_deg: FloatProperty(name="Undercut Direction", default=0.0, min=0.0, max=360.0,
+                                       description="0 is the scallop peak (proximal side)")
     seed: IntProperty(name="Seed", default=0, min=0)
     show_truth: BoolProperty(name="Show True Margin", default=True)
 
     def execute(self, context):
-        for name in (DIE_NAME, f"{DIE_NAME} Truth Margin", f"{DIE_NAME} Margin", f"{DIE_NAME} Margin Preview"):
+        for name in (DIE_NAME, f"{DIE_NAME} Truth Margin", f"{DIE_NAME} Margin", f"{DIE_NAME} Margin Preview",
+                     f"{DIE_NAME} Margin Review", f"{DIE_NAME} Margin Draft", f"{DIE_NAME} Insertion Axis",
+                     f"{DIE_NAME} Axis Handle", f"{DIE_NAME} Block-out"):
             _remove(name)
         spec = synthetic.DieSpec(finish=self.finish, scallop_mm=self.scallop_mm,
-                                 undercut_deg=10.0 if self.undercut else 0.0)
+                                 undercut_deg=self.undercut_deg if self.undercut else 0.0,
+                                 undercut_center_deg=self.undercut_center_deg)
         die = synthetic.make_die(spec, noise_sigma_mm=self.noise_um / 1000.0, rotate=False, seed=self.seed)
 
         obj = bpy.data.objects.new(DIE_NAME, to_blender_mesh(DIE_NAME, die.mesh))

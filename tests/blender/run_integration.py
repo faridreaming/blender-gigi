@@ -411,11 +411,112 @@ class Runner:
             problems.append("Update setelah konfirmasi tidak mengembalikan status draf")
         self.check(f"margin: status draf, Confirm Margin, gerbang langkah crown ({flagged} segmen merah)", problems)
 
+    def insertion(self, package: str) -> None:
+        """§5.2: gerbang margin, sumbu otomatis, seret bola pegangan, Set from View, block-out."""
+        import numpy as np
+        from mathutils import Vector
+
+        ops_margin = importlib.import_module(f"{package}.ops.margin")
+        ops_ins = importlib.import_module(f"{package}.ops.insertion")
+        case = importlib.import_module(f"{package}.ops.synthetic_case")
+        problems = []
+        clear_scene()
+        bpy.ops.dentalcad.load_synthetic_case(finish="shoulder", scallop_mm=1.0, noise_um=10.0, undercut=True,
+                                              undercut_deg=12.0, undercut_center_deg=0.0, seed=0)
+        die = bpy.data.objects[case.DIE_NAME]
+        truth = np.array(die[case.KEY_TRUTH], dtype=float).reshape(-1, 3)
+        bpy.ops.dentalcad.margin_detect(use_seed=True, seed_point=tuple(truth[128] + 0.05))
+        try:
+            bpy.ops.dentalcad.insertion_detect()
+            problems.append("sumbu insersi jalan dengan margin draf")
+        except RuntimeError as exc:
+            if "draft" not in str(exc):
+                problems.append(f"pesan gerbang tidak sesuai: {exc}")
+        bpy.context.view_layer.objects.active = ops_margin.margin_controls(die)
+        bpy.ops.dentalcad.margin_confirm()
+        bpy.context.view_layer.objects.active = die
+        start = time.perf_counter()
+        result = bpy.ops.dentalcad.insertion_detect()
+        seconds = time.perf_counter() - start
+        handle = bpy.data.objects.get(ops_ins.handle_name(die))
+        arrow = bpy.data.objects.get(ops_ins.axis_name(die))
+        if result != {"FINISHED"} or handle is None or arrow is None or ops_ins.KEY_AXIS not in die:
+            self.check("sumbu insersi: deteksi", [f"operator {result}, pegangan {handle}, panah {arrow}"])
+            return
+        axis = np.array(die[ops_ins.KEY_AXIS])
+        tilt = np.degrees(np.arccos(np.clip(axis[2], -1, 1)))
+        if tilt > 8.0:
+            problems.append(f"sumbu otomatis {tilt:.1f} derajat dari sumbu die")
+        if die.data.color_attributes.get(ops_ins.UNDERCUT_COLOR) is None or die[ops_ins.KEY_UNDERCUT_MAX] <= 0:
+            problems.append("peta undercut tidak ditulis pada die dengan sektor undercut")
+        self.check(f"sumbu insersi: deteksi ({tilt:.1f} derajat, undercut maks "
+                   f"{1000 * die[ops_ins.KEY_UNDERCUT_MAX]:.0f} um, {seconds:.2f} s)", problems)
+
+        # Seret bola pegangan: miringkan 25 derajat, peta dan keraguan diperbarui lewat handler depsgraph.
+        problems = []
+        before = die[ops_ins.KEY_UNDERCUT_MAX]
+        base = die.matrix_world @ Vector(die[ops_ins.KEY_BASE])
+        tilted = Vector((np.sin(np.radians(25)), 0.0, np.cos(np.radians(25))))
+        handle.location = base + tilted * ops_ins.ARROW_LENGTH_MM
+        bpy.context.view_layer.update()
+        if die.get(ops_ins.KEY_AXIS_SOURCE) != "handle":
+            ops_ins.handle_moved(bpy.context, die)  # tanpa UI, handler depsgraph mungkin tidak terpicu
+            problems.append("handler depsgraph tidak memperbarui sumbu setelah bola digeser")
+        new_axis = np.array(die[ops_ins.KEY_AXIS])
+        if np.degrees(np.arccos(np.clip(new_axis @ np.array(tilted), -1, 1))) > 0.1:
+            problems.append(f"sumbu {new_axis} tidak mengikuti bola {tuple(tilted)}")
+        if "margin line lies in an undercut" not in die.get(ops_ins.KEY_DOUBT, ""):
+            problems.append(f"sumbu miring 25 derajat tidak ditandai ragu: '{die.get(ops_ins.KEY_DOUBT, '')}'")
+        if die[ops_ins.KEY_UNDERCUT_MAX] == before:
+            problems.append("peta undercut tidak berubah setelah sumbu diubah")
+        self.check("sumbu insersi: seret bola pegangan, peta dan tanda ragu diperbarui", problems)
+
+        # Set from View lalu block-out; block-out kedaluwarsa bila sumbu berubah.
+        problems = []
+        bpy.ops.dentalcad.insertion_from_view(use_direction=True, direction=(0.0, 0.0, 1.0))
+        if die.get(ops_ins.KEY_AXIS_SOURCE) != "view" or not np.allclose(die[ops_ins.KEY_AXIS], [0, 0, 1], atol=1e-6):
+            problems.append(f"Set from View tidak memakai arah yang diberikan: {list(die[ops_ins.KEY_AXIS])}")
+        start = time.perf_counter()
+        result = bpy.ops.dentalcad.block_out()
+        seconds = time.perf_counter() - start
+        blocked = bpy.data.objects.get(ops_ins.blockout_name(die))
+        if result != {"FINISHED"} or blocked is None:
+            problems.append(f"block-out mengembalikan {result}")
+        else:
+            if blocked[ops_ins.KEY_BLOCKOUT_RESIDUAL] > 0:
+                problems.append(f"block-out menyisakan bayangan {1000 * blocked[ops_ins.KEY_BLOCKOUT_RESIDUAL]:.0f} um")
+            if abs(blocked[ops_ins.KEY_BLOCKOUT_ZONE] - 0.1) > 1e-9:
+                problems.append(f"zona tanpa block-out {blocked[ops_ins.KEY_BLOCKOUT_ZONE]} mm, preset 0,1 mm")
+            if not ops_ins.require_current_block_out(die)[0]:
+                problems.append("gerbang block-out menolak block-out yang baru dibuat")
+            bpy.ops.dentalcad.insertion_from_view(use_direction=True, direction=(0.05, 0.0, 1.0))
+            ok, message = ops_ins.require_current_block_out(die)
+            if ok or "changed after the block-out" not in message:
+                problems.append(f"block-out lama tidak ditandai kedaluwarsa: {message}")
+        self.check(f"sumbu insersi: Set from View, block-out ({seconds:.2f} s), kedaluwarsa", problems)
+
+        # Margin diubah setelah konfirmasi: semua langkah §5.2 ditolak lagi.
+        problems = []
+        controls = ops_margin.margin_controls(die)
+        bpy.context.view_layer.objects.active = controls
+        bpy.ops.dentalcad.margin_update()
+        bpy.context.view_layer.objects.active = die
+        for op in (bpy.ops.dentalcad.insertion_detect, bpy.ops.dentalcad.block_out):
+            try:
+                op()
+                problems.append(f"{op.idname()} jalan dengan margin draf")
+            except RuntimeError as exc:
+                if "draft" not in str(exc):
+                    problems.append(f"pesan gerbang tidak sesuai: {exc}")
+        self.check("sumbu insersi: gerbang menolak setelah margin kembali draf", problems)
+
     def registration(self) -> None:
         problems = []
         for name in ("DENTALCAD_PT_main", "DENTALCAD_OT_import_stl", "DENTALCAD_OT_import_ply",
                      "DENTALCAD_OT_export_coupons", "DENTALCAD_OT_margin_detect", "DENTALCAD_OT_margin_update",
-                     "DENTALCAD_OT_load_synthetic_case", "DENTALCAD_OT_margin_draw"):
+                     "DENTALCAD_OT_load_synthetic_case", "DENTALCAD_OT_margin_draw",
+                     "DENTALCAD_OT_margin_confirm", "DENTALCAD_OT_insertion_detect",
+                     "DENTALCAD_OT_insertion_from_view", "DENTALCAD_OT_insertion_view", "DENTALCAD_OT_block_out"):
             if not hasattr(bpy.types, name):
                 problems.append(f"{name} tidak teregistrasi")
         if not hasattr(bpy.types.Scene, "dentalcad_case"):
@@ -474,6 +575,7 @@ def main() -> int:
     runner.coupons(package)
     runner.margin(package)
     runner.synthetic_case(package)
+    runner.insertion(package)
 
     print(f"\n{len(runner.failures)} kegagalan" if runner.failures else "\nSemua uji integrasi lulus")
     return 1 if runner.failures else 0

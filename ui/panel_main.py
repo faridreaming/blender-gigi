@@ -12,6 +12,7 @@ CASE_STEPS = (
     ("ORDER", "Order", "Case details (not available yet)"),
     ("SCAN", "Scan", "Import the scan meshes"),
     ("MARGIN", "Margin", "Detect and edit the preparation margin"),
+    ("AXIS", "Axis", "Insertion axis, undercuts, and block-out"),
 )
 
 
@@ -38,6 +39,8 @@ class DENTALCAD_PT_main(bpy.types.Panel):
             layout.label(text="Case details are not available yet", icon="INFO")
         elif case.step == "MARGIN":
             self.draw_margin(layout, context)
+        elif case.step == "AXIS":
+            self.draw_axis(layout, context)
         else:
             self.draw_scan(layout, context)
 
@@ -81,6 +84,47 @@ class DENTALCAD_PT_main(bpy.types.Panel):
         else:
             layout.label(text="Select the die, Detect Margin, click near the margin", icon="INFO")
             layout.label(text="Or Draw Margin: click points around the die, Enter to close")
+
+    def draw_axis(self, layout, context):
+        from ..ops import insertion, margin
+
+        die = context.active_object
+        if die is None or die.type != "MESH":
+            layout.label(text="Select the die", icon="INFO")
+            return
+        ok, message = margin.require_confirmed_margin(die)
+        if not ok:
+            layout.label(text=message, icon="ERROR")
+            return
+        col = layout.column(align=True)
+        col.operator("dentalcad.insertion_detect", icon="EMPTY_SINGLE_ARROW")
+        col.operator("dentalcad.insertion_from_view", icon="VIEW_CAMERA")
+        col.operator("dentalcad.insertion_view", icon="HIDE_OFF")
+        if insertion.KEY_AXIS not in die:
+            layout.label(text="Detect the insertion axis first", icon="INFO")
+            return
+        box = layout.box()
+        source = {"auto": "automatic", "view": "set from view", "handle": "dragged"}.get(
+            die.get(insertion.KEY_AXIS_SOURCE, ""), "?")
+        box.label(text=f"Axis: {source}", icon="EMPTY_SINGLE_ARROW")
+        doubt = die.get(insertion.KEY_DOUBT, "")
+        if doubt:
+            box.label(text="Axis needs checking:", icon="ERROR")
+            for reason in doubt.split("; "):
+                box.label(text=reason)
+        box.label(text=f"Deepest undercut: {1000 * die.get(insertion.KEY_UNDERCUT_MAX, 0.0):.0f} um")
+        box.label(text="Drag the sphere at the arrow tip (G) to tilt the axis", icon="INFO")
+        layout.operator("dentalcad.block_out", icon="MOD_SOLIDIFY")
+        blocked = bpy.data.objects.get(insertion.blockout_name(die))
+        param = insertion.material_preset().get("blockout_free_zone_mm")
+        box = layout.box()
+        box.label(text=f"No block-out zone near margin: {param.value} mm ({param.status_label})")
+        if blocked is None:
+            box.label(text="No block-out yet")
+        elif insertion.require_current_block_out(die)[0]:
+            box.label(text="Block-out matches the current axis", icon="CHECKMARK")
+        else:
+            box.label(text="Block-out is outdated: run Block Out again", icon="ERROR")
 
     def draw_scan(self, layout, context):
         col = layout.column(align=True)
