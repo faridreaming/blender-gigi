@@ -61,6 +61,7 @@ dentalcad/                          # root repo == root isi .zip extension
 │  ├─ mesh_bridge.py                # MeshData <-> bpy.types.Mesh lewat foreach_set/foreach_get
 │  ├─ coupons.py                    # OT_export_coupons (Fase 1)
 │  ├─ margin.py                     # OT_margin_detect / OT_margin_update (Fase 2)
+│  ├─ synthetic_case.py             # OT_load_synthetic_case: die sintetis + margin benar untuk uji manual (Fase 2)
 │  └─ import_mesh.py                # OT_import_stl / OT_import_ply
 ├─ ui/                              # panel, N-panel tab, state-machine kasus
 │  ├─ __init__.py

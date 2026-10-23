@@ -16,6 +16,7 @@ from mathutils import Matrix, Vector
 
 from ..core import margin as core_margin
 from ..core.geometry import MeshProjector
+from .synthetic_case import KEY_TRUTH
 from .mesh_bridge import from_blender_mesh
 
 KEY_DIE = "dentalcad_margin_die"
@@ -98,11 +99,23 @@ class DENTALCAD_OT_margin_detect(bpy.types.Operator):
         die = context.active_object
         try:
             result = detect_on(context, die, self.seed_point)
-        except core_margin.MarginError as exc:
-            self.report({"ERROR"}, f"Margin not found: {exc}")
+        except core_margin.MarginNoiseError as exc:
+            self.report({"ERROR"}, f"Scan too noisy (estimated noise {1000 * exc.sigma_mm:.0f} um, limit "
+                                   f"{1000 * exc.limit_mm:.0f} um): draw the margin manually. No curve was created.")
             return {"CANCELLED"}
-        length = result.curve.length()
-        self.report({"INFO"}, f"Margin: {len(result.curve.control_points)} control points, {length:.1f} mm")
+        except core_margin.MarginPlausibilityError as exc:
+            self.report({"ERROR"}, "Margin rejected, the detected curve is implausible: "
+                                   + ", ".join(exc.failed) + ". Click closer to the margin or draw it manually.")
+            return {"CANCELLED"}
+        except core_margin.MarginError as exc:
+            self.report({"ERROR"}, f"Margin not found ({exc}). Click closer to the margin or draw it manually.")
+            return {"CANCELLED"}
+        message = f"Margin: {len(result.curve.control_points)} control points, {result.curve.length():.1f} mm"
+        if KEY_TRUTH in die:
+            truth = np.array(die[KEY_TRUTH], dtype=float).reshape(-1, 3)
+            dev = core_margin.margin_deviation(result.curve.sample(1024), truth)
+            message += f"; vs true margin: median {1000 * dev['median']:.0f} um, p95 {1000 * dev['p95']:.0f} um"
+        self.report({"INFO"}, message)
         return {"FINISHED"}
 
     def invoke(self, context, event):

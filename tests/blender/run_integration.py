@@ -240,15 +240,70 @@ class Runner:
             problems.append("titik kontrol tersimpan tidak sama dengan kurva")
         self.check("margin: edit hapus + geser, lalu update", problems)
 
+    def synthetic_case(self, package: str) -> None:
+        """Load Synthetic Case lalu Detect Margin; dengan derau 90 um operator harus batal tanpa membuat kurva."""
+        import numpy as np
+
+        core_margin = importlib.import_module(f"{package}.core.margin")
+        case = importlib.import_module(f"{package}.ops.synthetic_case")
+        problems = []
+        clear_scene()
+        result = bpy.ops.dentalcad.load_synthetic_case(finish="chamfer", scallop_mm=1.0, noise_um=10.0, seed=2)
+        die = bpy.data.objects.get(case.DIE_NAME)
+        truth_obj = bpy.data.objects.get(f"{case.DIE_NAME} Truth Margin")
+        if result != {"FINISHED"} or die is None or truth_obj is None:
+            self.check("kasus sintetis: muat", [f"operator {result}, die {die}, kurva benar {truth_obj}"])
+            return
+        truth = np.array(die[case.KEY_TRUTH], dtype=float).reshape(-1, 3)
+        if truth.shape != (case.TRUTH_SAMPLES, 3):
+            problems.append(f"margin benar tersimpan {truth.shape}, diharapkan ({case.TRUTH_SAMPLES}, 3)")
+        if bpy.context.view_layer.objects.active != die:
+            problems.append("die tidak menjadi objek aktif")
+        if bpy.context.scene.dentalcad_case.step != "MARGIN":
+            problems.append(f"langkah panel {bpy.context.scene.dentalcad_case.step}, diharapkan MARGIN")
+        self.check("kasus sintetis: muat die dan margin benar", problems)
+
+        problems = []
+        result = bpy.ops.dentalcad.margin_detect(use_seed=True, seed_point=tuple(truth[100] + 0.05))
+        controls = bpy.data.objects.get(f"{case.DIE_NAME} Margin")
+        if result != {"FINISHED"} or controls is None:
+            problems.append(f"deteksi mengembalikan {result}, kurva {controls}")
+        else:
+            curve = core_margin.MarginCurve(np.array(controls[ops_key(package)]).reshape(-1, 3), None)
+            dev = core_margin.margin_deviation(curve.sample(1024), truth)
+            if dev["median"] > 0.050:
+                problems.append(f"deviasi median {1000 * dev['median']:.1f} um")
+        self.check("kasus sintetis: deteksi margin", problems)
+
+        problems = []
+        bpy.ops.dentalcad.load_synthetic_case(finish="shoulder", scallop_mm=0.0, noise_um=90.0, seed=0)
+        die = bpy.data.objects[case.DIE_NAME]
+        truth = np.array(die[case.KEY_TRUTH], dtype=float).reshape(-1, 3)
+        try:
+            result = bpy.ops.dentalcad.margin_detect(use_seed=True, seed_point=tuple(truth[0]))
+            problems.append(f"deteksi pada derau 90 um mengembalikan {result} tanpa error")
+        except RuntimeError as exc:  # bpy.ops mengubah laporan ERROR operator menjadi RuntimeError
+            if "Scan too noisy" not in str(exc) or "draw the margin manually" not in str(exc):
+                problems.append(f"pesan error tidak sesuai: {exc}")
+        for name in (f"{case.DIE_NAME} Margin", f"{case.DIE_NAME} Margin Preview"):
+            if bpy.data.objects.get(name) is not None:
+                problems.append(f"objek {name} dibuat padahal deteksi ditolak")
+        self.check("kasus sintetis: derau 90 um ditolak tanpa kurva", problems)
+
     def registration(self) -> None:
         problems = []
         for name in ("DENTALCAD_PT_main", "DENTALCAD_OT_import_stl", "DENTALCAD_OT_import_ply",
-                     "DENTALCAD_OT_export_coupons", "DENTALCAD_OT_margin_detect", "DENTALCAD_OT_margin_update"):
+                     "DENTALCAD_OT_export_coupons", "DENTALCAD_OT_margin_detect", "DENTALCAD_OT_margin_update",
+                     "DENTALCAD_OT_load_synthetic_case"):
             if not hasattr(bpy.types, name):
                 problems.append(f"{name} tidak teregistrasi")
         if not hasattr(bpy.types.Scene, "dentalcad_case"):
             problems.append("Scene.dentalcad_case tidak ada")
         self.check("registrasi panel dan operator", problems)
+
+
+def ops_key(package: str) -> str:
+    return importlib.import_module(f"{package}.ops.margin").KEY_CONTROLS
 
 
 def golden_cases(directory: Path) -> list[Path]:
@@ -297,6 +352,7 @@ def main() -> int:
     runner.performance()
     runner.coupons(package)
     runner.margin(package)
+    runner.synthetic_case(package)
 
     print(f"\n{len(runner.failures)} kegagalan" if runner.failures else "\nSemua uji integrasi lulus")
     return 1 if runner.failures else 0

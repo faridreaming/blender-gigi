@@ -60,6 +60,7 @@ class DENTALCAD_PT_main(bpy.types.Panel):
 
     def draw_margin(self, layout, context):
         obj = context.active_object
+        layout.operator("dentalcad.load_synthetic_case", icon="MESH_CYLINDER")
         col = layout.column(align=True)
         col.operator("dentalcad.margin_detect", icon="CURVE_BEZCIRCLE")
         col.operator("dentalcad.margin_update", icon="FILE_REFRESH")

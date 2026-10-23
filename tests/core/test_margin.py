@@ -103,6 +103,72 @@ def test_click_position_does_not_change_the_curve():
         assert np.max(synthetic.distance_to_polyline(other, curves[0])) < 0.05
 
 
+# Pengaman: tidak boleh gagal diam-diam --------------------------------------------------------------
+
+NOISY_CASES = [(f, s, seed) for f in synthetic.FINISHES for s in (0.0, 1.0) for seed in (0, 1)]
+
+
+@pytest.mark.parametrize("finish, scallop, seed", NOISY_CASES)
+def test_every_90um_case_stops_with_the_noise_warning(finish, scallop, seed):
+    die = synthetic.make_die(synthetic.DieSpec(finish=finish, scallop_mm=scallop), noise_sigma_mm=0.090, seed=seed)
+    with pytest.raises(margin.MarginNoiseError, match="gambar margin manual") as info:
+        margin.detect_margin(die.mesh, click_near(die, 2.0, seed=seed))
+    assert info.value.sigma_mm > info.value.limit_mm == pytest.approx(0.060)
+
+
+KNOWN_SLIP = pytest.mark.xfail(strict=True, reason="batas yang diketahui (PHASE2.md §5.1): pemeriksaan kewajaran "
+                                "saja meloloskan kurva median 247 um; pengaman derau adalah pelindung utama")
+GUARD_OFF_CASES = [pytest.param(*c, marks=KNOWN_SLIP) if c == ("shoulder", 0.0, 0) else c for c in NOISY_CASES]
+
+
+@pytest.mark.parametrize("finish, scallop, seed", GUARD_OFF_CASES)
+def test_without_noise_guard_bad_90um_curves_are_still_rejected(finish, scallop, seed):
+    """Lapis kedua: dengan pengaman derau dimatikan, kurva yang melenceng harus ditolak pemeriksaan kewajaran.
+
+    Lapis ini belum lengkap: kasus yang ditandai xfail lolos tanpa pesan. strict=True membuat tes gagal bila
+    kasus itu suatu saat tertangkap, supaya catatannya diperbarui."""
+    die = synthetic.make_die(synthetic.DieSpec(finish=finish, scallop_mm=scallop), noise_sigma_mm=0.090, seed=seed)
+    params = margin.MarginParams(check_noise=False)
+    try:
+        result = margin.detect_margin(die.mesh, click_near(die, 2.0, seed=seed), params)
+    except margin.MarginError:
+        return
+    dev = deviation(die, result)
+    assert dev["median"] <= CRITERION_MEDIAN_MM and dev["coverage_p95"] <= 0.15, f"kurva buruk tanpa pesan: {dev}"
+
+
+def test_noise_estimate_is_reported_on_success():
+    die = synthetic.make_die(synthetic.DieSpec(), noise_sigma_mm=0.03, seed=1)
+    result = margin.detect_margin(die.mesh, click_near(die, 1.0))
+    assert 0.025 < result.noise_sigma_mm < 0.040
+    assert set(result.metrics) == {"ok_fraction", "click_distance", "gap_ratio", "girth_ratio", "out_of_plane_ratio"}
+
+
+@pytest.mark.parametrize(
+    "change, name",
+    [
+        ({"ok_fraction": 0.5}, "too few points on the crease"),
+        ({"click_distance": 2.0}, "curve far from the clicked point"),
+        ({"gap_ratio": 4.0}, "gap in the curve"),
+        ({"girth_ratio": 0.6}, "curve length does not match the die"),
+        ({"girth_ratio": 1.4}, "curve length does not match the die"),
+        ({"out_of_plane_ratio": 0.5}, "curve leaves the margin plane"),
+    ],
+)
+def test_each_plausibility_check_fires(change, name):
+    good = {"ok_fraction": 1.0, "click_distance": 0.1, "gap_ratio": 1.0, "girth_ratio": 1.0, "out_of_plane_ratio": 0.1}
+    assert margin.plausibility_problems(good, margin.MarginParams()) == []
+    problems = margin.plausibility_problems({**good, **change}, margin.MarginParams())
+    assert [n for n, _ in problems] == [name]
+
+
+def test_sparse_points_raise_instead_of_crashing():
+    sparse = np.array([[0, 0, 0], [10, 0, 0], [10, 10, 0], [0, 10, 0]], dtype=float)
+    with pytest.raises(margin.MarginPlausibilityError, match="terlalu jarang") as info:
+        margin._smooth_closed(sparse, 0.4)
+    assert info.value.failed == ["gap in the curve"]
+
+
 def test_flat_surface_has_no_margin():
     x, y = np.meshgrid(np.linspace(0, 10, 30), np.linspace(0, 10, 30))
     vertices = np.stack([x.ravel(), y.ravel(), np.zeros(x.size)], axis=1)

@@ -48,10 +48,39 @@ class MarginParams:
     min_crease_angle_deg: float = 30.0
     smooth_sigma_mm: float = 0.4
     control_spacing_mm: float = 1.0
+    # Pengaman. Ambang derau: keputusan maintainer berdasarkan presisi terburuk enam scanner intraoral untuk
+    # preparasi single crown di Diker & Tak 2020 (60 um, Planmeca Emerald); lihat PHASE2.md §5.1.
+    max_noise_mm: float = 0.060
+    check_noise: bool = True
+    # Ambang kewajaran kurva (ambang algoritma, bukan klinis), dari sapuan pada data sintetis, PHASE2.md §5.1.
+    min_refined_fraction: float = 0.75
+    max_click_distance_mm: float = 1.0
+    max_control_gap_ratio: float = 2.5
+    girth_ratio_range: tuple[float, float] = (0.90, 1.12)
+    max_out_of_plane_ratio: float = 0.35
 
 
 class MarginError(ValueError):
     """Margin tidak bisa dideteksi atau diedit (misalnya tidak ada jalur yang melingkari die)."""
+
+
+class MarginNoiseError(MarginError):
+    """Scan terlalu berderau untuk deteksi otomatis; margin harus digambar manual."""
+
+    def __init__(self, message: str, sigma_mm: float, limit_mm: float):
+        super().__init__(message)
+        self.sigma_mm = sigma_mm
+        self.limit_mm = limit_mm
+
+
+class MarginPlausibilityError(MarginError):
+    """Kurva hasil deteksi tidak wajar (misalnya melompat jauh, tidak menutup, atau ukurannya tidak cocok
+    dengan die), jadi ditolak alih-alih dikembalikan tanpa pesan."""
+
+    def __init__(self, message: str, failed: list[str] | None = None, metrics: dict | None = None):
+        super().__init__(message)
+        self.failed = failed or []  # nama metrik yang gagal (bahasa Inggris, untuk pesan UI)
+        self.metrics = metrics or {}
 
 
 # 1. Skor crease ------------------------------------------------------------------------------------
@@ -329,12 +358,19 @@ def _smooth_closed(points: np.ndarray, sigma: float) -> np.ndarray:
     diff = s[None, :] - s[:, None]
     diff = (diff + 0.5 * total) % total - 0.5 * total  # (i, j): jarak busur bertanda dari i ke j
     w = np.exp(-0.5 * (diff / sigma) ** 2)
+    if np.any((w > 1e-3).sum(axis=1) < 4):
+        # Regresi kuadratik butuh beberapa tetangga dalam ~3 sigma; kurang dari itu berarti ada lubang lebar.
+        raise MarginPlausibilityError("titik crease terlalu jarang untuk membentuk kurva", ["gap in the curve"])
     # Untuk setiap i: minimalkan sum_j w_ij |p_j - (c0 + c1 d + c2 d^2)|^2, hasil = c0.
     m0, m1, m2 = w.sum(1), (w * diff).sum(1), (w * diff**2).sum(1)
     m3, m4 = (w * diff**3).sum(1), (w * diff**4).sum(1)
     normal = np.stack([np.stack([m0, m1, m2], -1), np.stack([m1, m2, m3], -1), np.stack([m2, m3, m4], -1)], -2)
     rhs = np.stack([w @ points, (w * diff) @ points, (w * diff**2) @ points], axis=1)  # (n, 3, 3)
-    return np.linalg.solve(normal, rhs)[:, 0, :]
+    try:
+        return np.linalg.solve(normal, rhs)[:, 0, :]
+    except np.linalg.LinAlgError:
+        # Terjadi kalau titik terlalu jarang sepanjang kurva (lubang jauh lebih lebar dari sigma).
+        raise MarginPlausibilityError("titik crease terlalu jarang untuk membentuk kurva", ["gap in the curve"]) from None
 
 
 # 4. Kurva yang bisa diedit -------------------------------------------------------------------------
@@ -399,6 +435,70 @@ class MarginCurve:
         self.control_points, _, _ = self.projector.closest(points)
 
 
+def _hull_perimeter_2d(points: np.ndarray) -> float:
+    from scipy.spatial import ConvexHull
+
+    hull = ConvexHull(points)
+    ring = points[hull.vertices]
+    return float(np.sum(np.linalg.norm(np.roll(ring, -1, axis=0) - ring, axis=1)))
+
+
+def plausibility_metrics(controls: np.ndarray, vertices: np.ndarray, click: np.ndarray, ok_fraction: float,
+                         spacing: float) -> dict:
+    """Metrik kewajaran kurva margin.
+
+    - ok_fraction: fraksi titik jalur yang berhasil disempurnakan ke crease.
+    - click_distance: jarak titik klik pengguna ke kurva (kurva harus melewati daerah yang diklik).
+    - gap_ratio: jarak terbesar antar titik kontrol berurutan dibagi jarak titik kontrol yang diminta
+      (lubang besar = bagian margin yang hilang dan dijembatani garis lurus).
+    - girth_ratio: panjang kurva dibagi keliling convex hull die di sekitar ketinggian kurva, diproyeksikan
+      ke bidang kurva (margin harus melingkari die, bukan menyusut ke dinding atau berzig-zag).
+    - out_of_plane_ratio: simpangan terbesar kurva dari bidang fit-nya dibagi diameter ekuivalen kurva
+      (kurva yang terjun ke tepi dasar die atau naik ke atap menyimpang jauh dari bidang).
+    """
+    from .synthetic import distance_to_polyline
+
+    closed = np.vstack([controls, controls[:1]])
+    steps = np.linalg.norm(np.diff(closed, axis=0), axis=1)
+    length = float(steps.sum())
+    center = controls.mean(axis=0)
+    _, _, vt = np.linalg.svd(controls - center, full_matrices=False)
+    e1, e2, axis = vt[0], vt[1], vt[2]
+    heights = (controls - center) @ axis
+    rel = vertices - center
+    vh = rel @ axis
+    slab = (vh >= heights.min() - 1.0) & (vh <= heights.max() + 1.0)
+    girth = _hull_perimeter_2d(np.stack([rel[slab] @ e1, rel[slab] @ e2], axis=1)) if slab.sum() >= 3 else np.inf
+    return {
+        "ok_fraction": float(ok_fraction),
+        "click_distance": float(distance_to_polyline(np.asarray(click, float).reshape(1, 3), controls)[0]),
+        "gap_ratio": float(steps.max() / spacing),
+        "girth_ratio": float(length / girth),
+        "out_of_plane_ratio": float(np.abs(heights).max() / (length / np.pi)),
+    }
+
+
+def plausibility_problems(metrics: dict, params: "MarginParams") -> list[tuple[str, str]]:
+    """Daftar (nama metrik dalam bahasa Inggris untuk UI, penjelasan) untuk metrik yang melewati ambang."""
+    problems = []
+    if metrics["ok_fraction"] < params.min_refined_fraction:
+        problems.append(("too few points on the crease",
+                         f"hanya {metrics['ok_fraction']:.0%} titik yang menempel ke crease"))
+    if metrics["click_distance"] > params.max_click_distance_mm:
+        problems.append(("curve far from the clicked point",
+                         f"kurva {metrics['click_distance']:.2f} mm dari titik klik"))
+    if metrics["gap_ratio"] > params.max_control_gap_ratio:
+        problems.append(("gap in the curve", f"ada lubang {metrics['gap_ratio']:.1f}x jarak titik kontrol di kurva"))
+    low, high = params.girth_ratio_range
+    if not low <= metrics["girth_ratio"] <= high:
+        problems.append(("curve length does not match the die",
+                         f"panjang kurva {metrics['girth_ratio']:.2f}x keliling die di ketinggian itu"))
+    if metrics["out_of_plane_ratio"] > params.max_out_of_plane_ratio:
+        problems.append(("curve leaves the margin plane",
+                         f"kurva menyimpang {metrics['out_of_plane_ratio']:.2f}x diameter dari bidangnya"))
+    return problems
+
+
 @dataclass
 class MarginResult:
     curve: MarginCurve
@@ -407,6 +507,8 @@ class MarginResult:
     refined_ok: np.ndarray
     axis_estimate: np.ndarray
     score: np.ndarray
+    noise_sigma_mm: float = 0.0
+    metrics: dict = field(default_factory=dict)
 
 
 def detect_margin(mesh: MeshData, seed_point, params: MarginParams = MarginParams()) -> MarginResult:
@@ -415,6 +517,12 @@ def detect_margin(mesh: MeshData, seed_point, params: MarginParams = MarginParam
     faces = np.asarray(mesh.faces)
     normals = vertex_normals(vertices, faces)
     sigma = estimate_noise_sigma(vertices, faces, normals)
+    if params.check_noise and sigma > params.max_noise_mm:
+        raise MarginNoiseError(
+            f"scan terlalu berderau (perkiraan derau {1000 * sigma:.0f} um > {1000 * params.max_noise_mm:.0f} um); "
+            "gambar margin manual",
+            sigma, params.max_noise_mm,
+        )
     curvature_radius = max(params.curvature_radius_min_mm, params.curvature_radius_per_noise * sigma)
     refine_radius = max(params.refine_radius_min_mm, params.refine_radius_per_noise * sigma)
     score, _, smooth_normals = crease_score(vertices, normals, curvature_radius)
@@ -438,10 +546,16 @@ def detect_margin(mesh: MeshData, seed_point, params: MarginParams = MarginParam
     samples = _resample_closed(vertices[loop], params.refine_spacing_mm)
     refined, ok = refine_on_crease(samples, vertices, smooth_normals, tree, refine_radius,
                                    params.min_crease_angle_deg)
-    if ok.mean() < 0.5:
-        raise MarginError(f"crease tidak jelas: hanya {ok.mean():.0%} titik jalur bisa disempurnakan")
+    if ok.sum() < 8:
+        raise MarginPlausibilityError("crease tidak jelas: hampir tidak ada titik jalur yang menempel ke crease",
+                                      ["no crease found along the path"])
     smoothed = _smooth_closed(refined[ok], params.smooth_sigma_mm)
     controls = _resample_closed(smoothed, params.control_spacing_mm)
+    metrics = plausibility_metrics(controls, vertices, seed_point, ok.mean(), params.control_spacing_mm)
+    problems = plausibility_problems(metrics, params)
+    if problems:
+        raise MarginPlausibilityError("kurva margin tidak wajar: " + "; ".join(text for _, text in problems),
+                                      [name for name, _ in problems], metrics)
     projector = MeshProjector(mesh)
     # Titik kontrol hasil deteksi sengaja TIDAK diproyeksikan ke mesh: mesh memotong sudut crease di antara
     # vertex, sehingga proyeksi menarik margin ke dalam. Titik yang digeser pengguna tetap diproyeksikan.
@@ -452,6 +566,8 @@ def detect_margin(mesh: MeshData, seed_point, params: MarginParams = MarginParam
         refined_ok=ok,
         axis_estimate=loop_axis(vertices[loop]),
         score=score,
+        noise_sigma_mm=sigma,
+        metrics=metrics,
     )
 
 
