@@ -451,8 +451,10 @@ def plausibility_metrics(controls: np.ndarray, vertices: np.ndarray, click: np.n
     - click_distance: jarak titik klik pengguna ke kurva (kurva harus melewati daerah yang diklik).
     - gap_ratio: jarak terbesar antar titik kontrol berurutan dibagi jarak titik kontrol yang diminta
       (lubang besar = bagian margin yang hilang dan dijembatani garis lurus).
-    - girth_ratio: panjang kurva dibagi keliling convex hull die di sekitar ketinggian kurva, diproyeksikan
-      ke bidang kurva (margin harus melingkari die, bukan menyusut ke dinding atau berzig-zag).
+    - girth_ratio: panjang kurva yang diproyeksikan ke bidang fit-nya dibagi keliling convex hull die di
+      sekitar ketinggian kurva, diproyeksikan ke bidang yang sama (margin harus melingkari die, bukan menyusut
+      ke dinding atau berzig-zag). Panjang proyeksi, bukan panjang 3D: margin ber-scallop dalam (lengkungan
+      CEJ anterior sampai sekitar 3,5 mm, PHASE2.md §5.1) memang lebih panjang daripada kelilingnya.
     - out_of_plane_ratio: simpangan terbesar kurva dari bidang fit-nya dibagi diameter ekuivalen kurva
       (kurva yang terjun ke tepi dasar die atau naik ke atap menyimpang jauh dari bidang).
     """
@@ -469,11 +471,13 @@ def plausibility_metrics(controls: np.ndarray, vertices: np.ndarray, click: np.n
     vh = rel @ axis
     slab = (vh >= heights.min() - 1.0) & (vh <= heights.max() + 1.0)
     girth = _hull_perimeter_2d(np.stack([rel[slab] @ e1, rel[slab] @ e2], axis=1)) if slab.sum() >= 3 else np.inf
+    flat = np.stack([(closed - center) @ e1, (closed - center) @ e2], axis=1)
+    projected_length = float(np.linalg.norm(np.diff(flat, axis=0), axis=1).sum())
     return {
         "ok_fraction": float(ok_fraction),
         "click_distance": float(distance_to_polyline(np.asarray(click, float).reshape(1, 3), controls)[0]),
         "gap_ratio": float(steps.max() / spacing),
-        "girth_ratio": float(length / girth),
+        "girth_ratio": float(projected_length / girth),
         "out_of_plane_ratio": float(np.abs(heights).max() / (length / np.pi)),
     }
 
@@ -520,7 +524,7 @@ def detect_margin(mesh: MeshData, seed_point, params: MarginParams = MarginParam
     if params.check_noise and sigma > params.max_noise_mm:
         raise MarginNoiseError(
             f"scan terlalu berderau (perkiraan derau {1000 * sigma:.0f} um > {1000 * params.max_noise_mm:.0f} um); "
-            "gambar margin manual",
+            "gambar margin manual (Draw Margin)",
             sigma, params.max_noise_mm,
         )
     curvature_radius = max(params.curvature_radius_min_mm, params.curvature_radius_per_noise * sigma)
@@ -569,6 +573,31 @@ def detect_margin(mesh: MeshData, seed_point, params: MarginParams = MarginParam
         noise_sigma_mm=sigma,
         metrics=metrics,
     )
+
+
+MIN_DRAWN_POINTS = 4
+
+
+def draw_margin(mesh: MeshData, points, min_spacing_mm: float = 0.05) -> MarginCurve:
+    """Margin gambar manual: titik yang diklik pengguna (berurutan) diproyeksikan ke permukaan die dan
+    ditutup otomatis menjadi kurva yang sama dengan hasil deteksi (bisa diedit dengan cara yang sama).
+
+    Titik yang lebih dekat dari min_spacing_mm ke titik sebelumnya (klik ganda) dibuang, termasuk titik
+    terakhir yang menutup ke titik pertama.
+    """
+    points = np.asarray(points, float).reshape(-1, 3)
+    projector = MeshProjector(mesh)
+    if len(points):
+        points, _, _ = projector.closest(points)
+    kept = []
+    for p in points:
+        if not kept or np.linalg.norm(p - kept[-1]) >= min_spacing_mm:
+            kept.append(p)
+    if len(kept) > 1 and np.linalg.norm(kept[-1] - kept[0]) < min_spacing_mm:
+        kept.pop()
+    if len(kept) < MIN_DRAWN_POINTS:
+        raise MarginError(f"margin manual butuh minimal {MIN_DRAWN_POINTS} titik berbeda, didapat {len(kept)}")
+    return MarginCurve(np.array(kept), projector)
 
 
 def margin_deviation(curve_points: np.ndarray, truth_points: np.ndarray) -> dict:

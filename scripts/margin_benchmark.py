@@ -2,8 +2,12 @@
 """Benchmark akurasi margin terhadap margin analitis die sintetis (docs/PHASE2.md §5.1 dan §7).
 
     python scripts/margin_benchmark.py                       # set "tuning": die yang dipakai saat menyetel
-    python scripts/margin_benchmark.py --set unseen          # varian die yang tidak pernah dipakai menyetel
+    python scripts/margin_benchmark.py --set tuning2         # set tuning kedua (dulu "unseen", sudah terpakai)
+    python scripts/margin_benchmark.py --set uji             # set uji: dijalankan sekali setelah parameter dikunci
     python scripts/margin_benchmark.py --seeds 1 --json hasil.json
+
+Scallop ditulis sebagai tinggi puncak-lembah (PL) margin = 2 x DieSpec.scallop_mm (amplitudo cos 2 theta),
+supaya sebanding dengan lengkungan CEJ di Gallucci dkk. 2004 (PHASE2.md §5.1).
 
 Satu baris per kombinasi; setiap kombinasi dijalankan untuk beberapa seed (posisi klik, jitter mesh, derau,
 dan rotasi acak berbeda). Tidak ada baris yang disembunyikan. Kolom "Hasil" per seed:
@@ -32,19 +36,34 @@ NOISE_UM = (0, 10, 30, 90)
 CRITERION_MEDIAN_MM = 0.050  # PHASE2.md §7, angka roadmap
 CRITERION_COVERAGE_MM = 0.150  # ambang uji: kurva menutupi seluruh margin
 
-# Die yang dipakai selama penyetelan parameter (spike S1).
+# Die yang dipakai selama penyetelan parameter (spike S1), ditambah varian lengkungan CEJ anterior
+# (Gallucci dkk. 2004: mesial insisif sentral 3,46 mm, lateral 2,97 mm, kaninus 2,55 mm).
 TUNING = {
     "standar": {},
-    "standar + scallop 1 mm": {"scallop_mm": 1.0},
+    "scallop PL 2,0 mm": {"scallop_mm": 1.0},
+    "CEJ PL 2,5 mm": {"scallop_mm": 1.25},
+    "CEJ PL 3,5 mm": {"scallop_mm": 1.75},
 }
-# Varian yang TIDAK pernah dipakai menyetel (uji overfitting): diameter, tinggi, taper, dan scallop berbeda.
-UNSEEN = {
-    "premolar kecil": dict(radius_x_mm=3.8, radius_y_mm=3.4, prep_height_mm=4.0, taper_deg=4.0, scallop_mm=0.5),
-    "molar besar": dict(radius_x_mm=6.0, radius_y_mm=5.4, prep_height_mm=6.5, taper_deg=10.0, scallop_mm=1.5),
-    "taper lebar": dict(radius_x_mm=5.0, radius_y_mm=4.4, prep_height_mm=5.0, taper_deg=14.0, scallop_mm=0.3),
-    "scallop dalam": dict(radius_x_mm=4.5, radius_y_mm=4.2, prep_height_mm=6.0, taper_deg=6.0, scallop_mm=2.0),
+# Set tuning kedua: dulu set "unseen" untuk uji overfitting; setelah hasilnya dipakai untuk memperbaiki metrik
+# panjang kurva, set ini tidak lagi "belum pernah dilihat".
+TUNING2 = {
+    "premolar kecil (PL 1,0)": dict(radius_x_mm=3.8, radius_y_mm=3.4, prep_height_mm=4.0, taper_deg=4.0, scallop_mm=0.5),
+    "molar besar (PL 3,0)": dict(radius_x_mm=6.0, radius_y_mm=5.4, prep_height_mm=6.5, taper_deg=10.0, scallop_mm=1.5),
+    "taper lebar (PL 0,6)": dict(radius_x_mm=5.0, radius_y_mm=4.4, prep_height_mm=5.0, taper_deg=14.0, scallop_mm=0.3),
+    "scallop dalam (PL 4,0)": dict(radius_x_mm=4.5, radius_y_mm=4.2, prep_height_mm=6.0, taper_deg=6.0, scallop_mm=2.0),
 }
-SETS = {"tuning": TUNING, "unseen": UNSEEN}
+# Set uji: didefinisikan dan dikunci (bersama semua parameter dan ambang di core/margin.py) SEBELUM dijalankan,
+# lalu dijalankan sekali. Kombinasi ukuran, elips, taper, lebar finish, scallop, dan undercut yang baru.
+UJI = {
+    "insisif sentral (PL 3,2)": dict(radius_x_mm=3.6, radius_y_mm=3.2, prep_height_mm=5.5, taper_deg=8.0,
+                                     finish_width_mm=0.8, scallop_mm=1.6),
+    "kaninus (PL 2,4)": dict(radius_x_mm=3.4, radius_y_mm=4.0, prep_height_mm=6.0, taper_deg=5.0, scallop_mm=1.2),
+    "molar pendek (PL 0,8)": dict(radius_x_mm=5.6, radius_y_mm=5.0, prep_height_mm=3.5, taper_deg=12.0, scallop_mm=0.4),
+    "premolar elips (PL 1,6)": dict(radius_x_mm=4.4, radius_y_mm=3.1, prep_height_mm=4.5, taper_deg=7.0, scallop_mm=0.8),
+    "undercut 8 derajat (PL 1,2)": dict(radius_x_mm=4.8, radius_y_mm=4.3, prep_height_mm=5.0, taper_deg=3.0,
+                                        scallop_mm=0.6, undercut_deg=8.0, undercut_center_deg=90.0),
+}
+SETS = {"tuning": TUNING, "tuning2": TUNING2, "uji": UJI}
 
 
 def click_near_margin(die: synthetic.SyntheticDie, rng: np.random.Generator) -> np.ndarray:

@@ -248,3 +248,63 @@ def test_margin_deviation_of_offset_circle():
     dev = margin.margin_deviation(curve, truth)
     assert dev["median"] == pytest.approx(0.03, abs=1e-4)
     assert dev["coverage_max"] == pytest.approx(0.03, abs=1e-4)
+
+
+# Scallop dalam (lengkungan CEJ anterior) ---------------------------------------------------------------
+
+@pytest.mark.parametrize("finish", synthetic.FINISHES)
+def test_deep_cej_scallop_is_not_rejected_by_the_length_check(finish):
+    """Puncak-lembah 3,5 mm (Gallucci dkk. 2004, insisif sentral mesial 3,46 mm): metrik panjang 3D lama
+    menolaknya sebagai "panjang kurva tidak cocok dengan die"."""
+    die = synthetic.make_die(synthetic.DieSpec(finish=finish, scallop_mm=1.75), noise_sigma_mm=0.01, seed=0)
+    result = margin.detect_margin(die.mesh, click_near(die, 1.0))
+    assert 0.95 < result.metrics["girth_ratio"] < 1.02
+    assert deviation(die, result)["median"] <= CRITERION_MEDIAN_MM
+
+
+def test_length_ratio_ignores_scallop_height():
+    theta = np.linspace(0, 2 * np.pi, 200, endpoint=False)
+    ring = np.stack([5 * np.cos(theta), 4 * np.sin(theta), np.zeros_like(theta)], axis=1)
+    wall = np.concatenate([ring + [0, 0, z] for z in np.linspace(-3, 3, 13)])
+    flat = margin.plausibility_metrics(ring, wall, ring[0], 1.0, 0.16)
+    wavy = ring + np.stack([0 * theta, 0 * theta, 1.75 * np.cos(2 * theta)], axis=1)
+    deep = margin.plausibility_metrics(wavy, wall, wavy[0], 1.0, 0.16)
+    assert deep["girth_ratio"] == pytest.approx(flat["girth_ratio"], abs=1e-6)
+    assert flat["girth_ratio"] == pytest.approx(1.0, abs=0.01)
+
+
+# Margin gambar manual ------------------------------------------------------------------------------------
+
+def test_drawn_margin_projects_clicks_and_closes_the_curve():
+    die = synthetic.make_die(synthetic.DieSpec(scallop_mm=1.0), noise_sigma_mm=0.01, seed=4)
+    clicks = die.margin_curve(12) + np.random.default_rng(0).normal(0, 0.05, (12, 3))
+    curve = margin.draw_margin(die.mesh, clicks)
+    assert len(curve.control_points) == 12
+    _, _, dist = geometry.MeshProjector(die.mesh).closest(curve.control_points)
+    assert dist.max() < 1e-6
+    sample = curve.sample(256)
+    assert np.linalg.norm(sample[-1] - sample[0]) < 2 * np.linalg.norm(sample[1] - sample[0])
+    assert np.median(synthetic.distance_to_polyline(sample, die.margin_curve(4096))) < 0.3
+
+
+def test_drawn_margin_drops_double_clicks_and_the_closing_click():
+    die = synthetic.make_die(synthetic.DieSpec(), rotate=False, seed=1)
+    clicks = die.margin_curve(6)
+    with_repeats = np.vstack([clicks[:3], clicks[2:3] + 0.01, clicks[3:], clicks[:1] + 0.01])
+    assert len(margin.draw_margin(die.mesh, with_repeats).control_points) == 6
+
+
+def test_drawn_margin_needs_four_points():
+    die = synthetic.make_die(synthetic.DieSpec(), rotate=False, seed=1)
+    with pytest.raises(margin.MarginError, match="minimal 4"):
+        margin.draw_margin(die.mesh, die.margin_curve(3))
+    with pytest.raises(margin.MarginError):
+        margin.draw_margin(die.mesh, np.empty((0, 3)))
+
+
+def test_drawn_margin_is_edited_like_a_detected_one():
+    die = synthetic.make_die(synthetic.DieSpec(), rotate=False, seed=1)
+    curve = margin.draw_margin(die.mesh, die.margin_curve(8))
+    edited = np.delete(curve.control_points, 1, axis=0)
+    edited[3] += [0.4, 0.0, 0.0]
+    assert curve.apply_edit(edited) == {"moved": 1, "kept": 6, "removed": 1}
