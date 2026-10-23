@@ -23,6 +23,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .geometry import vertex_normals  # noqa: F401  (diekspor ulang untuk tes dan pemanggil lama)
 from .mesh_data import MeshData
 
 FINISHES = ("shoulder", "chamfer")
@@ -282,17 +283,6 @@ def _face_param_centroids(vertex_params: np.ndarray, faces: np.ndarray, n_theta:
     theta = ref + np.angle(np.exp(1j * (theta - ref)))
     t = vertex_params[faces, 1]
     return np.stack([theta.mean(axis=1) % (2 * np.pi), t.mean(axis=1)], axis=1)
-
-
-def vertex_normals(vertices: np.ndarray, faces: np.ndarray) -> np.ndarray:
-    """Normal vertex berbobot luas (jumlah normal face tak ternormalisasi)."""
-    corners = vertices[faces]
-    face_normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
-    normals = np.zeros_like(vertices)
-    for k in range(3):
-        np.add.at(normals, faces[:, k], face_normals)
-    lengths = np.linalg.norm(normals, axis=1, keepdims=True)
-    return np.divide(normals, lengths, out=np.zeros_like(normals), where=lengths > 0)
 
 
 def distance_to_polyline(points: np.ndarray, polyline: np.ndarray, closed: bool = True, chunk: int = 2048) -> np.ndarray:

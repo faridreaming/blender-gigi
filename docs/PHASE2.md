@@ -1,6 +1,6 @@
 # Fase 2: Crown zirkonia single (rancangan)
 
-Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). Fitur §5 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
+Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis selesai** (hasil di §5.1). Fitur §5.2 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
 
 Dasar dokumen ini:
 - RESEARCH.md Roadmap, Fase 2: deliverable *margin semi-auto, sumbu insersi/undercut, spacer, library CC0 + morphing, kontak, heatmap ketebalan, ekspor STL ke MillBox*; kriteria selesai *20 kasus: deviasi margin vs desain exocad ≤50 µm (median), lolos cek ketebalan, 5 crown dimilling dan dicoba di die*.
@@ -104,28 +104,77 @@ Modul `core/synthetic.py`, numpy murni. Semua kurva dan permukaan didefinisikan 
 
 ### 5.1 Margin semi-otomatis
 
-**Algoritma** (RESEARCH.md §4):
-1. **Curvature per vertex:** normal vertex berbobot luas, lalu fit kuadrik lokal di cincin tetangga (least squares, numpy tervektorisasi per kelompok valensi) untuk mendapat curvature prinsipal κ₁ ≥ κ₂. Untuk shoulder (tepi konveks), κ₁ besar dan positif di margin.
-2. **Graf biaya:** edge mesh berbobot `panjang × f(κ)`, dengan f menurun tajam saat κ₁ (searah orientasi luar) membesar. Bentuk f dan parameternya ditetapkan di spike S1.
-3. **Semi-otomatis:** pengguna mengklik satu titik di dekat margin. Jalur tertutup berbiaya minimum yang melewati titik itu dicari dengan Dijkstra di sekitar cincin die (dua jalur dari titik klik ke titik di seberang, lalu digabung), dibatasi ke ROI sekitar die.
-4. **Penghalusan:** polyline hasil di-fit dengan spline periodik, lalu setiap titik digeser ke posisi κ₁ maksimum di sepanjang garis potong permukaan yang tegak lurus kurva (energy minimization ringan). Pengguna bisa menggeser titik kontrol (modal operator di ops/).
-5. **Paten (K5):** RESEARCH.md §4 menyebut US 8.359.114 yang memuat deteksi berbasis curvature dan silhouette. Google Patents mencatat statusnya "Expired - Fee Related" (PAT, §2.1). **Status Google bukan kesimpulan hukum**, seperti ditulis Google sendiri, dan belum ditinjau konsultan. Keputusan maintainer: margin memakai pendekatan curvature klasik (curvature prinsipal + jalur biaya minimum + penghalusan, seperti langkah 1 sampai 4), **bukan** meniru metode ML dari paten atau publikasi yang lebih baru (misalnya yang disebut RESEARCH.md §4 dan roadmap 6+).
+**Status: selesai** (2026-10-23). Implementasi di `core/margin.py` dan `core/geometry.py`, operator di `ops/margin.py`, benchmark di `scripts/margin_benchmark.py`.
 
-**Parameter.**
+**Algoritma yang diimplementasikan** (curvature klasik, RESEARCH.md §4; tidak meniru metode ML, K5). Beberapa langkah berbeda dari rancangan awal; perbedaannya dicatat karena masing-masing lahir dari kegagalan terukur di spike S1.
+1. **Skor crease per vertex:** nilai eigen terbesar kovarians normal vertex dalam radius r (bobot Gauss), hanya di daerah cembung; crease cekung (sudut dalam shoulder, busur chamfer) diredam.
+   - *Beda dari rancangan:* bukan fit kuadrik curvature prinsipal per cincin, karena variasi normal dalam radius lebih tahan derau dan langsung mengukur "ketajaman crease".
+   - Radius r = max(0,35 mm, 12 × σ), dengan σ derau yang diestimasi dari mesh (MAD perpindahan umbrella sepanjang normal; akurat 13/33/89 µm untuk derau 10/30/90 µm).
+2. **Graf biaya:** bobot edge = panjang × (0,02 + (1 − s)²), dengan s = skor **relatif terhadap titik klik** (dipotong di 1).
+   - *Alasan:* tepi dasar die adalah crease yang lebih tajam daripada margin chamfer. Dengan skor absolut, jalur memutar 4 mm ke tepi dasar (terukur di S1).
+3. **Loop tertutup tanpa sumbu:** Dijkstra dari klik; titik jauh f = vertex "di punggungan" (biaya jalur ≤ 0,35 × jarak Euclid) yang terjauh dari klik. Jalur 1 = klik → f; jalur 2 = klik → f setelah jalur 1 dan dua cincin tetangganya diblokir, jadi lewat sisi lain die. Loop = jalur 1 + jalur 2.
+   - *Beda dari rancangan:* versi pertama memakai seam berbasis sumbu perkiraan. Sumbu yang miring (margin scallop, crease lain) menghasilkan "loop" 3 sampai 34 vertex di sekitar titik tembus sumbu, jadi diganti metode dua jalur ini.
+4. **Penyempurnaan ke crease:** setiap titik sampel loop (jarak 0,15 mm) dipindah ke garis potong dua permukaan di kedua sisi crease.
+   - Tetangga dalam radius max(0,6 mm, 12σ) dikelompokkan dengan 2-means pada normal halus.
+   - Lintasan 1 memakai bidang; lintasan 2 (3 iterasi) memakai **bidang singgung kuadrik per sisi** di dalam pita sempit sekitar garis, supaya busur chamfer tidak membiaskan hasil (bidang sekan memberi bias sekitar 40 µm pada chamfer).
+5. **Kurva:** titik hasil dihaluskan dengan **regresi kuadratik lokal** sepanjang panjang busur (σ 0,4 mm), lalu diambil titik kontrol tiap 1,0 mm; kurva = spline kubik periodik melalui titik kontrol.
+   - *Alasan:* rata-rata Gauss biasa menyusutkan kurva sekitar σ²κ/2 (18 µm terukur).
+6. **Titik kontrol hasil deteksi tidak diproyeksikan ke mesh.** Mesh memotong sudut crease di antara vertex, jadi proyeksi menarik margin ke dalam (17 → 46 µm terukur). Titik yang **digeser pengguna** diproyeksikan ke permukaan; titik lain dipertahankan (`MarginCurve.apply_edit`).
 
-| Parameter | Status | Catatan |
+**Edit di Blender.** "Detect Margin" (modal: klik satu titik di die) membuat kurva `<die> Margin` (titik kontrol, bisa diedit) dan `<die> Margin Preview` (kurva halus). Pengguna menggeser (G) atau menghapus (X) titik kontrol di Edit Mode, lalu "Update Margin". Jalur klik modal (ray cast dari viewport) tidak bisa diuji headless; logika deteksi dan edit diuji lewat properti `seed_point`.
+
+**Parameter** (semua parameter algoritma, bukan klinis; nilai dari sapuan S1 terhadap data sintetis):
+
+| Parameter | Nilai | Catatan |
 |---|---|---|
-| Bentuk dan skala fungsi biaya f(κ) | perlu kalibrasi | Ditetapkan di spike S1 terhadap data sintetis; bukan parameter klinis. |
-| Ukuran ROI di sekitar die | perlu kalibrasi | Dari S1. |
-| Titik klik | input pengguna | |
+| Radius skor crease | max(0,35 mm, 12σ) | Faktor 12 satu-satunya yang lolos semua kasus derau 30 µm di sapuan (8, 12, 16, 20). |
+| Radius penyempurnaan | max(0,6 mm, 12σ) | Tidak sensitif di rentang 8 sampai 16. |
+| Rasio punggungan | 0,35 | 0,25 gagal pada chamfer berderau 30 µm; 0,45 mulai menarik tepi dasar. |
+| Bobot biaya | 0,02 + (1 − s)² | |
+| Pita blokir jalur 2 | 2 cincin | |
+| Jarak sampel penyempurnaan / σ penghalusan / jarak titik kontrol | 0,15 / 0,4 / 1,0 mm | |
+| Titik klik | input pengguna | Tidak harus tepat di margin; seed digeser ke vertex berskor tertinggi dalam 2r. |
 
-**Modul core/.** `core/curvature.py`, `core/margin_path.py` (Dijkstra, sudah direncanakan di Fase 1 §5.5, dipakai ulang dan diperluas), `core/margin.py` (`detect_margin`, `refine_margin`, `margin_deviation`).
+**Hasil benchmark** (`python scripts/margin_benchmark.py --seeds 3`, 2026-10-23). Die sintetis dengan rotasi acak, mesh ber-jitter, dan titik klik acak di sekitar margin (simpangan 0,15 mm). Nilai per baris = **nilai terburuk dari 3 seed**. Tidak ada baris yang disembunyikan.
+
+| Finish | Scallop | Derau | Median | p95 | Maks | Cakupan p95 | Error | Median ≤ 50 µm |
+|---|---|---|---|---|---|---|---|---|
+| shoulder | 0 mm | 0 µm | 14,7 µm | 27,6 µm | 41,9 µm | 28,8 µm | 0 | ya |
+| shoulder | 0 mm | 10 µm | 19,1 µm | 31,4 µm | 37,0 µm | 31,3 µm | 0 | ya |
+| shoulder | 0 mm | 30 µm | 36,2 µm | 106,2 µm | 154,1 µm | 104,4 µm | 0 | ya |
+| shoulder | 0 mm | 90 µm | 348,3 µm | 3558,8 µm | 3848,2 µm | 3330,7 µm | 0 | **tidak** |
+| shoulder | 1 mm | 0 µm | 16,7 µm | 48,7 µm | 204,9 µm | 45,0 µm | 0 | ya |
+| shoulder | 1 mm | 10 µm | 18,2 µm | 38,5 µm | 85,9 µm | 38,6 µm | 0 | ya |
+| shoulder | 1 mm | 30 µm | 30,6 µm | 68,3 µm | 106,6 µm | 66,7 µm | 0 | ya |
+| shoulder | 1 mm | 90 µm | 335,2 µm | 5248,9 µm | 5617,9 µm | 4126,8 µm | 0 | **tidak** |
+| chamfer | 0 mm | 0 µm | 26,7 µm | 64,0 µm | 99,0 µm | 64,1 µm | 0 | ya |
+| chamfer | 0 mm | 10 µm | 30,8 µm | 69,9 µm | 102,1 µm | 69,3 µm | 0 | ya |
+| chamfer | 0 mm | 30 µm | 42,1 µm | 119,6 µm | 158,7 µm | 117,5 µm | 0 | ya |
+| chamfer | 0 mm | 90 µm | tidak ada | tidak ada | tidak ada | tidak ada | 3 dari 3 | **tidak** |
+| chamfer | 1 mm | 0 µm | 31,8 µm | 54,9 µm | 63,6 µm | 55,1 µm | 0 | ya |
+| chamfer | 1 mm | 10 µm | 34,3 µm | 67,2 µm | 85,2 µm | 65,9 µm | 0 | ya |
+| chamfer | 1 mm | 30 µm | 49,5 µm | 100,2 µm | 147,0 µm | 100,0 µm | 0 | ya, mepet |
+| chamfer | 1 mm | 90 µm | 995,2 µm | 6113,6 µm | 6516,5 µm | 6123,5 µm | 2 dari 3 | **tidak** |
+
+Kesimpulan:
+- **Kriteria Fase 2 terpenuhi** untuk derau 0, 10, dan 30 µm (12 dari 12 kombinasi, 3 seed masing-masing). Kasus paling mepet: chamfer + scallop 1 mm + derau 30 µm, 49,5 µm.
+- **Derau 90 µm gagal di keempat kombinasi.** Kegagalannya ada dua bentuk: error eksplisit ("crease tidak jelas", tidak ada kurva), atau kurva yang melenceng beberapa milimeter dari margin. Derau 90 µm per vertex sebanding dengan panjang edge mesh uji (0,12 sampai 0,33 mm), sehingga crease 90° nyaris tidak terbedakan dari derau. Catatan: akurasi scanner 10-90 µm di paper Teeth3DS+ adalah akurasi rekonstruksi, bukan derau per vertex; derau 90 µm per vertex adalah skenario uji terburuk, bukan kondisi scan tipikal.
+- **Yang belum aman:** kurva yang melenceng pada derau 90 µm **tidak** selalu menghasilkan error, jadi pengguna bisa menerima margin yang salah tanpa peringatan. Sebelum dipakai pada scan nyata, perlu pemeriksaan kepercayaan, misalnya estimasi σ di atas ambang atau fraksi titik yang lolos penyempurnaan, yang memunculkan peringatan. Ini dicatat sebagai pekerjaan lanjutan, bukan bagian dari §5.1 yang selesai.
+- p95 dan maksimum bisa beberapa kali median (sampai sekitar 200 µm pada shoulder + scallop tanpa derau): di beberapa tempat kurva melenceng lokal. Ambang p95 belum ditetapkan karena tidak ada sumbernya; titik seperti itu yang perlu dikoreksi pengguna lewat edit.
+
+**Modul core/.** `core/geometry.py` (normal, edge unik, `MeshProjector` titik terdekat di permukaan), `core/margin.py` (`crease_score`, `estimate_noise_sigma`, `closed_path_two_way`, `refine_on_crease`, `MarginCurve`, `detect_margin`, `margin_deviation`).
 
 **Pengujian.**
-- Lapis 1, akurasi: untuk setiap kombinasi finish line (shoulder, chamfer), scallop (A = 0 dan A > 0), derau (0, 10, 30, 90 µm), dan kepadatan mesh: jarak setiap titik margin terdeteksi ke kurva analitis (dihitung eksak lewat sampling rapat kurva). Laporkan median, p95, dan maksimum, serta cakupan (jarak titik kurva analitis ke polyline terdeteksi, supaya margin yang hanya menutupi sebagian kurva tidak lolos).
-- **Kriteria:** median ≤ 50 µm (angka roadmap) pada semua kombinasi sampai derau 30 µm. Ambang p95 dan perilaku pada derau 90 µm ditetapkan setelah S1 sebagai ambang uji, karena tidak ada sumbernya.
-- Lapis 1, invarian: rotasi acak die tidak mengubah deviasi (selisih di bawah ambang uji); titik klik yang berbeda di sepanjang margin menghasilkan kurva yang sama.
-- Lapis 2: operator margin pada kasus sintetis di Blender menghasilkan kurva yang sama dengan core.
+- Lapis 1 (`tests/core/test_margin.py`, 25 tes):
+  - akurasi 12 kombinasi (shoulder/chamfer × scallop 0/1 mm × derau 0/10/30 µm, rotasi acak) dengan median ≤ 50 µm dan cakupan p95 ≤ 150 µm (ambang uji);
+  - invarian rotasi dan invarian posisi klik;
+  - regresi loop 3 vertex;
+  - permukaan datar ditolak;
+  - proyeksi titik terdekat dibandingkan dengan brute force;
+  - skor crease tinggi di margin dan rendah di sudut cekung;
+  - edit kurva (geser, hapus, `apply_edit`);
+  - penghalusan yang tidak menyusutkan kurva.
+- Lapis 2 (`run_integration.py`): die chamfer + scallop dengan transformasi dunia (geser + putar) → deteksi lewat operator (median dibandingkan dengan margin analitis) → edit (hapus satu titik, geser satu titik) → Update; titik yang digeser terproyeksi, titik lain tidak berubah.
 
 ### 5.2 Sumbu insersi dan undercut
 
@@ -302,7 +351,7 @@ Ditambah:
 |---|---|---|---|
 | S0 | Apakah angka IFU ZirCAD Prime (0,8/1,0 mm) masih sesuai revisi terbaru, dan apakah dokumen IVO yang dibaca sama dengan dokumen 43360 yang ditautkan maintainer? | Baca IFU terbaru di situs Ivoclar (RESEARCH.md Caveats); coba lagi link icde-fr saat servernya pulih dan bandingkan revisinya. | Perbarui `zircad_prime.json` dan catat revisinya. |
 | S4 | Bagaimana exocad mendefinisikan "Add. distance x/y", "Beginning of cement", dan parameter border crown? | **Sebagian besar terjawab** (2026-10-23) dari DTX dan EXW: "Beginning of cement" = "From margin"; "Add. distance x/y" = spacing Radial, tegak lurus sumbu, berlaku juga di zona tanpa gap; Horizontal, Angled, dan Angle didefinisikan di kedua sumber. **Tersisa:** acuan sudut "Angle" (diukur terhadap apa). | Uji visual dengan kasus sintetis saat §5.4 dikerjakan; tandai sebagai interpretasi di laporan ekspor. |
-| S1 | Seberapa akurat curvature + Dijkstra pada data sintetis berderau? | Jalankan matriks §7 dengan beberapa bentuk f(κ); ukur median dan p95. | Tambah penghalusan permukaan lokal sebelum estimasi curvature, atau fit kuadrik pada cincin yang lebih lebar. |
+| S1 | Seberapa akurat curvature + Dijkstra pada data sintetis berderau? | **Dijawab** (2026-10-23): lolos untuk derau sampai 30 µm, gagal di 90 µm; detail, perubahan algoritma, dan tabel di §5.1. | Pemeriksaan kepercayaan untuk mendeteksi hasil buruk tanpa error (§5.1, kesimpulan). |
 | S2 | Apakah cKDTree + penyempurnaan titik-ke-segitiga cukup cepat untuk crown sekitar 100 ribu segitiga? | Ukur di host dan di Blender. | Kurangi sampel dengan sampling adaptif, atau batasi penyempurnaan eksak ke daerah dekat ambang. |
 | S3 | Apakah Laplacian dengan batas margin stabil (tanpa self-intersection) untuk scallop besar? | Uji pada varian A > 0. | Bobot cotangent dan pembatas lokal, atau iterasi kecil bertahap. |
 | R1 | Data sintetis terlalu "bersih" dibanding scan nyata (lubang, artefak, gingiva menutupi margin). | Tidak bisa dijawab tanpa scan nyata. | Dicatat sebagai keterbatasan validasi. Uji ketahanan pada scan nyata menunggu data (golden_private) atau keputusan K3. |

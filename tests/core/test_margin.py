@@ -1,0 +1,184 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Margin semi-otomatis (core/margin.py) diukur terhadap margin analitis die sintetis (core/synthetic.py)."""
+
+import numpy as np
+import pytest
+
+from core import geometry, margin, synthetic
+from core.mesh_data import MeshData
+
+CRITERION_MEDIAN_MM = 0.050  # docs/PHASE2.md §7
+
+
+def click_near(die: synthetic.SyntheticDie, theta: float, offset_mm: float = 0.15, seed: int = 0) -> np.ndarray:
+    point = synthetic.margin_points(die.spec, np.array([theta]))[0] @ die.rotation.T
+    return point + np.random.default_rng(seed).normal(0, offset_mm, 3)
+
+
+def deviation(die, result, samples=1024):
+    return margin.margin_deviation(result.curve.sample(samples), die.margin_curve(4096))
+
+
+# Geometri dasar -------------------------------------------------------------------------------------
+
+def test_closest_point_on_triangles_matches_brute_force():
+    rng = np.random.default_rng(1)
+    tri = rng.normal(size=(3, 3))
+    points = rng.normal(size=(300, 3)) * 2
+    got = geometry.closest_point_on_triangles(points, *[np.repeat(tri[i:i + 1], len(points), 0) for i in range(3)])
+    u, v = np.meshgrid(np.linspace(0, 1, 301), np.linspace(0, 1, 301))
+    keep = u + v <= 1
+    dense = tri[0] + u[keep, None] * (tri[1] - tri[0]) + v[keep, None] * (tri[2] - tri[0])
+    brute = np.min(np.linalg.norm(points[:, None] - dense[None], axis=2), axis=1)
+    np.testing.assert_allclose(np.linalg.norm(got - points, axis=1), brute, atol=5e-3)
+
+
+def test_mesh_projector_puts_points_on_the_surface():
+    die = synthetic.make_die(synthetic.DieSpec(), rotate=False, seed=0)
+    projector = geometry.MeshProjector(die.mesh)
+    points = die.mesh.vertices[::37] + np.random.default_rng(2).normal(0, 0.2, (len(die.mesh.vertices[::37]), 3))
+    projected, faces, dist = projector.closest(points)
+    np.testing.assert_allclose(np.linalg.norm(projected - points, axis=1), dist)
+    again, _, dist2 = projector.closest(projected)
+    assert dist2.max() < 1e-9  # titik di permukaan tetap di tempat
+
+
+# Skor crease dan jalur ------------------------------------------------------------------------------
+
+def test_crease_score_is_high_at_the_margin_and_low_on_concave_corner():
+    spec = synthetic.DieSpec()
+    die = synthetic.make_die(spec, jitter=0.0, rotate=False, seed=0)
+    v = die.mesh.vertices
+    normals = geometry.vertex_normals(v, die.mesh.faces)
+    score, convexity, _ = margin.crease_score(v, normals, 0.35)
+    t = die.vertex_params[:, 1]
+    at_margin = np.isclose(t, 1.0)
+    inner_corner = np.isclose(t, 2.0)  # sudut dalam shoulder (cekung)
+    flat_wall = (t > 2.3) & (t < 2.7)
+    assert np.median(score[at_margin]) > 0.8
+    assert np.median(convexity[at_margin]) < 0
+    assert np.median(score[inner_corner]) < 0.2
+    assert np.median(score[flat_wall]) < 0.1
+
+
+def test_closed_path_goes_around_the_die_not_a_tiny_triangle():
+    """Regresi: seed yang y-nya -1e-17 dulu menghasilkan 'lingkaran' 3 vertex."""
+    die = synthetic.make_die(synthetic.DieSpec(), noise_sigma_mm=0.01, seed=0)
+    result = margin.detect_margin(die.mesh, click_near(die, 1.0))
+    loop = die.mesh.vertices[result.path_vertices]
+    length = np.sum(np.linalg.norm(np.roll(loop, -1, 0) - loop, axis=1))
+    truth = die.margin_curve(4096)
+    truth_length = np.sum(np.linalg.norm(np.roll(truth, -1, 0) - truth, axis=1))
+    assert len(result.path_vertices) > 50
+    assert 0.9 * truth_length < length < 1.3 * truth_length
+
+
+# Akurasi terhadap jawaban benar -----------------------------------------------------------------------
+
+@pytest.mark.parametrize("noise_um", [0, 10, 30])
+@pytest.mark.parametrize("scallop", [0.0, 1.0])
+@pytest.mark.parametrize("finish", synthetic.FINISHES)
+def test_margin_accuracy_meets_phase2_criterion(finish, scallop, noise_um):
+    die = synthetic.make_die(synthetic.DieSpec(finish=finish, scallop_mm=scallop),
+                             noise_sigma_mm=noise_um / 1000, rotate=True, seed=0)
+    dev = deviation(die, margin.detect_margin(die.mesh, click_near(die, 2.0)))
+    assert dev["median"] <= CRITERION_MEDIAN_MM, dev
+    assert dev["coverage_p95"] <= 0.15, dev  # kurva menutupi seluruh margin (ambang uji)
+
+
+def test_rotation_does_not_change_accuracy():
+    spec = synthetic.DieSpec(finish="chamfer", scallop_mm=1.0)
+    flat = synthetic.make_die(spec, noise_sigma_mm=0.01, rotate=False, seed=4)
+    turned = synthetic.make_die(spec, noise_sigma_mm=0.01, rotate=True, seed=4)
+    a = deviation(flat, margin.detect_margin(flat.mesh, click_near(flat, 0.5)))
+    b = deviation(turned, margin.detect_margin(turned.mesh, click_near(turned, 0.5)))
+    assert abs(a["median"] - b["median"]) < 0.005
+
+
+def test_click_position_does_not_change_the_curve():
+    die = synthetic.make_die(synthetic.DieSpec(scallop_mm=1.0), noise_sigma_mm=0.01, seed=6)
+    curves = [margin.detect_margin(die.mesh, click_near(die, theta, seed=k)).curve.sample(512)
+              for k, theta in enumerate((0.3, 2.0, 4.4))]
+    for other in curves[1:]:
+        assert np.max(synthetic.distance_to_polyline(other, curves[0])) < 0.05
+
+
+def test_flat_surface_has_no_margin():
+    x, y = np.meshgrid(np.linspace(0, 10, 30), np.linspace(0, 10, 30))
+    vertices = np.stack([x.ravel(), y.ravel(), np.zeros(x.size)], axis=1)
+    idx = np.arange(900).reshape(30, 30)
+    faces = np.concatenate([
+        np.stack([idx[:-1, :-1].ravel(), idx[:-1, 1:].ravel(), idx[1:, 1:].ravel()], 1),
+        np.stack([idx[:-1, :-1].ravel(), idx[1:, 1:].ravel(), idx[1:, :-1].ravel()], 1),
+    ])
+    with pytest.raises(margin.MarginError):
+        margin.detect_margin(MeshData(vertices, faces), [5.0, 5.0, 0.0])
+
+
+# Kurva yang bisa diedit -----------------------------------------------------------------------------
+
+@pytest.fixture(scope="module")
+def detected():
+    die = synthetic.make_die(synthetic.DieSpec(), noise_sigma_mm=0.01, seed=8)
+    return die, margin.detect_margin(die.mesh, click_near(die, 1.0))
+
+
+def test_curve_passes_through_its_control_points(detected):
+    _, result = detected
+    curve = result.curve
+    dense = curve.sample(4096)
+    assert np.max(synthetic.distance_to_polyline(curve.control_points, dense)) < 0.01
+
+
+def test_move_point_projects_onto_the_surface(detected):
+    die, result = detected
+    curve = margin.MarginCurve(result.curve.control_points.copy(), result.curve.projector)
+    target = curve.control_points[3] + np.array([0.0, 0.0, 0.4]) @ die.rotation.T
+    curve.move_point(3, target)
+    _, _, dist = curve.projector.closest(curve.control_points[3:4])
+    assert dist[0] < 1e-9
+    assert np.linalg.norm(curve.control_points[3] - target) < 0.4
+
+
+def test_delete_point_and_minimum_count(detected):
+    _, result = detected
+    curve = margin.MarginCurve(result.curve.control_points.copy(), result.curve.projector)
+    count = len(curve.control_points)
+    curve.delete_point(0)
+    assert len(curve.control_points) == count - 1
+    small = margin.MarginCurve(curve.control_points[:4], curve.projector)
+    with pytest.raises(margin.MarginError):
+        small.delete_point(0)
+
+
+def test_apply_edit_keeps_untouched_points_and_projects_moved_ones(detected):
+    die, result = detected
+    curve = margin.MarginCurve(result.curve.control_points.copy(), result.curve.projector)
+    original = curve.control_points.copy()
+    edited = np.delete(original, 5, axis=0)
+    edited[10] += np.array([0.3, 0.0, 0.0]) @ die.rotation.T
+    stats = curve.apply_edit(edited)
+    assert stats == {"moved": 1, "kept": len(original) - 2, "removed": 1}
+    untouched = np.ones(len(edited), dtype=bool)
+    untouched[10] = False
+    np.testing.assert_array_equal(curve.control_points[untouched], edited[untouched])
+    _, _, dist = curve.projector.closest(curve.control_points[10:11])
+    assert dist[0] < 1e-9
+
+
+def test_smoothing_does_not_shrink_a_circle():
+    theta = np.linspace(0, 2 * np.pi, 200, endpoint=False)
+    circle = np.stack([4.5 * np.cos(theta), 4.5 * np.sin(theta), np.zeros_like(theta)], axis=1)
+    smoothed = margin._smooth_closed(circle, 0.8)
+    shrink = 4.5 - np.linalg.norm(smoothed[:, :2], axis=1)
+    # Rata-rata Gauss biasa menyusutkan sekitar sigma^2 * kelengkungan / 2 = 0,64 / 9 = 71 um.
+    assert np.abs(shrink).max() < 0.001
+
+
+def test_margin_deviation_of_offset_circle():
+    theta = np.linspace(0, 2 * np.pi, 2000, endpoint=False)
+    truth = np.stack([5 * np.cos(theta), 5 * np.sin(theta), np.zeros_like(theta)], axis=1)
+    curve = truth * (5.03 / 5)
+    dev = margin.margin_deviation(curve, truth)
+    assert dev["median"] == pytest.approx(0.03, abs=1e-4)
+    assert dev["coverage_max"] == pytest.approx(0.03, abs=1e-4)

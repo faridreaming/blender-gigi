@@ -53,11 +53,14 @@ dentalcad/                          # root repo == root isi .zip extension
 │  ├─ solid.py                      # MeshData <-> manifold3d, validasi, rongga tertutup (Fase 1)
 │  ├─ calibration.py                # kupon kalibrasi, lembar ukur, fit_scale (Fase 1)
 │  ├─ synthetic.py                  # die preparasi sintetis dengan margin analitis (Fase 2)
+│  ├─ geometry.py                   # normal, edge unik, titik terdekat di permukaan (Fase 2)
+│  ├─ margin.py                     # margin semi-otomatis + kurva editable (Fase 2)
 │  └─ units.py                      # konversi mm, tabel penomoran FDI<->Universal/Palmer
 ├─ ops/                             # bpy.types.Operator, tipis, delegasi ke core/
 │  ├─ __init__.py
 │  ├─ mesh_bridge.py                # MeshData <-> bpy.types.Mesh lewat foreach_set/foreach_get
 │  ├─ coupons.py                    # OT_export_coupons (Fase 1)
+│  ├─ margin.py                     # OT_margin_detect / OT_margin_update (Fase 2)
 │  └─ import_mesh.py                # OT_import_stl / OT_import_ply
 ├─ ui/                              # panel, N-panel tab, state-machine kasus
 │  ├─ __init__.py
@@ -77,6 +80,7 @@ dentalcad/                          # root repo == root isi .zip extension
 │  ├─ run_blender_tests.py          # build, validate, instal ke profil sementara, uji integrasi (§7)
 │  ├─ export_coupons.py             # kupon kalibrasi tanpa Blender (Fase 1)
 │  ├─ apply_calibration.py          # lembar ukur kupon -> preset (Fase 1)
+│  ├─ margin_benchmark.py           # akurasi margin vs margin analitis (Fase 2)
 │  └─ make_synthetic_golden.py      # pembuat golden case sintetis sementara (§7)
 ├─ tests/
 │  ├─ pytest.ini                    # rootdir pytest = tests/ (root repo adalah paket yang butuh bpy)

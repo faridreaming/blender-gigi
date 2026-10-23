@@ -175,10 +175,75 @@ class Runner:
                     problems.append(f"{count} objek pratinjau di scene, diharapkan 12")
         self.check(f"kupon kalibrasi ({preset_id}, {seconds:.2f} s)", problems)
 
+    def margin(self, package: str) -> None:
+        """Operator margin: deteksi dari titik klik (koordinat dunia), lalu edit (hapus + geser) dan update."""
+        import numpy as np
+        from mathutils import Matrix, Vector
+
+        synthetic = importlib.import_module(f"{package}.core.synthetic")
+        core_margin = importlib.import_module(f"{package}.core.margin")
+        ops_margin = importlib.import_module(f"{package}.ops.margin")
+        geometry = importlib.import_module(f"{package}.core.geometry")
+        problems = []
+
+        clear_scene()
+        for curve in list(bpy.data.curves):
+            bpy.data.curves.remove(curve)
+        die = synthetic.make_die(synthetic.DieSpec(finish="chamfer", scallop_mm=1.0), noise_sigma_mm=0.01, seed=3)
+        obj = bpy.data.objects.new("die", self.bridge.to_blender_mesh("die", die.mesh))
+        bpy.context.collection.objects.link(obj)
+        obj.matrix_world = Matrix.Translation((5.0, -3.0, 2.0)) @ Matrix.Rotation(0.4, 4, "X")
+        bpy.context.view_layer.objects.active = obj
+
+        seed_local = synthetic.margin_points(die.spec, np.array([1.3]))[0] @ die.rotation.T
+        seed_world = obj.matrix_world @ Vector(seed_local)
+        start = time.perf_counter()
+        result = bpy.ops.dentalcad.margin_detect(use_seed=True, seed_point=seed_world)
+        seconds = time.perf_counter() - start
+        controls = bpy.data.objects.get("die Margin")
+        preview = bpy.data.objects.get("die Margin Preview")
+        if result != {"FINISHED"} or controls is None or preview is None:
+            self.check("margin: deteksi", [f"operator {result}, kurva {controls}, pratinjau {preview}"])
+            return
+
+        points = ops_margin._spline_points(controls.data)
+        projector = geometry.MeshProjector(die.mesh)
+        curve = core_margin.MarginCurve(points, projector)
+        dev = core_margin.margin_deviation(curve.sample(1024), die.margin_curve(4096))
+        if dev["median"] > 0.050 or dev["coverage_p95"] > 0.15:
+            problems.append(f"deviasi median {1000 * dev['median']:.1f} um, cakupan p95 {1000 * dev['coverage_p95']:.1f} um")
+        if len(preview.data.splines[0].points) != ops_margin.PREVIEW_SAMPLES:
+            problems.append("kurva pratinjau tidak punya jumlah sampel yang diharapkan")
+        self.check(f"margin: deteksi (median {1000 * dev['median']:.1f} um, {seconds:.2f} s)", problems)
+
+        # Edit seperti pengguna di Edit Mode: hapus titik 2, geser titik 5 sejauh 0,3 mm.
+        problems = []
+        edited = np.delete(points, 2, axis=0)
+        edited[4] = edited[4] + np.array([0.3, 0.0, 0.0])
+        ops_margin._set_poly(controls.data, edited)
+        bpy.context.view_layer.objects.active = controls
+        result = bpy.ops.dentalcad.margin_update()
+        after = ops_margin._spline_points(controls.data)
+        if result != {"FINISHED"}:
+            problems.append(f"update mengembalikan {result}")
+        if len(after) != len(points) - 1:
+            problems.append(f"{len(after)} titik setelah hapus, diharapkan {len(points) - 1}")
+        _, _, dist = projector.closest(after[4:5])
+        if dist[0] > 1e-6:
+            problems.append(f"titik yang digeser {dist[0]:.4f} mm dari permukaan, seharusnya diproyeksikan")
+        keep = np.ones(len(edited), dtype=bool)
+        keep[4] = False
+        if np.max(np.abs(after[keep] - edited[keep])) > 1e-5:
+            problems.append("titik yang tidak disentuh ikut berubah")
+        stored = np.array(controls[ops_margin.KEY_CONTROLS]).reshape(-1, 3)
+        if not np.allclose(stored, after, atol=1e-6):
+            problems.append("titik kontrol tersimpan tidak sama dengan kurva")
+        self.check("margin: edit hapus + geser, lalu update", problems)
+
     def registration(self) -> None:
         problems = []
         for name in ("DENTALCAD_PT_main", "DENTALCAD_OT_import_stl", "DENTALCAD_OT_import_ply",
-                     "DENTALCAD_OT_export_coupons"):
+                     "DENTALCAD_OT_export_coupons", "DENTALCAD_OT_margin_detect", "DENTALCAD_OT_margin_update"):
             if not hasattr(bpy.types, name):
                 problems.append(f"{name} tidak teregistrasi")
         if not hasattr(bpy.types.Scene, "dentalcad_case"):
@@ -231,6 +296,7 @@ def main() -> int:
 
     runner.performance()
     runner.coupons(package)
+    runner.margin(package)
 
     print(f"\n{len(runner.failures)} kegagalan" if runner.failures else "\nSemua uji integrasi lulus")
     return 1 if runner.failures else 0

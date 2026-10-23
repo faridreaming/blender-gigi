@@ -11,6 +11,7 @@ CASE_STEPS = (
     ("CALIBRATE", "Calibrate", "Printer + resin calibration coupons"),
     ("ORDER", "Order", "Case details (not available yet)"),
     ("SCAN", "Scan", "Import the scan meshes"),
+    ("MARGIN", "Margin", "Detect and edit the preparation margin"),
 )
 
 
@@ -35,6 +36,8 @@ class DENTALCAD_PT_main(bpy.types.Panel):
             self.draw_calibrate(layout, case)
         elif case.step == "ORDER":
             layout.label(text="Case details are not available yet", icon="INFO")
+        elif case.step == "MARGIN":
+            self.draw_margin(layout, context)
         else:
             self.draw_scan(layout, context)
 
@@ -54,6 +57,19 @@ class DENTALCAD_PT_main(bpy.types.Panel):
             box.label(text="All coupon parameters calibrated", icon="CHECKMARK")
         layout.operator("dentalcad.export_coupons", icon="EXPORT")
         layout.label(text="Print each die with supports under it", icon="INFO")
+
+    def draw_margin(self, layout, context):
+        obj = context.active_object
+        col = layout.column(align=True)
+        col.operator("dentalcad.margin_detect", icon="CURVE_BEZCIRCLE")
+        col.operator("dentalcad.margin_update", icon="FILE_REFRESH")
+        if obj is not None and obj.get("dentalcad_margin_role") == "controls":
+            box = layout.box()
+            box.label(text=f"Die: {obj.get('dentalcad_margin_die', '?')}", icon="MESH_DATA")
+            box.label(text=f"{len(obj.data.splines[0].points)} control points")
+            box.label(text="Edit Mode: move (G) or delete (X) points, then Update", icon="INFO")
+        else:
+            layout.label(text="Select the die, Detect Margin, click near the margin", icon="INFO")
 
     def draw_scan(self, layout, context):
         col = layout.column(align=True)
