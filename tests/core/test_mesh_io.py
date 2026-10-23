@@ -79,6 +79,16 @@ def test_merge_exact_vertices_survives_hash_collisions(monkeypatch):
     assert len(vertices) == len(np.unique(points, axis=0))
 
 
+def test_save_stl_round_trip_with_header(tmp_path):
+    path = tmp_path / "tetra.stl"
+    mesh_io.save_stl(MeshData(VERTS, FACES), path, header="DentalCAD uji")
+    assert path.read_bytes()[:13] == b"DentalCAD uji"
+    loaded = mesh_io.load_mesh(path)
+    assert len(loaded.vertices) == 4 and mesh_validate.is_watertight(loaded)
+    with pytest.raises(ValueError, match="80"):
+        mesh_io.save_stl(MeshData(VERTS, FACES), path, header="x" * 81)
+
+
 def test_unsupported_suffix_is_rejected(tmp_path):
     with pytest.raises(ValueError, match="format tidak didukung"):
         mesh_io.load_mesh(tmp_path / "scan.obj")

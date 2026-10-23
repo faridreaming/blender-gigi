@@ -1,0 +1,113 @@
+{
+  "id": "photon_p1_std_v2_hd_gray",
+  "printer": "Anycubic Photon P1",
+  "resin": "Anycubic Standard Resin V2, HD Gray",
+  "params": {
+    "base_height": {
+      "value": 3.0,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "FLD: Formlabs Application Guide Diagnostic Models, docs/PHASE1.md §2",
+      "source_date": "2026-10-23"
+    },
+    "die_clearance": {
+      "value": 0.075,
+      "unit": "mm",
+      "status": "perlu_kalibrasi",
+      "source": "tengah rentang kupon RESEARCH.md §3 (0,05-0,1 mm, tanpa rujukan primer)",
+      "source_date": "2026-10-23",
+      "coupon_range": [
+        0.05,
+        0.1
+      ]
+    },
+    "ditch_depth": {
+      "value": 0.5,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "KUL: Kulzer Setting Parameters exocad for cara Print 4.0 (dima Print Stone beige), docs/PHASE1.md §2; 'Ditch depth avg.'",
+      "source_date": "2020-09"
+    },
+    "ditch_width": {
+      "value": 0.5,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "KUL: Kulzer Setting Parameters exocad for cara Print 4.0 (dima Print Stone beige), docs/PHASE1.md §2; 'Ditch width'",
+      "source_date": "2020-09"
+    },
+    "drain_hole_count": {
+      "value": 4,
+      "unit": "",
+      "status": "default_pabrikan",
+      "source": "MED: Medit Help Center, Formlab preset, docs/PHASE1.md §2",
+      "source_date": "2026-10-23"
+    },
+    "drain_hole_diameter": {
+      "value": 4.0,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "MED: Medit Help Center, Formlab preset, docs/PHASE1.md §2",
+      "source_date": "2026-10-23"
+    },
+    "drain_hole_location": {
+      "value": "bottom",
+      "unit": "",
+      "status": "default_pabrikan",
+      "source": "FLB (Formlabs PreForm Dental 3.41.0) dan UNZ (UNIZ), docs/PHASE1.md §2",
+      "source_date": "2026-10-23"
+    },
+    "hollow_wall_thickness": {
+      "value": 3.0,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "MED (Medit Formlab preset), UNZ (UNIZ, minimal 3 mm), KUL; rentang kupon RESEARCH.md §3; docs/PHASE1.md §2",
+      "source_date": "2026-10-23",
+      "coupon_range": [
+        2.0,
+        3.0
+      ]
+    },
+    "peg_height": {
+      "value": 2.5,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "KUL: Kulzer Setting Parameters exocad for cara Print 4.0 (dima Print Stone beige), docs/PHASE1.md §2; 'Pin height'",
+      "source_date": "2020-09"
+    },
+    "peg_inset": {
+      "value": 1.5,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "KUL: Kulzer Setting Parameters exocad for cara Print 4.0 (dima Print Stone beige), docs/PHASE1.md §2; interpretasi 'Seating width'",
+      "source_date": "2020-09"
+    },
+    "scale_x": {
+      "value": 1.0,
+      "unit": "",
+      "status": "perlu_kalibrasi",
+      "source": "belum dikalibrasi: tanpa kompensasi sampai kupon dimensi diukur (docs/PHASE1.md §5.K)",
+      "source_date": "2026-10-23"
+    },
+    "scale_y": {
+      "value": 1.0,
+      "unit": "",
+      "status": "perlu_kalibrasi",
+      "source": "belum dikalibrasi: tanpa kompensasi sampai kupon dimensi diukur (docs/PHASE1.md §5.K)",
+      "source_date": "2026-10-23"
+    },
+    "scale_z": {
+      "value": 1.0,
+      "unit": "",
+      "status": "perlu_kalibrasi",
+      "source": "belum dikalibrasi: tanpa kompensasi sampai kupon dimensi diukur (docs/PHASE1.md §5.K)",
+      "source_date": "2026-10-23"
+    },
+    "trim_offset_below_lowest_tooth": {
+      "value": 3.0,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "FLD: Formlabs Application Guide Diagnostic Models, docs/PHASE1.md §2",
+      "source_date": "2026-10-23"
+    }
+  }
+}

@@ -15,7 +15,7 @@ Setiap angka yang memengaruhi hasil cetak punya status:
 
 | Status | Arti | Perilaku operator |
 |---|---|---|
-| **default pabrikan, perlu kalibrasi** | Ada angkanya di dokumentasi pabrikan (§2), tetapi untuk printer, resin, atau software lain dari yang dipakai lab. | Jalan dengan nilai itu. Laporan ekspor mencatat bahwa nilainya belum dikalibrasi untuk printer lab. |
+| **default pabrikan (printer lain), perlu kalibrasi** | Ada angkanya di dokumentasi pabrikan (§2), tetapi untuk printer, resin, atau software lain dari yang dipakai lab. | Jalan dengan nilai itu. Laporan ekspor mencatat bahwa nilainya belum dikalibrasi untuk printer lab. |
 | **praktik lab** | Nilai dari setelan Model Creator yang dipakai lab dalam produksi (tabel §9.1, diisi maintainer). | Jalan dengan nilai itu. Laporan ekspor mencatat sumbernya. Kupon tetap memverifikasinya di printer lab: rentang kupon dipusatkan di nilai ini. |
 | **perlu kalibrasi** | Tidak ada sumbernya, atau hanya rentang tanpa rujukan primer (RESEARCH.md §3). | Jalan dengan **nilai tengah rentang kupon kalibrasi** (§5.K), sambil menampilkan peringatan jelas di panel dan di laporan ekspor. Tidak menolak jalan. |
 | **input pengguna** | Posisi, pilihan, atau teks yang ditentukan per kasus. | |
@@ -40,9 +40,13 @@ Semua halaman di bawah dibaca langsung pada 2026-10-23. Kutipan dipendekkan.
 | **FLB** | Formlabs Dental blog, "PreForm Dental 3.41.0: The Latest Software Updates Powering Efficiency", 14 Okt 2024 (dental.formlabs.com/blog/preform-dental-updates/), bagian panduan hollow | Drain holes sangat disarankan untuk model hollow. **"Place the drain holes at the bottom of the model so the resin can flow out with gravity."** Terlalu banyak drain hole bisa mengurangi kekuatan struktur model. |
 | **FLC** | Formlabs Support, "Cupping blowout" (formlabs.com/support/Cupping-Blowout/) | Cupping khas printer upside-down: rongga hollow atau cembung menjebak udara dan bisa jebol; Formlabs menyarankan drainage hole dan orientasi yang meminimalkan cup. |
 | **UNZ** | UNIZ Support, "Detailed explanation of the restorative indication parameters" (support.uniz.com/portal/en/kb/articles/detailed-explanation-of-the-restorative-indication-parameters), diperbarui sekitar 11 bulan lalu, contoh resin zDental Model Z Tan | Hollow: dinding minimal 3 mm. Hollow implant: dicetak rata, **1-2 drainage hole di dasar model** karena tekanan vakum. Hollow removable die: support di bawah model **dan** die, kalau tidak dasar model mengalami elephant foot sehingga die sulit masuk. Solid removable die: model rata, **dasar die diberi support**. |
+| **KUL** | Kulzer, "Setting Parameters exocad for cara Print 4.0" (kulzer.de, file cara_Print_Setting_Parameter_exocad_EN_10_2020.pdf, A2577 EN 11/2020, "As of 09.2020"), resin dima Print Stone beige, exocad Model Creator | DIES (Plateless Model Design): Pin height 2.5 mm, Preparation margin 0 mm, Seating width 1.5 mm, Omit die pin tidak aktif, Add concavity aktif. Base: Horizontal shaft 0 mm, Vertical shaft gap 0 mm; Ditch aktif, Ditch width 0.5 mm, Ditch depth avg. 0.5 mm; Add pin grooves aktif, Groove width 1 mm, Groove depth 0.5 mm; Hollow model aktif, Wall thickness 3 mm, Cavity fill diameter 0 mm. Catatan: "The given dimensions serve as guidelines". |
 | **ANY** | Anycubic, "Standard Resin V2" (store.anycubic.com/products/standard-resin-v2) | Volume Shrinkage Rate 4.3-5.6%. Warna HD Gray tersedia. Photon P1 tercantum di tabel parameter cetak rekomendasi (layer 0,05 mm). |
 
 Catatan verifikasi:
+- **Whitepaper Stratasys x exocad Model Creator** (wp_pjd_exocad_a4_0915_web.pdf) **tidak dicantumkan**: URL prod.stratasys.com dan salinan di stratasys.com mengarah ke halaman login Microsoft, salinan DentistryIQ (Cohen-whitepaper.pdf) mengembalikan 404, dan Wayback Machine tidak punya arsipnya (dicek 2026-10-23). Isinya tidak bisa diverifikasi.
+- **Pemetaan KUL ke parameter DentalCAD:** "Ditch width" → lebar ditching, "Ditch depth avg." → kedalaman ditching, dan "Pin height" → tinggi peg punya nama dan fungsi yang jelas sepadan. "Seating width" → inset peg (lebar bahu tempat die duduk di sekeliling pin) adalah **interpretasi** saya atas istilah exocad, belum dikonfirmasi. "Horizontal shaft" dan "Vertical shaft gap" (keduanya 0 mm) **tidak** dipetakan ke clearance, karena definisinya di exocad tidak dijelaskan di dokumen ini. "Preparation margin", pin grooves, dan concavity juga tidak dipetakan.
+- KUL juga menulis Wall thickness 3 mm untuk hollow, jadi tebal dinding 3,0 mm kini punya tiga sumber (MED, UNZ, KUL).
 - **Letak lubang drainase di dasar** ditulis eksplisit oleh dua sumber: FLB (Formlabs PreForm Dental) dan UNZ. FLS dan FLD tidak menyebut letaknya; FLD (cetak rata) dan FLH (lubang di sisi build platform) konsisten dengan keduanya.
 - FLB juga memperingatkan bahwa terlalu banyak drain hole mengurangi kekuatan model. Ini satu alasan lagi untuk membandingkan konfigurasi MED (4 lubang) dan UNZ (1-2 lubang) di kupon.
 - **Jumlah lubang berbeda antar pabrikan:** MED empat, UNZ 1-2. Default mengikuti MED (keputusan K1); UNZ dicatat sebagai pembanding di kupon.
@@ -58,7 +62,7 @@ Catatan verifikasi:
 | Resin alternatif | Anycubic Standard Resin V2 White; Anycubic Water-Wash Resin 2.0 Gray | Belum saya verifikasi spesifikasinya; perlakukan seperti resin utama (kalibrasi sendiri). |
 
 Konsekuensi:
-- Semua sumber hollow dan die di §2 ditulis untuk printer atau resin lain (Formlabs, UNIZ zDental Model Z Tan). Karena itu statusnya "default pabrikan, perlu kalibrasi", bukan "dikalibrasi".
+- Semua sumber hollow dan die di §2 ditulis untuk printer atau resin lain (Formlabs, UNIZ zDental Model Z Tan). Karena itu statusnya "default pabrikan (printer lain), perlu kalibrasi", bukan "dikalibrasi".
 - Resin umum mungkin kurang stabil dimensinya dalam jangka panjang dibanding resin model dental. UNZ mengaitkan dinding 3 mm dengan menjaga model tidak berubah bentuk dalam jangka panjang. Kupon perlu diukur ulang setelah disimpan (§5.K).
 - Preset dibuat per pasangan printer + resin: minimal `photon_p1_std_v2_hd_gray` dan `accufab_f1_std_v2_hd_gray`.
 
@@ -81,27 +85,31 @@ Kerangka data untuk semua fitur:
 
 ### 5.K Kupon kalibrasi (fitur pertama)
 
-Tujuannya mengubah status "perlu kalibrasi" dan "default pabrikan, perlu kalibrasi" menjadi nilai yang dikalibrasi untuk tiap pasangan printer + resin lab.
+Tujuannya mengubah status "perlu kalibrasi" dan "default pabrikan (printer lain), perlu kalibrasi" menjadi nilai yang dikalibrasi untuk tiap pasangan printer + resin lab.
 
-**Kupon yang dihasilkan** (STL siap cetak, satu set per pasangan printer + resin):
-1. **Kupon dimensi dan penyusutan per sumbu:** blok bertangga dengan ukuran nominal yang diketahui di X, Y, dan Z, dicetak rata di build plate dengan orientasi yang ditandai (huruf X dan Y timbul). Teknisi mengukur dengan jangka sorong; faktor kompensasi per sumbu = ukuran nominal / ukuran terukur, dirata-rata per sumbu. Ukur sekali setelah post-curing dan sekali lagi setelah disimpan (stabilitas resin umum, §3).
-2. **Kupon clearance:** satu blok base dengan beberapa socket dan peg yang clearance-nya menyapu rentang RESEARCH.md §3 (0,05-0,1 mm), plus satu langkah di bawah dan di atasnya. Die kupon diberi tanda supaya teknisi mencetaknya **dengan support di bawah die**, sesuai UNZ, untuk menghindari elephant foot yang membuat die sulit masuk.
-3. **Kupon hollow:** kotak hollow dengan dinding 3,0 mm (MED, UNZ) dan beberapa variasi di sekitarnya, masing-masing dengan lubang drainase di dasar: konfigurasi MED (4 × Ø 4,0 mm) dan UNZ (1-2 lubang). Menguji cupping (FLC) pada printer terbalik lab dan drainase resin.
-4. **Kupon label dan ditching:** deretan teks dan alur dengan tinggi, kedalaman, dan lebar berbeda.
-5. **Kupon peg:** variasi inset, tinggi, dan celah dasar peg.
+**Kupon yang dihasilkan** (STL siap cetak, satu set per pasangan printer + resin). Kupon 1 sampai 3 sudah diimplementasikan; kupon 4 dan 5 belum (lihat di bawah). Penanda pada kupon berupa titik timbul atau takik, bukan teks, karena ukuran label belum punya sumber (§9.1). Semua ukuran bertanda "desain kupon" di bawah adalah bentuk benda uji, bukan parameter cetak model; nilainya ada di `core/calibration.py` dan dicatat di laporan kupon.
+1. **Kupon dimensi dan penyusutan per sumbu:** piramida bertingkat 4 lapis, persegi 40, 30, 20, dan 10 mm, tiap lapis setinggi 3 mm (desain kupon). Satu takik vertikal di sisi +X dan dua takik di sisi +Y lapis terbawah menandai arah sumbu. Dicetak rata di build plate. Teknisi mengukur lebar X dan Y setiap lapis di tengah tinggi lapisnya (menghindari elephant foot di lapis pertama) dan tinggi Z puncak setiap lapis. Dengan empat ukuran nominal per sumbu, `fit_scale` mencocokkan *terukur = a × nominal + b* per sumbu: faktor kompensasi skala = 1/a, dan b dilaporkan sebagai offset (misalnya akibat overcure), yang tidak dikompensasi oleh skala. Ukur sekali setelah post-curing dan sekali lagi setelah disimpan (stabilitas resin umum, §3).
+2. **Kupon clearance:** satu blok base dengan socket untuk setiap nilai clearance, ditambah die terpisah untuk setiap socket. Nilai clearance = sapuan rentang kupon preset (RESEARCH.md §3, 0,05-0,1 mm) dengan langkah setengah rentang, plus satu langkah di bawah dan di atas: 0,025, 0,05, 0,075, 0,1, dan 0,125 mm. Die: badan 8 × 8 × 5 mm (desain kupon), peg persegi = badan dikurangi inset peg di tiap sisi, setinggi tinggi peg (keduanya dari preset: KUL Seating width 1,5 mm dan Pin height 2,5 mm). Socket = jejak peg yang di-offset 2D sebesar clearance dengan join miter (celah tepat c di setiap sisi, √2·c di sudut; join bulat akan mendekati busur dengan segmen sehingga celah sudut sedikit di bawah c), sedalam tinggi peg + celah dasar 1,0 mm (desain kupon), supaya die duduk di bahunya. Die ke-i dan socket ke-i ditandai i titik. Base dicetak rata (socket menghadap ke atas, jauh dari build plate); **setiap die dicetak dengan support di bawahnya** (UNZ), dan ini tertulis di nama file dan laporan. Teknisi menilai setiap pasangan: masuk tanpa adjust, longgar, atau tidak masuk.
+3. **Kupon hollow:** kotak 30 × 20 × 12 mm (desain kupon) dengan rongga tertutup kecuali lubang drainase di dasar. Lima kotak: dinding 2,0, 2,5, dan 3,0 mm (rentang RESEARCH.md §3, dengan 3,0 mm dari MED, UNZ, dan KUL), masing-masing dengan konfigurasi lubang preset (MED: 4 × Ø 4,0 mm), ditambah dinding 3,0 mm dengan 2 dan 1 lubang Ø 4,0 mm (jumlah dari UNZ; UNZ tidak menyebut diameter, jadi dipakai diameter MED). Kotak ke-i ditandai i titik di atasnya. Dicetak rata, lubang menempel ke build plate (K2). Teknisi mencatat cupping/blowout (FLC), resin terjebak, dan deformasi dinding.
+4. **Kupon label dan ditching: belum.** Ukuran label tidak punya sumber sama sekali (§9.1 masih kosong). Ditching punya angka KUL, tetapi jarak tepi ditching ke margin belum punya sumber, dan geometri ditching baru dibangun di §5.5.
+5. **Kupon peg: belum.** Celah dasar socket belum punya sumber; inset dan tinggi peg dari KUL sudah dipakai di kupon 2 sebagai titik tengah.
 
-**Rentang kupon** untuk parameter tanpa sumber pabrikan (margin base, kerf, bidang pisah, peg, ditching, label) dipusatkan di nilai praktik lab dari tabel §9.1 (K5). Lebar langkah sapuan ditetapkan saat desain kupon dan dicatat di laporannya. Sampai tabel §9.1 terisi, kupon 4 dan 5 belum bisa dibuat; kupon 1 sampai 3 tidak terhambat.
+**Lembar ukur dan penerapan.** Bersama STL, ekspor kupon menulis `kupon_lembar_ukur.csv` (setiap ukuran nominal yang harus diukur, kolom hasil kosong) dan `kupon_laporan.json` (preset, nilai parameter beserta sumber, ukuran desain kupon, dan SHA-256 setiap STL). Setelah diisi, `scripts/apply_calibration.py` menghitung faktor skala per sumbu dari lembar ukur dan, dengan `--write`, menulisnya ke preset dengan status "dikalibrasi" beserta sumbernya. Pilihan clearance, tebal dinding, dan jumlah lubang dari kupon 2 dan 3 dicatat dengan opsi baris perintah, karena itu penilaian teknisi, bukan hasil hitungan.
+
+**Rentang kupon** untuk parameter tanpa sumber pabrikan (margin base, kerf, bidang pisah, celah dasar peg, jarak ditching ke margin, label) dipusatkan di nilai praktik lab dari tabel §9.1 (K5). Parameter yang punya angka KUL (tinggi dan inset peg, lebar dan kedalaman ditching) memakai angka itu sampai nilai praktik lab mengisinya.
 
 **Parameter.**
 
 | Parameter | Status | Nilai awal | Sumber |
 |---|---|---|---|
 | Faktor kompensasi skala X, Y, Z | perlu kalibrasi | 1,0 (tanpa kompensasi) sampai kupon 1 diukur | Penyusutan volume ANY 4,3-5,6% hanya konteks, bukan faktor skala. |
-| Ukuran nominal blok kupon dimensi | desain kupon | ditetapkan saat implementasi | Bukan parameter cetak model. |
+| Ukuran benda uji (piramida, badan die, kotak hollow, celah dasar kupon, titik penanda) | desain kupon | lihat daftar kupon di atas | Bentuk benda uji, bukan parameter cetak model. |
+| Sapuan clearance | dari preset | 0,025 sampai 0,125 mm, langkah 0,025 | Rentang kupon RESEARCH.md §3 (0,05-0,1 mm) + satu langkah di luar. |
+| Sapuan tebal dinding | dari preset | 2,0, 2,5, 3,0 mm | Rentang kupon RESEARCH.md §3 (2-3 mm). |
 
 Faktor skala diterapkan saat ekspor (§5.7) dan dicatat di laporan. Kalau slicer lab juga mengompensasi, salah satunya harus dimatikan supaya tidak terkompensasi dua kali. Itu tertulis di peringatan ekspor.
 
-**Modul core/.** `core/calibration.py` (geometri kupon, perhitungan faktor skala dari ukuran terukur), `core/model_presets.py`, `core/solid.py`.
+**Modul core/.** `core/calibration.py` (geometri kupon, lembar ukur, `fit_scale`), `core/model_presets.py` (preset printer + resin dengan status per parameter), `core/solid.py` (konversi dan validasi Manifold), `core/mesh_io.py` (`save_stl` biner dengan header disclaimer). ops/: `DENTALCAD_OT_export_coupons`. Data: `data/model_presets/*.json`. Skrip: `scripts/apply_calibration.py`.
 
 **Pengujian.**
 - Lapis 1: setiap kupon watertight dan lolos pemeriksaan siap cetak; dimensi nominal blok kupon sesuai desain (ambang uji dari toleransi manifold3d); perhitungan faktor skala dari data ukur sintetis menghasilkan faktor yang benar.
@@ -137,7 +145,7 @@ Faktor skala diterapkan saat ekspor (§5.7) dan dicatat di laporan. Kalau slicer
 
 | Parameter | Status | Nilai | Sumber |
 |---|---|---|---|
-| Jarak bidang trim di bawah titik terendah gigi | default pabrikan, perlu kalibrasi | 3 mm | FLD |
+| Jarak bidang trim di bawah titik terendah gigi | default pabrikan (printer lain), perlu kalibrasi | 3 mm | FLD |
 | Titik terendah gigi | input pengguna | klik | |
 | Ukuran minimum komponen yang dibuang | tidak dipakai | | Diganti konfirmasi pengguna (langkah 4). |
 | Ukuran maksimum lubang yang ditutup | tidak dipakai | | Semua lubang dalam ditutup (langkah 5). |
@@ -164,7 +172,7 @@ Faktor skala diterapkan saat ekspor (§5.7) dan dicatat di laporan. Kalau slicer
 
 | Parameter | Status | Nilai | Sumber |
 |---|---|---|---|
-| Tinggi base di bawah bidang trim | default pabrikan, perlu kalibrasi | 3 mm | FLD |
+| Tinggi base di bawah bidang trim | default pabrikan (printer lain), perlu kalibrasi | 3 mm | FLD |
 | Margin base di luar outline lengkung | praktik lab | §9.1 | setelan Model Creator lab (K5) |
 | Tumpang tindih skirt ke dalam blok base | ambang geometri | dari `get_tolerance()` | Bukan parameter cetak; cukup > toleransi manifold3d. |
 
@@ -196,9 +204,9 @@ Alternatif kalau S1 gagal: erosi dengan `minkowski_difference` terhadap bola, pa
 
 | Parameter | Status | Nilai | Sumber |
 |---|---|---|---|
-| Tebal dinding hollow | default pabrikan, perlu kalibrasi | 3,0 mm | MED; UNZ (minimal 3 mm). RESEARCH.md §3 menyebut 2-3 mm tanpa rujukan. |
-| Jumlah lubang drainase | default pabrikan, perlu kalibrasi | 4 | MED. UNZ menyebut 1-2; dibandingkan di kupon. |
-| Diameter lubang drainase | default pabrikan, perlu kalibrasi | 4,0 mm | MED |
+| Tebal dinding hollow | default pabrikan (printer lain), perlu kalibrasi | 3,0 mm | MED; UNZ (minimal 3 mm); KUL. RESEARCH.md §3 menyebut 2-3 mm tanpa rujukan. |
+| Jumlah lubang drainase | default pabrikan (printer lain), perlu kalibrasi | 4 | MED. UNZ menyebut 1-2; dibandingkan di kupon. |
+| Diameter lubang drainase | default pabrikan (printer lain), perlu kalibrasi | 4,0 mm | MED |
 | Letak lubang drainase | default pabrikan | dasar model | FLB dan UNZ (keduanya eksplisit); konsisten dengan FLD dan FLH |
 | Sebaran lubang | algoritma | farthest point sampling | Tanpa angka jarak. |
 | Jarak voxel h | perlu kalibrasi (akurasi vs waktu) | dari spike S1 | Parameter komputasi, bukan klinis; syaratnya h jauh lebih kecil dari tebal dinding. |
@@ -261,12 +269,12 @@ Die adalah segmen yang bisa dilepas (§5.4) yang berisi gigi preparasi, ditambah
 | Parameter | Status | Nilai | Sumber |
 |---|---|---|---|
 | Clearance die-socket | perlu kalibrasi | 0,075 mm (tengah rentang kupon) + peringatan | Rentang kupon dari RESEARCH.md §3 (0,05-0,1 mm, tanpa rujukan primer). |
-| Inset peg dari jejak segmen | praktik lab | §9.1 | setelan Model Creator lab (K5) |
-| Tinggi peg | praktik lab | §9.1 | setelan Model Creator lab (K5) |
+| Inset peg dari jejak segmen | default pabrikan (printer lain), perlu kalibrasi | 1,5 mm | KUL "Seating width" (pemetaan interpretasi, §2); praktik lab §9.1 menimpanya |
+| Tinggi peg | default pabrikan (printer lain), perlu kalibrasi | 2,5 mm | KUL "Pin height"; praktik lab §9.1 menimpanya |
 | Celah dasar socket | praktik lab | §9.1 | setelan Model Creator lab (K5) |
 | Sudut taper peg | perlu kalibrasi | tidak dipakai (lurus) | Langkah 4. |
-| Kedalaman ditching | praktik lab | §9.1 | setelan Model Creator lab (K5); MED "Margin Trimming Depth" tidak dipakai (lihat bawah). |
-| Lebar ditching | praktik lab | §9.1 | setelan Model Creator lab (K5) |
+| Kedalaman ditching | default pabrikan (printer lain), perlu kalibrasi | 0,5 mm | KUL "Ditch depth avg."; praktik lab §9.1 menimpanya. MED "Margin Trimming Depth" tidak dipakai (lihat bawah). |
+| Lebar ditching | default pabrikan (printer lain), perlu kalibrasi | 0,5 mm | KUL "Ditch width"; praktik lab §9.1 menimpanya |
 | Jarak tepi atas ditching ke margin | praktik lab | §9.1 | setelan Model Creator lab (K5); MED "Extra Gap from Margin" tidak dipakai (lihat bawah). |
 
 **Kandidat sumber dari MED, belum dipakai.** Preset Medit untuk Formlabs, bagian *Solid model with extra dies*, mengisi Extra Gap from Margin 0.30 mm, Margin Trimming Depth 0.20 mm, dan Margin Extrusion Length 0.15 mm. Namanya mirip parameter ditching, tetapi artikel itu tidak menjelaskan definisi geometrinya, dan algoritma Medit tidak terbuka. Memetakannya ke parameter di atas berarti menebak, jadi angka ini **tidak** dipakai. Keputusan K5: parameter ditching memakai nilai praktik lab (§9.1).
@@ -321,7 +329,7 @@ Die adalah segmen yang bisa dilepas (§5.4) yang berisi gigi preparasi, ditambah
    - kalau hollow: tidak ada rongga tertutup, tebal dinding tercapai, dan semua lubang drainase di dasar memotong rongga (§5.3);
    - kalau ada die/segmen: clearance terukur (`min_gap`) sesuai preset, dan model tidak hollow (K6).
 6. **Peringatan (tidak menolak ekspor):**
-   - setiap parameter berstatus "perlu kalibrasi" atau "default pabrikan, perlu kalibrasi", dengan nilai yang dipakai;
+   - setiap parameter berstatus "perlu kalibrasi" atau "default pabrikan (printer lain), perlu kalibrasi", dengan nilai yang dipakai;
    - faktor skala masih 1,0 (belum dikalibrasi), atau sudah dikalibrasi tetapi slicer mungkin juga mengompensasi;
    - setiap die dan segmen yang bisa dilepas: catatan "beri support di slicer" di bawah dasarnya (UNZ, K6). Ini catatan cetak, bukan tanda ada yang salah.
 7. **Laporan ekspor** `<nomor_kasus>_report.json`: versi DentalCAD, printer dan resin preset, nilai setiap parameter beserta `status`/`source`, faktor skala, metrik pemeriksaan, daftar peringatan, dan hash SHA-256 setiap STL. Ini jejak dokumentasi untuk lab sebagai produsen custom-made device (RESEARCH.md §7).
@@ -398,25 +406,28 @@ Semua modul di atas Python + numpy + manifold3d, tanpa bpy, dan diuji di Lapis 1
 | Parameter | Fitur | Status | Nilai awal | Sumber |
 |---|---|---|---|---|
 | Faktor skala X, Y, Z | 5.K, 5.7 | perlu kalibrasi | 1,0 | ANY hanya konteks (volume 4,3-5,6%) |
-| Jarak bidang trim di bawah gigi terendah | 5.1 | default pabrikan, perlu kalibrasi | 3 mm | FLD |
-| Tinggi base | 5.2 | default pabrikan, perlu kalibrasi | 3 mm | FLD |
+| Jarak bidang trim di bawah gigi terendah | 5.1 | default pabrikan (printer lain), perlu kalibrasi | 3 mm | FLD |
+| Tinggi base | 5.2 | default pabrikan (printer lain), perlu kalibrasi | 3 mm | FLD |
 | Margin base di luar outline | 5.2 | praktik lab | §9.1 | setelan Model Creator lab |
-| Tebal dinding hollow | 5.3 | default pabrikan, perlu kalibrasi | 3,0 mm | MED, UNZ |
-| Jumlah lubang drainase | 5.3 | default pabrikan, perlu kalibrasi | 4 | MED (UNZ: 1-2) |
-| Diameter lubang drainase | 5.3 | default pabrikan, perlu kalibrasi | 4,0 mm | MED |
+| Tebal dinding hollow | 5.3 | default pabrikan (printer lain), perlu kalibrasi | 3,0 mm | MED, UNZ, KUL |
+| Jumlah lubang drainase | 5.3 | default pabrikan (printer lain), perlu kalibrasi | 4 | MED (UNZ: 1-2) |
+| Diameter lubang drainase | 5.3 | default pabrikan (printer lain), perlu kalibrasi | 4,0 mm | MED |
 | Letak lubang drainase | 5.3 | default pabrikan | dasar model | FLB, UNZ |
 | Jarak voxel | 5.3 | perlu kalibrasi | dari spike S1 | tidak ada (komputasi) |
 | Lebar kerf antar segmen | 5.4 | praktik lab | §9.1 | setelan Model Creator lab |
 | Tinggi bidang pisah | 5.4 | praktik lab | §9.1 | setelan Model Creator lab |
 | Clearance die-socket | 5.5 | perlu kalibrasi | 0,075 mm | tengah rentang RESEARCH.md §3 |
-| Inset, tinggi, celah dasar peg | 5.5 | praktik lab | §9.1 | setelan Model Creator lab |
+| Inset peg | 5.5 | default pabrikan (printer lain), perlu kalibrasi | 1,5 mm | KUL (interpretasi "Seating width") |
+| Tinggi peg | 5.5 | default pabrikan (printer lain), perlu kalibrasi | 2,5 mm | KUL "Pin height" |
+| Celah dasar socket | 5.5 | praktik lab | §9.1 | setelan Model Creator lab |
 | Taper peg | 5.5 | perlu kalibrasi | tidak dipakai | tidak ada |
-| Kedalaman, lebar, jarak ke margin ditching | 5.5 | praktik lab | §9.1 | setelan Model Creator lab (kandidat MED tidak dipakai) |
+| Kedalaman dan lebar ditching | 5.5 | default pabrikan (printer lain), perlu kalibrasi | 0,5 mm dan 0,5 mm | KUL |
+| Jarak tepi atas ditching ke margin | 5.5 | praktik lab | §9.1 | setelan Model Creator lab (kandidat MED tidak dipakai) |
 | Posisi label | 5.6 | keputusan maintainer | dinding samping posterior/lingual | K3 |
 | Hollow untuk model dengan removable die | 5.3, 5.5 | keputusan maintainer | dinonaktifkan | K6 |
 | Tinggi dan kedalaman label | 5.6 | praktik lab | §9.1 | setelan Model Creator lab |
 
-Sampai tabel §9.1 terisi, parameter berstatus "praktik lab" belum punya nilai, jadi fitur yang memakainya (margin base, section, peg, ditching, label) belum bisa diimplementasikan. Fitur lain, termasuk kupon kalibrasi untuk dimensi, clearance, dan hollow, tidak terhambat.
+Sampai tabel §9.1 terisi, parameter berstatus "praktik lab" belum punya nilai, jadi fitur yang memakainya (margin base, section, celah dasar peg, jarak ditching ke margin, label) belum bisa diimplementasikan. Nilai praktik lab yang diisi di §9.1 menimpa angka KUL untuk parameter yang sama. Kupon kalibrasi 1 sampai 3 tidak terhambat dan sudah diimplementasikan.
 
 ### 9.1 Nilai praktik lab (K5, diisi maintainer)
 
@@ -440,7 +451,7 @@ Sumber: setelan Model Creator yang dipakai lab. Kolom "catatan" untuk definisi p
 ## 10. Keputusan
 
 **Sudah diputuskan (maintainer, 2026-10-23):**
-- **K1:** Preset tidak berisi `null`. Parameter yang punya sumber pabrikan diisi nilai itu dengan status "default pabrikan, perlu kalibrasi". Parameter tanpa sumber berjalan dengan nilai tengah rentang kupon sambil menampilkan peringatan, tidak menolak jalan.
+- **K1:** Preset tidak berisi `null`. Parameter yang punya sumber pabrikan diisi nilai itu dengan status "default pabrikan (printer lain), perlu kalibrasi". Parameter tanpa sumber berjalan dengan nilai tengah rentang kupon sambil menampilkan peringatan, tidak menolak jalan.
 - **K2:** Orientasi acuan: model dicetak rata di build plate, lubang drainase di dasar.
 - **K3:** Label default di dinding samping base, posterior/lingual, bukan di dasar.
 - **K4:** Kupon kalibrasi jadi fitur pertama, termasuk pengukuran penyusutan per sumbu dan faktor kompensasi skala di preset. Die di kupon dicetak dengan support di bawahnya (UNZ).

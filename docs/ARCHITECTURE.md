@@ -49,10 +49,14 @@ dentalcad/                          # root repo == root isi .zip extension
 │  ├─ mesh_io.py                    # load_mesh()/save_mesh(): STL biner via numpy, STL ASCII/PLY via trimesh
 │  ├─ mesh_validate.py              # watertight, triangle_count, bbox, non-manifold edges
 │  ├─ material_db.py                # load+validate preset material JSON (skema IFU)
+│  ├─ model_presets.py              # preset cetak per printer + resin, status per parameter (Fase 1)
+│  ├─ solid.py                      # MeshData <-> manifold3d, validasi, rongga tertutup (Fase 1)
+│  ├─ calibration.py                # kupon kalibrasi, lembar ukur, fit_scale (Fase 1)
 │  └─ units.py                      # konversi mm, tabel penomoran FDI<->Universal/Palmer
 ├─ ops/                             # bpy.types.Operator, tipis, delegasi ke core/
 │  ├─ __init__.py
 │  ├─ mesh_bridge.py                # MeshData <-> bpy.types.Mesh lewat foreach_set/foreach_get
+│  ├─ coupons.py                    # OT_export_coupons (Fase 1)
 │  └─ import_mesh.py                # OT_import_stl / OT_import_ply
 ├─ ui/                              # panel, N-panel tab, state-machine kasus
 │  ├─ __init__.py
@@ -61,6 +65,7 @@ dentalcad/                          # root repo == root isi .zip extension
 ├─ gpu_draw/                        # stub di Fase 0 (draw handler kosong, disiapkan utk Fase 1+)
 │  └─ __init__.py
 ├─ data/
+│  ├─ model_presets/                # preset cetak per printer + resin (Fase 1, docs/PHASE1.md)
 │  ├─ materials/                    # preset JSON dari IFU (contoh: zircad_prime.json)
 │  │  └─ README.md                 # sumber & tanggal revisi IFU per file
 │  └─ libraries/                   # kosong di Fase 0; README menegaskan isi wajib CC0/CC-BY
@@ -69,6 +74,8 @@ dentalcad/                          # root repo == root isi .zip extension
 ├─ scripts/                         # tidak ikut zip
 │  ├─ download_wheels.py            # unduh wheel + cek SHA-256 (§5)
 │  ├─ run_blender_tests.py          # build, validate, instal ke profil sementara, uji integrasi (§7)
+│  ├─ export_coupons.py             # kupon kalibrasi tanpa Blender (Fase 1)
+│  ├─ apply_calibration.py          # lembar ukur kupon -> preset (Fase 1)
 │  └─ make_synthetic_golden.py      # pembuat golden case sintetis sementara (§7)
 ├─ tests/
 │  ├─ pytest.ini                    # rootdir pytest = tests/ (root repo adalah paket yang butuh bpy)

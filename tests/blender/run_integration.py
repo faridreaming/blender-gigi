@@ -10,6 +10,7 @@ privat (scan asli, tidak di-commit) boleh kosong atau tidak ada dan kalau begitu
 Exit code 1 kalau ada yang gagal.
 """
 
+import hashlib
 import importlib
 import json
 import sys
@@ -115,9 +116,53 @@ class Runner:
             problems.append(f"{type(exc).__name__}: {exc}")
         self.check("wheel trimesh + manifold3d termuat", problems)
 
+    def coupons(self, package: str) -> None:
+        """Operator kupon kalibrasi: file STL, lembar ukur, laporan, dan objek pratinjau."""
+        mesh_io = importlib.import_module(f"{package}.core.mesh_io")
+        coupons_mod = importlib.import_module(f"{package}.ops.coupons")
+        presets = coupons_mod.load_presets()
+        problems = []
+        if set(presets) != {"photon_p1_std_v2_hd_gray", "accufab_f1_std_v2_hd_gray"}:
+            problems.append(f"preset terbundel tidak sesuai: {sorted(presets)}")
+
+        clear_scene()
+        preset_id = "photon_p1_std_v2_hd_gray"
+        with tempfile.TemporaryDirectory() as tmp:
+            start = time.perf_counter()
+            result = bpy.ops.dentalcad.export_coupons(directory=tmp, preset=preset_id, add_to_scene=True)
+            seconds = time.perf_counter() - start
+            out = Path(tmp) / preset_id
+            if result != {"FINISHED"}:
+                problems.append(f"operator mengembalikan {result}")
+            else:
+                report = json.loads((out / "kupon_laporan.json").read_text(encoding="utf-8"))
+                parts = report["parts"]
+                if len(parts) != 12:
+                    problems.append(f"{len(parts)} STL, diharapkan 12")
+                for entry in parts:
+                    path = out / entry["file"]
+                    mesh = mesh_io.load_mesh(path)
+                    if not self.validate.is_watertight(mesh):
+                        problems.append(f"{entry['file']} tidak watertight")
+                    if hashlib.sha256(path.read_bytes()).hexdigest() != entry["sha256"]:
+                        problems.append(f"{entry['file']} SHA-256 tidak cocok dengan laporan")
+                    if "die" in entry["file"] and "support" not in entry["print_note"]:
+                        problems.append(f"{entry['file']} tanpa catatan support")
+                rows = (out / "kupon_lembar_ukur.csv").read_text(encoding="utf-8").strip().splitlines()
+                if len(rows) != 23:
+                    problems.append(f"lembar ukur {len(rows) - 1} baris, diharapkan 22")
+                if not any("die_clearance" in w for w in report["warnings"]):
+                    problems.append("peringatan die_clearance belum dikalibrasi tidak ada di laporan")
+                collection = bpy.data.collections.get(coupons_mod.COLLECTION_NAME)
+                count = len(collection.objects) if collection else 0
+                if count != 12:
+                    problems.append(f"{count} objek pratinjau di scene, diharapkan 12")
+        self.check(f"kupon kalibrasi ({preset_id}, {seconds:.2f} s)", problems)
+
     def registration(self) -> None:
         problems = []
-        for name in ("DENTALCAD_PT_main", "DENTALCAD_OT_import_stl", "DENTALCAD_OT_import_ply"):
+        for name in ("DENTALCAD_PT_main", "DENTALCAD_OT_import_stl", "DENTALCAD_OT_import_ply",
+                     "DENTALCAD_OT_export_coupons"):
             if not hasattr(bpy.types, name):
                 problems.append(f"{name} tidak teregistrasi")
         if not hasattr(bpy.types.Scene, "dentalcad_case"):
@@ -169,6 +214,7 @@ def main() -> int:
             runner.golden_case(case)
 
     runner.performance()
+    runner.coupons(package)
 
     print(f"\n{len(runner.failures)} kegagalan" if runner.failures else "\nSemua uji integrasi lulus")
     return 1 if runner.failures else 0

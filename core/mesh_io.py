@@ -114,6 +114,25 @@ def load_mesh(path: str | Path) -> MeshData:
     return MeshData(vertices=mesh.vertices, faces=mesh.faces, vertex_colors=colors)
 
 
+def save_stl(mesh: MeshData, path: str | Path, header: str = "") -> None:
+    """Tulis STL biner langsung dengan numpy, dengan header ASCII hingga 80 byte."""
+    raw = header.encode("ascii")
+    if len(raw) > _STL_HEADER:
+        raise ValueError(f"header STL maksimal {_STL_HEADER} byte, didapat {len(raw)}")
+    corners = mesh.vertices[mesh.faces].astype(np.float64)
+    normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+    lengths = np.linalg.norm(normals, axis=1, keepdims=True)
+    normals = np.divide(normals, lengths, out=np.zeros_like(normals), where=lengths > 0)
+
+    triangles = np.zeros(len(mesh.faces), dtype=_STL_TRIANGLE)
+    triangles["normal"] = normals
+    triangles["vertices"] = corners
+    with Path(path).open("wb") as f:
+        f.write(raw.ljust(_STL_HEADER, b" "))
+        f.write(np.uint32(len(triangles)).astype("<u4").tobytes())
+        f.write(triangles.tobytes())
+
+
 def save_mesh(mesh: MeshData, path: str | Path) -> None:
     """Tulis MeshData ke STL (biner) atau PLY (biner, membawa vertex color bila ada)."""
     path = Path(path)
