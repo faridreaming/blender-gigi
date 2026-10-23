@@ -3,16 +3,20 @@
 
 import ast
 import importlib.util
+import shutil
 import subprocess
 import sys
 import tomllib
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 FORBIDDEN_IN_CORE = {"bpy", "bmesh", "mathutils", "gpu", "bpy_extras"}
 TEXT_SUFFIXES = {".py", ".md", ".toml", ".json", ".txt", ".yml", ".yaml", ".cfg", ".ini", ""}
 EM_DASH, EN_DASH = chr(0x2014), chr(0x2013)
-SKIP_DIRS = {".git", ".venv", ".pytest_cache", "__pycache__", "wheels", "dist", ".claude"}
+# golden_private berisi data pasien: tidak dibaca oleh tes aturan teks.
+SKIP_DIRS = {".git", ".venv", ".pytest_cache", "__pycache__", "wheels", "dist", ".claude", "golden_private"}
 
 
 def _manifest() -> dict:
@@ -62,6 +66,16 @@ def test_no_em_or_en_dash_anywhere():
             if EM_DASH in line or EN_DASH in line:
                 offenders.append(f"{path.relative_to(ROOT)}:{lineno}")
     assert offenders == [], "em/en dash ditemukan: " + ", ".join(offenders)
+
+
+def test_private_scans_are_never_tracked_by_git():
+    if shutil.which("git") is None or not (ROOT / ".git").exists():
+        pytest.skip("bukan checkout git")
+    tracked = subprocess.run(
+        ["git", "ls-files", "--", "tests/golden_private"],
+        cwd=ROOT, check=True, capture_output=True, text=True,
+    ).stdout.split()
+    assert tracked == ["tests/golden_private/README.md"], f"scan privat terlacak git: {tracked}"
 
 
 def test_manifest_wheels_match_download_script():

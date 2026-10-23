@@ -61,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
                     blender, "--background", "--python-exit-code", "1",
                     "--python", str(ROOT / "tests" / "blender" / "run_integration.py"),
                     "--", str(ROOT / "tests" / "golden"),
+                    "--private", str(ROOT / "tests" / "golden_private"),
                 ],
                 env=env,
             )

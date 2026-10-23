@@ -50,5 +50,8 @@ python -m venv .venv && .venv/Scripts/python -m pip install -r requirements-dev.
 
 ## Data pasien
 
-- Golden case dan file uji harus anonim: hapus nama, ID pasien, dan metadata lab sebelum commit.
+- **Scan pasien asli tidak boleh di-commit**, sekalipun sudah dianonimkan. Tempatnya hanya `tests/golden_private/` (diabaikan git kecuali README-nya). Jangan pakai `git add -f` di folder itu, jangan menyalin isinya ke `tests/golden/` atau folder lain yang dilacak, dan jangan menempelkan isinya ke issue, PR, log CI, atau layanan luar. `test_private_scans_are_never_tracked_by_git` gagal kalau ada file di sana yang terlacak.
+- Isi `tests/golden_private/` jangan dibaca, diringkas, atau dikutip kecuali untuk menjalankan tes yang memang memakainya.
+- `tests/golden/` (di-commit) hanya untuk data sintetis atau data yang dirilis pemiliknya dengan lisensi terbuka.
+- Golden case dan file uji harus anonim: hapus nama, ID pasien, dan metadata lab sebelum dipakai.
 - Restorasi dari extension ini hanya untuk riset/edukasi dan uji fit di die, bukan untuk dipasang ke pasien.

@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Uji integrasi di dalam Blender (Lapis 2). Dijalankan oleh scripts/run_blender_tests.py:
 
-    blender --background --python-exit-code 1 --python tests/blender/run_integration.py -- tests/golden
+    blender --background --python-exit-code 1 --python tests/blender/run_integration.py -- \\
+        tests/golden [--private tests/golden_private]
 
 Extension harus sudah terinstal dan aktif (dari zip hasil build), supaya yang dites adalah paket
-yang sama dengan yang dirilis, termasuk wheel-nya. Exit code 1 kalau ada yang gagal.
+yang sama dengan yang dirilis, termasuk wheel-nya. Folder golden publik wajib berisi case; folder
+privat (scan asli, tidak di-commit) boleh kosong atau tidak ada dan kalau begitu dilewati.
+Exit code 1 kalau ada yang gagal.
 """
 
 import importlib
@@ -122,9 +125,24 @@ class Runner:
         self.check("registrasi panel dan operator", problems)
 
 
-def main() -> int:
+def golden_cases(directory: Path) -> list[Path]:
+    if not directory.is_dir():
+        return []
+    return sorted(p for p in directory.iterdir() if (p / "expected.json").exists())
+
+
+def parse_args() -> tuple[Path, Path | None]:
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    golden = Path(argv[0] if argv else "tests/golden").resolve()
+    private = None
+    if "--private" in argv:
+        i = argv.index("--private")
+        private = Path(argv[i + 1]).resolve()
+        del argv[i:i + 2]
+    return Path(argv[0] if argv else "tests/golden").resolve(), private
+
+
+def main() -> int:
+    golden, private = parse_args()
 
     package = find_extension()
     import numpy
@@ -135,11 +153,21 @@ def main() -> int:
     runner = Runner(package)
     runner.registration()
     runner.bundled_wheels()
-    cases = sorted(p for p in golden.iterdir() if (p / "expected.json").exists())
+    cases = golden_cases(golden)
     if not cases:
         runner.failures.append(f"tidak ada golden case di {golden}")
     for case in cases:
         runner.golden_case(case)
+
+    if private is not None:
+        private_cases = golden_cases(private)
+        if private_cases:
+            print(f"golden privat: {len(private_cases)} case di {private}")
+        else:
+            print(f"[SKIP] golden privat: tidak ada case di {private}")
+        for case in private_cases:
+            runner.golden_case(case)
+
     runner.performance()
 
     print(f"\n{len(runner.failures)} kegagalan" if runner.failures else "\nSemua uji integrasi lulus")

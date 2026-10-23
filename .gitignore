@@ -28,3 +28,7 @@ htmlcov/
 Thumbs.db
 .vscode/
 .idea/
+
+# Scan pasien asli: TIDAK PERNAH di-commit (lihat CLAUDE.md). Hanya README yang dilacak.
+/tests/golden_private/*
+!/tests/golden_private/README.md

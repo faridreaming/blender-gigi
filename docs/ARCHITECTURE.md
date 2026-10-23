@@ -81,6 +81,7 @@ dentalcad/                          # root repo == root isi .zip extension
 │  │  └─ test_repo_rules.py         # core/ tanpa bpy, tanpa em/en dash, manifest == skrip wheel
 │  ├─ blender/                      # hanya jalan di dalam `blender --background`
 │  │  └─ run_integration.py         # runner: import golden case lewat ops/, cek lewat core/
+│  ├─ golden_private/               # scan asli, diabaikan git kecuali README; dilewati kalau kosong
 │  └─ golden/                       # target 10 case anonim; sementara 3 case sintetis syn_*
 │     └─ <case_id>/
 │        ├─ input.stl | input.ply
@@ -306,6 +307,8 @@ Keduanya subcommand argparse biasa dengan exit code benar secara native (0/1), t
 
 ### Golden case
 `tests/golden/<case_id>/input.stl` atau `input.ply` (anonim: nama/ID pasien dan metadata lab dihapus sebelum commit, sesuai RESEARCH.md §7) + `expected.json` berisi `{triangle_count, watertight, bbox_min, bbox_max, max_import_seconds}`, opsional `vertex_colors` dan `mean_rgba`. Target Fase 0: 10 case dari scan nyata. Sampai scan itu tersedia, `scripts/make_synthetic_golden.py` membuat 3 case sintetis (`syn_*`: icosphere tertutup, kotak terbuka, PLY berwarna) yang nilai expected-nya dihitung dari array yang ditulis, bukan lewat `core/`. Case yang sama juga dites di Lapis 1 (`test_mesh_io.py`).
+
+Scan nyata disimpan di `tests/golden_private/<case_id>/` dengan format yang sama. Folder itu diabaikan git kecuali README-nya (scan pasien asli tidak pernah di-commit, lihat CLAUDE.md), tidak ikut zip karena `/tests/` dikecualikan dari build, dan tidak ada di CI. Lapis 1 dan Lapis 2 (`run_integration.py ... --private tests/golden_private`) menjalankan case privat kalau ada, dan melewatinya tanpa error kalau folder kosong atau tidak ada. `test_repo_rules.py` gagal kalau ada file selain README di folder itu yang terlacak git.
 
 Kriteria "impor 1 juta segitiga di bawah 5 detik" diuji terpisah di `run_integration.py`: icosphere 1.310.720 segitiga dibuat saat tes (file ±65MB, tidak di-commit), lalu operator impor diukur dari awal sampai selesai. Hasil di Blender 5.2.3 LTS (Windows x64): 2,24 s.
 

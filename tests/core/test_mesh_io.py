@@ -8,8 +8,20 @@ import pytest
 from core import mesh_io, mesh_validate
 from core.mesh_data import MeshData
 
-GOLDEN = Path(__file__).resolve().parent.parent / "golden"
-GOLDEN_CASES = sorted(p for p in GOLDEN.iterdir() if (p / "expected.json").exists())
+TESTS = Path(__file__).resolve().parent.parent
+GOLDEN = TESTS / "golden"
+# Scan asli, tidak di-commit. Kalau kosong atau tidak ada, case privat tidak ikut diparametrisasi.
+GOLDEN_PRIVATE = TESTS / "golden_private"
+
+
+def _cases(directory: Path) -> list[Path]:
+    if not directory.is_dir():
+        return []
+    return sorted(p for p in directory.iterdir() if (p / "expected.json").exists())
+
+
+GOLDEN_CASES = _cases(GOLDEN)
+ALL_GOLDEN_CASES = GOLDEN_CASES + _cases(GOLDEN_PRIVATE)
 
 VERTS = np.array([[0, 0, 0], [10, 0, 0], [0, 8, 0], [0, 0, 6]], dtype=float)
 FACES = np.array([[0, 2, 1], [0, 1, 3], [1, 2, 3], [0, 3, 2]])
@@ -72,7 +84,7 @@ def test_unsupported_suffix_is_rejected(tmp_path):
         mesh_io.load_mesh(tmp_path / "scan.obj")
 
 
-@pytest.mark.parametrize("case", GOLDEN_CASES, ids=lambda p: p.name)
+@pytest.mark.parametrize("case", ALL_GOLDEN_CASES, ids=lambda p: f"{p.parent.name}/{p.name}")
 def test_golden_case_matches_expected(case):
     expected = json.loads((case / "expected.json").read_text(encoding="utf-8"))
     mesh = mesh_io.load_mesh(case / expected["input"])
