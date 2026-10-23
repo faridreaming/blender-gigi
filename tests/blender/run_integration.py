@@ -330,6 +330,40 @@ class Runner:
                 problems.append(f"pesan untuk 3 titik tidak sesuai: {exc}")
         self.check("margin gambar manual: klik, tutup otomatis, edit, update", problems)
         self.confirm_gate(package, die)
+        self.draw_magnet(package)
+
+    def draw_magnet(self, package: str) -> None:
+        """Draw Margin magnetik pada die bersih: 12 klik kasar ditarik ke crease; magnet mati tetap 12 titik."""
+        import numpy as np
+        from mathutils import Vector
+
+        core_margin = importlib.import_module(f"{package}.core.margin")
+        ops_margin = importlib.import_module(f"{package}.ops.margin")
+        case = importlib.import_module(f"{package}.ops.synthetic_case")
+        problems = []
+        bpy.ops.dentalcad.load_synthetic_case(finish="chamfer", scallop_mm=1.0, noise_um=10.0, seed=1)
+        die = bpy.data.objects[case.DIE_NAME]
+        truth = np.array(die[case.KEY_TRUTH], dtype=float).reshape(-1, 3)
+        clicks = truth[::43][:12] + np.random.default_rng(500).normal(0, 0.15, (12, 3))
+        world = [{"name": "", "co": tuple(die.matrix_world @ Vector(p))} for p in clicks]
+        counts = {}
+        for magnet in (False, True):
+            result = bpy.ops.dentalcad.margin_draw(points=world, use_magnet=magnet)
+            controls = ops_margin.margin_controls(die)
+            if result != {"FINISHED"} or controls is None:
+                problems.append(f"Draw Margin magnet={magnet} mengembalikan {result}")
+                continue
+            points = ops_margin._spline_points(controls.data)
+            dev = core_margin.margin_deviation(core_margin.MarginCurve(points, None).sample(1024), truth)
+            counts[magnet] = (controls[ops_margin.KEY_REVIEW_COUNT], round(1000 * dev["median"]), len(points))
+            if controls.get(ops_margin.KEY_STATUS) != "draft":
+                problems.append(f"Draw Margin magnet={magnet} tidak berstatus draf")
+        if len(counts) == 2:
+            if counts[False][2] != 12:
+                problems.append(f"tanpa magnet seharusnya 12 titik kontrol, didapat {counts[False][2]}")
+            if counts[True][1] > 50 or counts[True][0] >= counts[False][0]:
+                problems.append(f"magnet tidak memperbaiki kurva: tanpa {counts[False]}, dengan {counts[True]}")
+        self.check(f"margin gambar manual magnetik (segmen merah, median um, titik): {counts}", problems)
 
     def confirm_gate(self, package: str, die) -> None:
         """Status draf, Confirm Margin, dan gerbang require_confirmed_margin untuk langkah crown/ekspor."""
@@ -354,21 +388,15 @@ class Runner:
         moved[0] = moved[0] + np.array([0.2, 0.0, 0.0])
         ops_margin._set_poly(controls.data, moved)
         try:
-            bpy.ops.dentalcad.margin_confirm(accept_flagged=True)
+            bpy.ops.dentalcad.margin_confirm()
             problems.append("Confirm menerima kurva yang diedit tanpa Update")
         except RuntimeError as exc:
             if "Update Margin first" not in str(exc):
                 problems.append(f"pesan Confirm untuk kurva yang diedit tidak sesuai: {exc}")
         ops_margin._set_poly(controls.data, points)
 
-        if flagged:
-            try:
-                bpy.ops.dentalcad.margin_confirm()
-                problems.append("Confirm tanpa persetujuan menerima segmen merah")
-            except RuntimeError as exc:
-                if "need review" not in str(exc):
-                    problems.append(f"pesan Confirm untuk segmen merah tidak sesuai: {exc}")
-        result = bpy.ops.dentalcad.margin_confirm(accept_flagged=True)
+        # Segmen merah hanya petunjuk: Confirm tidak meminta persetujuan tambahan.
+        result = bpy.ops.dentalcad.margin_confirm()
         ok, message = ops_margin.require_confirmed_margin(die)
         if result != {"FINISHED"} or not ok:
             problems.append(f"Confirm mengembalikan {result}, gerbang: {ok} ({message})")

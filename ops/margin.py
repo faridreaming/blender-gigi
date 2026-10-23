@@ -10,8 +10,9 @@ Alur pengguna:
 Kalau deteksi ditolak (scan berderau, kurva tidak wajar), "Draw Margin" membuat kurva yang sama dari titik
 yang diklik pengguna satu per satu; kurva ditutup otomatis dan diedit dengan cara yang sama.
 
-Setiap kurva yang dibuat atau diubah (Detect, Draw, Update) berstatus draf, dan segmen yang meragukan
-ditampilkan merah ("<die> Margin Review"). Pengguna memeriksanya lalu menjalankan "Confirm Margin". Langkah
+Setiap kurva yang dibuat atau diubah (Detect, Draw, Update) berstatus draf. Segmen yang meragukan
+ditampilkan merah ("<die> Margin Review") sebagai petunjuk ringan, bukan penghalang: alarm palsunya masih
+tinggi (PHASE2.md §5.1). Pengguna memeriksa kurva lalu menjalankan "Confirm Margin" (selalu wajib). Langkah
 crown dan ekspor wajib memanggil require_confirmed_margin() dan menolak jalan untuk margin draf.
 """
 
@@ -160,8 +161,8 @@ def require_confirmed_margin(die: bpy.types.Object) -> tuple[bool, str]:
 
 def review_message(review: core_margin.MarginReview) -> str:
     if review.count == 0:
-        return "no segments flagged; review it, then Confirm Margin"
-    return f"{review.count} segments need review (red); check them, then Confirm Margin"
+        return "review it, then Confirm Margin"
+    return f"{review.count} segments to review (red hint); review it, then Confirm Margin"
 
 
 def ray_hit(context, event, obj: bpy.types.Object):
@@ -224,7 +225,7 @@ class DENTALCAD_OT_margin_detect(bpy.types.Operator):
             truth = np.array(die[KEY_TRUTH], dtype=float).reshape(-1, 3)
             dev = core_margin.margin_deviation(result.curve.sample(1024), truth)
             message += f". Vs true margin: median {1000 * dev['median']:.0f} um, p95 {1000 * dev['p95']:.0f} um"
-        self.report({"WARNING"} if result.review.count else {"INFO"}, message)
+        self.report({"INFO"}, message)
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -264,6 +265,10 @@ class DENTALCAD_OT_margin_draw(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     points: CollectionProperty(type=DENTALCAD_PG_margin_point, options={"HIDDEN", "SKIP_SAVE"})
+    use_magnet: BoolProperty(
+        name="Magnet", default=True,
+        description="Pull the curve between clicks onto the nearest crease (turned off on scans that are too noisy)",
+    )
 
     @classmethod
     def poll(cls, context):
@@ -274,15 +279,23 @@ class DENTALCAD_OT_margin_draw(bpy.types.Operator):
         die = context.active_object
         inverse = die.matrix_world.inverted()
         local = np.array([tuple(inverse @ Vector(p.co)) for p in self.points], dtype=float).reshape(-1, 3)
+        mesh = die_mesh(die)
+        review_context = core_margin.ReviewContext.from_mesh(mesh)
+        magnet = self.use_magnet and core_margin.magnet_allowed(review_context)
         try:
-            curve = core_margin.draw_margin(die_mesh(die), local)
+            curve = core_margin.draw_margin(mesh, local, magnet=magnet, context=review_context)
         except core_margin.MarginError as exc:
             self.report({"ERROR"}, f"Margin not drawn: {exc}")
             return {"CANCELLED"}
-        review = write_margin(context, die, curve)
-        self.report({"WARNING"} if review.count else {"INFO"},
-                    f"Draft margin drawn: {len(curve.control_points)} control points, {curve.length():.1f} mm, "
-                    + review_message(review))
+        review = write_margin(context, die, curve, core_margin.review_curve(curve, review_context))
+        if self.use_magnet and not magnet:
+            mode = (f"magnet off because the scan is too noisy (estimated noise "
+                    f"{1000 * review_context.noise_sigma_mm:.0f} um)")
+        else:
+            mode = "magnet on" if magnet else "magnet off"
+        self.report({"WARNING"} if self.use_magnet and not magnet else {"INFO"},
+                    f"Draft margin drawn ({mode}): {len(curve.control_points)} control points, "
+                    f"{curve.length():.1f} mm, " + review_message(review))
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -298,8 +311,9 @@ class DENTALCAD_OT_margin_draw(bpy.types.Operator):
 
     def _header(self, context):
         context.area.header_text_set(
-            f"Draw Margin: {len(self.points)} points. Click on the die to add, Backspace to undo the last point, "
-            f"Enter to close the curve (at least {core_margin.MIN_DRAWN_POINTS}), Esc to cancel")
+            f"Draw Margin: {len(self.points)} points, magnet {'on' if self.use_magnet else 'off'}. Click on the die "
+            f"to add, Backspace to undo the last point, M to toggle the magnet, Enter to close the curve "
+            f"(at least {core_margin.MIN_DRAWN_POINTS}), Esc to cancel")
 
     def _update_draft(self, context):
         if self._draft is None:
@@ -333,6 +347,10 @@ class DENTALCAD_OT_margin_draw(bpy.types.Operator):
         if event.type in {"RET", "NUMPAD_ENTER"} and event.value == "PRESS":
             self._finish(context)
             return self.execute(context)
+        if event.type == "M" and event.value == "PRESS":
+            self.use_magnet = not self.use_magnet
+            self._header(context)
+            return {"RUNNING_MODAL"}
         if event.type == "BACK_SPACE" and event.value == "PRESS":
             if len(self.points):
                 self.points.remove(len(self.points) - 1)
@@ -379,7 +397,7 @@ class DENTALCAD_OT_margin_update(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         review = write_margin(context, die, curve)
-        self.report({"WARNING"} if review.count else {"INFO"},
+        self.report({"INFO"},
                     f"Draft margin updated: {stats['moved']} moved, {stats['kept']} kept, {stats['removed']} removed, "
                     + review_message(review))
         return {"FINISHED"}
@@ -392,25 +410,10 @@ class DENTALCAD_OT_margin_confirm(bpy.types.Operator):
     bl_label = "Confirm Margin"
     bl_options = {"REGISTER", "UNDO"}
 
-    accept_flagged: BoolProperty(
-        name="Accept Flagged Segments", default=False, options={"SKIP_SAVE"},
-        description="Confirm even though some segments are still flagged for review",
-    )
-
     @classmethod
     def poll(cls, context):
         obj = context.active_object
         return obj is not None and obj.get(KEY_ROLE) == "controls"
-
-    def invoke(self, context, event):
-        controls = context.active_object
-        if controls.get(KEY_REVIEW_COUNT, 0) and not _edited_since_update(controls):
-            self.accept_flagged = True  # pengguna menyetujui lewat dialog konfirmasi
-            return context.window_manager.invoke_confirm(
-                self, event, title="Confirm Margin",
-                message=f"{controls[KEY_REVIEW_COUNT]} segments are still flagged (red). Confirm anyway?",
-                confirm_text="Confirm", icon="WARNING")
-        return self.execute(context)
 
     def execute(self, context):
         controls = context.active_object
@@ -419,13 +422,11 @@ class DENTALCAD_OT_margin_confirm(bpy.types.Operator):
         if _edited_since_update(controls):
             self.report({"ERROR"}, "The control points were edited: run Update Margin first, then Confirm Margin")
             return {"CANCELLED"}
+        # Segmen merah sengaja tidak menghalangi konfirmasi: petunjuk yang sering salah cenderung diabaikan
+        # (alert fatigue, PHASE2.md §5.1). Jumlahnya dicatat di laporan saja.
         flagged = controls.get(KEY_REVIEW_COUNT, 0)
-        if flagged and not self.accept_flagged:
-            self.report({"ERROR"}, f"{flagged} segments still need review (red): fix them and Update Margin, "
-                                   "or confirm with Accept Flagged Segments")
-            return {"CANCELLED"}
         controls[KEY_STATUS] = "confirmed"
         controls[KEY_CONFIRMED] = controls[KEY_CONTROLS]
-        note = f" with {flagged} flagged segments accepted" if flagged else ""
+        note = f" ({flagged} segments were marked to review)" if flagged else ""
         self.report({"INFO"}, f"Margin confirmed{note}")
         return {"FINISHED"}

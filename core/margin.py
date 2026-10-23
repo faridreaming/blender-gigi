@@ -580,7 +580,7 @@ def detect_margin(mesh: MeshData, seed_point, params: MarginParams = MarginParam
                                       [name for name, _ in problems], metrics)
     projector = MeshProjector(mesh)
     curve = MarginCurve(controls, projector)
-    context = ReviewContext(vertices, smooth_normals, tree, refine_radius)
+    context = ReviewContext(vertices, smooth_normals, tree, refine_radius, sigma)
     # Titik kontrol hasil deteksi sengaja TIDAK diproyeksikan ke mesh: mesh memotong sudut crease di antara
     # vertex, sehingga proyeksi menarik margin ke dalam. Titik yang digeser pengguna tetap diproyeksikan.
     return MarginResult(
@@ -609,6 +609,7 @@ class ReviewContext:
     smooth_normals: np.ndarray
     tree: cKDTree
     refine_radius: float
+    noise_sigma_mm: float = 0.0
 
     @classmethod
     def from_mesh(cls, mesh: MeshData, params: "MarginParams" = None) -> "ReviewContext":
@@ -620,7 +621,7 @@ class ReviewContext:
         curvature_radius = max(params.curvature_radius_min_mm, params.curvature_radius_per_noise * sigma)
         _, _, smooth_normals = crease_score(vertices, normals, curvature_radius)
         refine_radius = max(params.refine_radius_min_mm, params.refine_radius_per_noise * sigma)
-        return cls(vertices, smooth_normals, cKDTree(vertices), refine_radius)
+        return cls(vertices, smooth_normals, cKDTree(vertices), refine_radius, sigma)
 
 
 @dataclass
@@ -684,12 +685,27 @@ def review_curve(curve: MarginCurve, context: ReviewContext, params: "MarginPara
 MIN_DRAWN_POINTS = 4
 
 
-def draw_margin(mesh: MeshData, points, min_spacing_mm: float = 0.05) -> MarginCurve:
+def magnet_allowed(context: ReviewContext, params: MarginParams = MarginParams()) -> bool:
+    """Magnet Draw Margin hanya dipakai bila crease bisa dipercaya: derau tidak di atas ambang deteksi."""
+    return context.noise_sigma_mm <= params.max_noise_mm
+
+
+def draw_margin(mesh: MeshData, points, min_spacing_mm: float = 0.05, magnet: bool = False,
+                params: MarginParams = MarginParams(), context: "ReviewContext | None" = None) -> MarginCurve:
     """Margin gambar manual: titik yang diklik pengguna (berurutan) diproyeksikan ke permukaan die dan
     ditutup otomatis menjadi kurva yang sama dengan hasil deteksi (bisa diedit dengan cara yang sama).
 
     Titik yang lebih dekat dari min_spacing_mm ke titik sebelumnya (klik ganda) dibuang, termasuk titik
     terakhir yang menutup ke titik pertama.
+
+    magnet=True: kurva melalui klik diambil rapat (jarak refine_spacing_mm), setiap titiknya ditarik ke crease
+    terdekat dengan penyempurnaan yang sama seperti deteksi (refine_on_crease); titik tanpa crease di sekitarnya
+    tetap di kurva klik (diproyeksikan ke permukaan). Hasilnya dihaluskan dan diambil titik kontrol tiap
+    control_spacing_mm, seperti hasil deteksi. Titik kontrol tidak lagi sama dengan titik klik.
+
+    Magnet ditolak (MarginNoiseError) bila perkiraan derau di atas params.max_noise_mm: pada scan seberisik itu
+    crease palsu dari derau menarik kurva menjauh (alur 12 klik pada derau 90 um: median 33 -> 198 um,
+    PHASE2.md §5.1). Pemanggil memeriksa magnet_allowed() lebih dulu dan menggambar tanpa magnet.
     """
     points = np.asarray(points, float).reshape(-1, 3)
     projector = MeshProjector(mesh)
@@ -703,7 +719,25 @@ def draw_margin(mesh: MeshData, points, min_spacing_mm: float = 0.05) -> MarginC
         kept.pop()
     if len(kept) < MIN_DRAWN_POINTS:
         raise MarginError(f"margin manual butuh minimal {MIN_DRAWN_POINTS} titik berbeda, didapat {len(kept)}")
-    return MarginCurve(np.array(kept), projector)
+    curve = MarginCurve(np.array(kept), projector)
+    if not magnet:
+        return curve
+    context = context or ReviewContext.from_mesh(mesh, params)
+    if not magnet_allowed(context, params):
+        raise MarginNoiseError(
+            f"magnet dimatikan: perkiraan derau {1000 * context.noise_sigma_mm:.0f} um > "
+            f"{1000 * params.max_noise_mm:.0f} um; gambar tanpa magnet",
+            context.noise_sigma_mm, params.max_noise_mm,
+        )
+    count = max(int(np.ceil(curve.length() / params.refine_spacing_mm)), 4 * len(kept))
+    dense, _, _ = projector.closest(curve.sample(count))
+    refined, ok, _ = refine_on_crease(dense, context.vertices, context.smooth_normals, context.tree,
+                                      context.refine_radius, params.min_crease_angle_deg)
+    pulled = np.where(ok[:, None], refined, dense)
+    controls = _resample_closed(_smooth_closed(pulled, params.smooth_sigma_mm), params.control_spacing_mm)
+    if len(controls) < MIN_DRAWN_POINTS:
+        raise MarginError(f"margin manual butuh minimal {MIN_DRAWN_POINTS} titik berbeda, didapat {len(controls)}")
+    return MarginCurve(controls, projector)
 
 
 def margin_deviation(curve_points: np.ndarray, truth_points: np.ndarray) -> dict:

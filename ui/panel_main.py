@@ -76,7 +76,7 @@ class DENTALCAD_PT_main(bpy.types.Panel):
             else:
                 box.label(text="Status: draft, not usable for the crown yet", icon="ERROR")
             if flagged:
-                box.label(text=f"{flagged} segments need review (red)", icon="ERROR")
+                box.label(text=f"{flagged} segments to review (red)", icon="INFO")
             box.label(text="Edit Mode: move (G) or delete (X) points, then Update", icon="INFO")
         else:
             layout.label(text="Select the die, Detect Margin, click near the margin", icon="INFO")

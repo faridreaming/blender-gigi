@@ -354,3 +354,33 @@ def test_coarse_drawn_margin_is_flagged_between_clicks():
     curve = margin.draw_margin(die.mesh, die.margin_curve(5))
     review = margin.review_curve(curve, margin.ReviewContext.from_mesh(die.mesh))
     assert review.count >= 1
+
+
+# Draw Margin magnetik -------------------------------------------------------------------------------------
+
+def _twelve_rough_clicks(die, seed=0):
+    truth = die.margin_curve(480)
+    return truth[::40] + np.random.default_rng(500 + seed).normal(0, 0.15, (12, 3))
+
+
+@pytest.mark.parametrize("finish", synthetic.FINISHES)
+def test_magnet_pulls_rough_clicks_onto_the_margin(finish):
+    die = synthetic.make_die(synthetic.DieSpec(finish=finish, scallop_mm=1.0), noise_sigma_mm=0.01, rotate=False, seed=1)
+    context = margin.ReviewContext.from_mesh(die.mesh)
+    clicks = _twelve_rough_clicks(die)
+    plain = margin.draw_margin(die.mesh, clicks, context=context)
+    pulled = margin.draw_margin(die.mesh, clicks, magnet=True, context=context)
+    truth = die.margin_curve(4096)
+    dev_plain = margin.margin_deviation(plain.sample(1024), truth)
+    dev_pulled = margin.margin_deviation(pulled.sample(1024), truth)
+    assert dev_pulled["median"] <= CRITERION_MEDIAN_MM < dev_plain["median"]
+    assert margin.review_curve(pulled, context).count < margin.review_curve(plain, context).count
+
+
+def test_magnet_is_refused_on_a_scan_that_is_too_noisy():
+    die = synthetic.make_die(synthetic.DieSpec(), noise_sigma_mm=0.09, rotate=False, seed=0)
+    context = margin.ReviewContext.from_mesh(die.mesh)
+    assert not margin.magnet_allowed(context)
+    with pytest.raises(margin.MarginNoiseError, match="magnet dimatikan"):
+        margin.draw_margin(die.mesh, _twelve_rough_clicks(die), magnet=True, context=context)
+    assert len(margin.draw_margin(die.mesh, _twelve_rough_clicks(die), context=context).control_points) == 12
