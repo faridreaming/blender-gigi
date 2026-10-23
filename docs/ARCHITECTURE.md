@@ -78,7 +78,8 @@ dentalcad/                          # root repo == root isi .zip extension
 │  │  ├─ test_mesh_validate.py
 │  │  ├─ test_material_db.py
 │  │  ├─ test_units.py
-│  │  └─ test_repo_rules.py         # core/ tanpa bpy, tanpa em/en dash, manifest == skrip wheel
+│  │  ├─ test_repo_rules.py         # core/ tanpa bpy, tanpa em/en dash, manifest == skrip wheel
+│  │  └─ test_zip_check.py          # pemeriksaan isi zip hasil build
 │  ├─ blender/                      # hanya jalan di dalam `blender --background`
 │  │  └─ run_integration.py         # runner: import golden case lewat ops/, cek lewat core/
 │  ├─ golden_private/               # scan asli, diabaikan git kecuali README; dilewati kalau kosong
@@ -167,6 +168,8 @@ paths_exclude_pattern = [
   "/.venv/",
   "/.pytest_cache/",
   "/*.zip",
+  # Unduhan Blender dari action setup-blender di CI (.tar.xz, .dmg, .zip di root repo).
+  "/blender-download.*",
   "/dist/",
   "/docs/",
   "/scripts/",
@@ -281,7 +284,7 @@ Yang dites adalah **zip hasil build**, bukan folder repo, supaya wheel dan atura
 ```bash
 python scripts/run_blender_tests.py --blender "<path ke blender>"
 ```
-Urutannya: cek wheel (`download_wheels.verify`), `extension build` ke `dist/dentalcad-<version>.zip`, `extension validate`, `extension install-file -r user_default -e` ke profil Blender sementara (env `BLENDER_USER_RESOURCES` diarahkan ke folder temp, jadi preferensi dan extension di profil pengguna tidak tersentuh), lalu:
+Urutannya: cek wheel (`download_wheels.verify`), `extension build` ke `dist/dentalcad-<version>.zip`, pemeriksaan isi zip (`check_zip`: hanya `blender_manifest.toml`, `LICENSE`, `__init__.py`, `core/`, `ops/`, `ui/`, `gpu_draw/`, `data/`, `wheels/` di tingkat teratas, tanpa `__pycache__`, wheel sama persis dengan manifest, ukuran di bawah 200MB), `extension validate`, `extension install-file -r user_default -e` ke profil Blender sementara (env `BLENDER_USER_RESOURCES` diarahkan ke folder temp, jadi preferensi dan extension di profil pengguna tidak tersentuh), lalu:
 ```bash
 blender --background --python-exit-code 1 --python tests/blender/run_integration.py -- tests/golden
 ```

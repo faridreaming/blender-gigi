@@ -42,6 +42,8 @@ paths_exclude_pattern = [
   "/.venv/",
   "/.pytest_cache/",
   "/*.zip",
+  # Unduhan Blender dari action setup-blender di CI (.tar.xz, .dmg, .zip di root repo).
+  "/blender-download.*",
   "/dist/",
   "/docs/",
   "/scripts/",
