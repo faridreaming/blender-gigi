@@ -63,6 +63,7 @@ class DENTALCAD_PT_main(bpy.types.Panel):
         layout.operator("dentalcad.load_synthetic_case", icon="MESH_CYLINDER")
         col = layout.column(align=True)
         col.operator("dentalcad.margin_detect", icon="CURVE_BEZCIRCLE")
+        col.operator("dentalcad.margin_draw", icon="GREASEPENCIL")
         col.operator("dentalcad.margin_update", icon="FILE_REFRESH")
         if obj is not None and obj.get("dentalcad_margin_role") == "controls":
             box = layout.box()
@@ -71,6 +72,7 @@ class DENTALCAD_PT_main(bpy.types.Panel):
             box.label(text="Edit Mode: move (G) or delete (X) points, then Update", icon="INFO")
         else:
             layout.label(text="Select the die, Detect Margin, click near the margin", icon="INFO")
+            layout.label(text="Or Draw Margin: click points around the die, Enter to close")
 
     def draw_scan(self, layout, context):
         col = layout.column(align=True)

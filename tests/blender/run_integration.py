@@ -283,18 +283,58 @@ class Runner:
             result = bpy.ops.dentalcad.margin_detect(use_seed=True, seed_point=tuple(truth[0]))
             problems.append(f"deteksi pada derau 90 um mengembalikan {result} tanpa error")
         except RuntimeError as exc:  # bpy.ops mengubah laporan ERROR operator menjadi RuntimeError
-            if "Scan too noisy" not in str(exc) or "draw the margin manually" not in str(exc):
-                problems.append(f"pesan error tidak sesuai: {exc}")
+            if "Scan too noisy" not in str(exc) or "Draw Margin" not in str(exc):
+                problems.append(f"pesan error tidak mengarah ke Draw Margin: {exc}")
         for name in (f"{case.DIE_NAME} Margin", f"{case.DIE_NAME} Margin Preview"):
             if bpy.data.objects.get(name) is not None:
                 problems.append(f"objek {name} dibuat padahal deteksi ditolak")
         self.check("kasus sintetis: derau 90 um ditolak tanpa kurva", problems)
 
+        # Alur yang ditunjuk pesan error: gambar margin manual di die yang sama, dengan transformasi dunia.
+        from mathutils import Matrix, Vector
+
+        problems = []
+        ops_margin = importlib.import_module(f"{package}.ops.margin")
+        geometry = importlib.import_module(f"{package}.core.geometry")
+        die.matrix_world = Matrix.Translation((-2.0, 4.0, 1.0)) @ Matrix.Rotation(0.6, 4, "Z")
+        local_clicks = truth[::43] + np.array([0.0, 0.0, 0.05])  # 12 klik, sedikit di atas margin
+        world_clicks = [tuple(die.matrix_world @ Vector(p)) for p in local_clicks]
+        result = bpy.ops.dentalcad.margin_draw(points=[{"name": "", "co": p} for p in world_clicks])
+        controls = bpy.data.objects.get(f"{case.DIE_NAME} Margin")
+        if result != {"FINISHED"} or controls is None:
+            self.check("margin gambar manual", [f"operator {result}, kurva {controls}"])
+            return
+        points = ops_margin._spline_points(controls.data)
+        if len(points) != len(local_clicks):
+            problems.append(f"{len(points)} titik kontrol, diharapkan {len(local_clicks)}")
+        _, _, dist = geometry.MeshProjector(self.bridge.from_blender_mesh(die.data)).closest(points)
+        if dist.max() > 1e-5:
+            problems.append(f"titik kontrol {dist.max():.4f} mm dari permukaan die (koordinat lokal)")
+        if controls.get(ops_margin.KEY_ROLE) != "controls" or bpy.data.objects.get(f"{case.DIE_NAME} Margin Preview") is None:
+            problems.append("kurva manual tidak punya peran/pratinjau yang sama dengan hasil Detect Margin")
+        if any(o.name.endswith("Margin Draft") for o in bpy.data.objects):
+            problems.append("objek draf tertinggal")
+        edited = points.copy()
+        edited[5] = edited[5] + np.array([0.3, 0.0, 0.0])
+        ops_margin._set_poly(controls.data, edited)
+        bpy.context.view_layer.objects.active = controls
+        result = bpy.ops.dentalcad.margin_update()
+        if result != {"FINISHED"}:
+            problems.append(f"Update Margin pada kurva manual mengembalikan {result}")
+        bpy.context.view_layer.objects.active = die
+        try:
+            bpy.ops.dentalcad.margin_draw(points=[{"name": "", "co": p} for p in world_clicks[:3]])
+            problems.append("3 titik seharusnya ditolak")
+        except RuntimeError as exc:
+            if "minimal 4" not in str(exc):
+                problems.append(f"pesan untuk 3 titik tidak sesuai: {exc}")
+        self.check("margin gambar manual: klik, tutup otomatis, edit, update", problems)
+
     def registration(self) -> None:
         problems = []
         for name in ("DENTALCAD_PT_main", "DENTALCAD_OT_import_stl", "DENTALCAD_OT_import_ply",
                      "DENTALCAD_OT_export_coupons", "DENTALCAD_OT_margin_detect", "DENTALCAD_OT_margin_update",
-                     "DENTALCAD_OT_load_synthetic_case"):
+                     "DENTALCAD_OT_load_synthetic_case", "DENTALCAD_OT_margin_draw"):
             if not hasattr(bpy.types, name):
                 problems.append(f"{name} tidak teregistrasi")
         if not hasattr(bpy.types.Scene, "dentalcad_case"):
