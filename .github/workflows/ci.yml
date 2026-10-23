@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  core-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements-dev.txt
+      - run: pytest tests/core
+
+  blender:
+    # Build, validate, instal ke profil sementara, lalu uji integrasi headless (scripts/run_blender_tests.py).
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: bradyajohnston/setup-blender@v5
+        with:
+          version: "5.2"
+      - run: python scripts/download_wheels.py
+      - run: python scripts/run_blender_tests.py --blender blender
+      - if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dentalcad-zip
+          path: dist/*.zip

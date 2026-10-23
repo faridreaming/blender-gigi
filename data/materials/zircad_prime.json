@@ -1,0 +1,14 @@
+{
+  "id": "ivoclar_zircad_prime_full_contour",
+  "name": "IPS e.max ZirCAD Prime (full-contour)",
+  "manufacturer": "Ivoclar",
+  "min_thickness_anterior_mm": 0.8,
+  "min_thickness_posterior_mm": 1.0,
+  "connector_area_mm2": {
+    "anterior": 9,
+    "posterior": 9
+  },
+  "cement_gap_um": 50,
+  "source": "Ivoclar IFU IPS e.max ZirCAD (labside); konektor untuk bridge 3 unit",
+  "source_date": "2023"
+}

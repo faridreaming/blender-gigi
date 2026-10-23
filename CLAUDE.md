@@ -30,11 +30,23 @@ Aturan proyek `dentalcad`: extension Blender open source untuk dental CAD (crown
 - Import di dalam paket selalu relatif (`from . import mesh_io`). Nama paket sendiri lewat `__package__`, bukan string literal.
 - Nama class Blender pakai prefix `DENTALCAD_` (`DENTALCAD_OT_import_stl`), `bl_idname` operator pakai kategori `dentalcad.*`.
 
+## Perintah
+
+```bash
+python -m venv .venv && .venv/Scripts/python -m pip install -r requirements-dev.txt   # sekali
+.venv/Scripts/python -m pytest tests/core                                           # Lapis 1
+.venv/Scripts/python scripts/download_wheels.py                                     # wheel + SHA-256
+.venv/Scripts/python scripts/run_blender_tests.py --blender "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe"
+```
+
+`run_blender_tests.py` adalah gerbang Fase 0 lengkap: build `dist/dentalcad-<version>.zip`, validate, instal ke profil Blender sementara (`BLENDER_USER_RESOURCES`, profil pengguna tidak tersentuh), lalu Lapis 2.
+
 ## Testing
 
-- Lapis 1: `pytest tests/core` dengan Python 3.13, tanpa Blender.
-- Lapis 2: `blender --background --python-exit-code 1 --python tests/blender/run_integration.py -- tests/golden`. Flag `--python-exit-code 1` wajib ada sebelum `--python`, kalau tidak exception di skrip tetap menghasilkan exit code 0.
-- Sebelum rilis: `blender --command extension build` lalu `blender --command extension validate`.
+- Lapis 1: `pytest tests/core` dengan Python 3.13, tanpa Blender. rootdir pytest adalah `tests/` (lihat `tests/pytest.ini`), karena root repo adalah paket yang `__init__.py`-nya butuh bpy.
+- Lapis 2: `blender --background --python-exit-code 1 --python tests/blender/run_integration.py -- tests/golden`, terhadap extension yang terinstal dari zip. Flag `--python-exit-code 1` wajib ada sebelum `--python`, kalau tidak exception di skrip tetap menghasilkan exit code 0.
+- `tests/core/test_repo_rules.py` menegakkan sebagian aturan di file ini (tanpa bpy di `core/`, tanpa em/en dash, manifest sama dengan skrip wheel dan contoh di ARCHITECTURE.md). Jangan melemahkan tes itu untuk meloloskan perubahan.
+- Kalau menulis karakter em/en dash di kode tes (misalnya untuk mendeteksinya), pakai `chr(0x2014)` / `chr(0x2013)`, jangan literal atau escape `\u` yang bisa tersimpan sebagai karakter asli.
 
 ## Data pasien
 

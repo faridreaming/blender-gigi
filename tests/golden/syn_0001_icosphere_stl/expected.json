@@ -1,0 +1,18 @@
+{
+  "source": "synthetic",
+  "description": "Icosphere radius 5 mm, tertutup (1280 segitiga).",
+  "input": "input.stl",
+  "triangle_count": 1280,
+  "watertight": true,
+  "bbox_min": [
+    -5.0,
+    -5.0,
+    -5.0
+  ],
+  "bbox_max": [
+    5.0,
+    5.0,
+    5.0
+  ],
+  "max_import_seconds": 5.0
+}

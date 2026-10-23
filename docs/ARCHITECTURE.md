@@ -41,15 +41,18 @@ Platform rilis (field `platforms` di manifest, lihat §4): `windows-x64`, `macos
 ```
 dentalcad/                          # root repo == root isi .zip extension
 ├─ blender_manifest.toml
+├─ LICENSE                          # teks GPL-3.0, ikut di dalam zip
 ├─ __init__.py                      # entry point: register_submodule_factory
 ├─ core/                            # murni Python+numpy, TIDAK PERNAH import bpy/bmesh/mathutils
 │  ├─ __init__.py
-│  ├─ mesh_io.py                    # load_mesh()/save_mesh() lewat trimesh -> MeshData
+│  ├─ mesh_data.py                  # dataclass MeshData (array numpy)
+│  ├─ mesh_io.py                    # load_mesh()/save_mesh(): STL biner via numpy, STL ASCII/PLY via trimesh
 │  ├─ mesh_validate.py              # watertight, triangle_count, bbox, non-manifold edges
 │  ├─ material_db.py                # load+validate preset material JSON (skema IFU)
 │  └─ units.py                      # konversi mm, tabel penomoran FDI<->Universal/Palmer
 ├─ ops/                             # bpy.types.Operator, tipis, delegasi ke core/
 │  ├─ __init__.py
+│  ├─ mesh_bridge.py                # MeshData <-> bpy.types.Mesh lewat foreach_set/foreach_get
 │  └─ import_mesh.py                # OT_import_stl / OT_import_ply
 ├─ ui/                              # panel, N-panel tab, state-machine kasus
 │  ├─ __init__.py
@@ -63,18 +66,26 @@ dentalcad/                          # root repo == root isi .zip extension
 │  └─ libraries/                   # kosong di Fase 0; README menegaskan isi wajib CC0/CC-BY
 │     └─ README.md
 ├─ wheels/                          # *.whl cp313 dari PyPI, diunduh skrip §5, TIDAK di-commit (.gitignore)
+├─ scripts/                         # tidak ikut zip
+│  ├─ download_wheels.py            # unduh wheel + cek SHA-256 (§5)
+│  ├─ run_blender_tests.py          # build, validate, instal ke profil sementara, uji integrasi (§7)
+│  └─ make_synthetic_golden.py      # pembuat golden case sintetis sementara (§7)
 ├─ tests/
+│  ├─ pytest.ini                    # rootdir pytest = tests/ (root repo adalah paket yang butuh bpy)
+│  ├─ conftest.py
 │  ├─ core/                         # pytest biasa, tanpa Blender sama sekali
 │  │  ├─ test_mesh_io.py
 │  │  ├─ test_mesh_validate.py
-│  │  └─ test_material_db.py
+│  │  ├─ test_material_db.py
+│  │  ├─ test_units.py
+│  │  └─ test_repo_rules.py         # core/ tanpa bpy, tanpa em/en dash, manifest == skrip wheel
 │  ├─ blender/                      # hanya jalan di dalam `blender --background`
-│  │  └─ run_integration.py         # runner: import golden STL lewat ops/, cek lewat core/
-│  └─ golden/                       # 10 case anonim
-│     └─ case_0001/
-│        ├─ input.stl
-│        └─ expected.json           # {triangle_count, watertight, bbox, max_import_seconds}
-├─ requirements-dev.txt             # pytest, trimesh (versi dev host, bukan wheel yg dibundel)
+│  │  └─ run_integration.py         # runner: import golden case lewat ops/, cek lewat core/
+│  └─ golden/                       # target 10 case anonim; sementara 3 case sintetis syn_*
+│     └─ <case_id>/
+│        ├─ input.stl | input.ply
+│        └─ expected.json           # {triangle_count, watertight, bbox_min, bbox_max, max_import_seconds}
+├─ requirements-dev.txt             # numpy 2.3.4, trimesh, pytest (host, bukan wheel yg dibundel)
 └─ .github/workflows/ci.yml
 ```
 
@@ -106,6 +117,8 @@ Field manifest bersumber dari manual resmi (`getting_started.html`, `python_whee
 | `[permissions]` | tidak | Tabel, kunci dari `files`/`network`/`clipboard`/`camera`/`microphone`, masing-masing wajib string alasan ≤64 karakter. |
 | `[build]` | tidak | `paths` atau `paths_exclude_pattern` (saling eksklusif); `build.generated` **jangan ditulis manual** (reserved untuk tool build). |
 
+Contoh di bawah identik dengan `blender_manifest.toml` di repo. `tagline` dipendekkan supaya muat batas 64 karakter, dan `website` belum diisi sampai URL repo publik ada.
+
 Tag add-on yang relevan untuk `dentalcad`: `"Import-Export"`, `"Mesh"`, `"Modeling"` (dari 28 tag resmi; nilai di luar daftar ini ditolak server, jadi jangan menambah tag "Dental"/"Medical" yang tidak ada di vokabuler).
 
 ```toml
@@ -114,11 +127,9 @@ schema_version = "1.0.0"
 id = "dentalcad"
 version = "0.1.0"
 name = "DentalCAD"
-tagline = "Open-source dental CAD workflow for crown, bridge, and model design"
+tagline = "Open-source dental CAD for crown, bridge, and model design"
 maintainer = "Muhammad Farid Yamin <muhammad.farid.yamin@gmail.com>"
 type = "add-on"
-
-website = "https://github.com/<org>/dentalcad"
 
 tags = ["Import-Export", "Mesh", "Modeling"]
 
@@ -135,6 +146,7 @@ copyright = [
 
 platforms = ["windows-x64", "macos-arm64", "linux-x64"]
 
+# Diunduh oleh scripts/download_wheels.py (dicek SHA-256), tidak di-commit.
 wheels = [
   "./wheels/trimesh-5.1.1-py3-none-any.whl",
   "./wheels/manifold3d-3.5.4-cp313-cp313-win_amd64.whl",
@@ -149,10 +161,18 @@ files = "Import and export STL/PLY dental scan and design files"
 paths_exclude_pattern = [
   "__pycache__/",
   "/.git/",
-  "/*.zip",
-  "/tests/",
-  "/docs/",
   "/.github/",
+  "/.claude/",
+  "/.venv/",
+  "/.pytest_cache/",
+  "/*.zip",
+  "/dist/",
+  "/docs/",
+  "/scripts/",
+  "/tests/",
+  "/.gitignore",
+  "/CLAUDE.md",
+  "/requirements-dev.txt",
 ]
 ```
 
@@ -173,7 +193,7 @@ Semua pin di bawah diverifikasi di pypi.org (JSON API) pada 2026-10-23, dan nama
 
 **Jangan dibundel ulang** (sudah ada di dalam Blender 5.2 LTS, membundel ulang berisiko konflik versi): `numpy` (2.3.4), serta modul intrinsik yang selalu built-in dan tidak pernah berbentuk wheel (`bpy`, `mathutils`, `bmesh`, `gpu`, `blf`, `aud`, `imbuf`, `idprop`, `freestyle`, `bpy_extras`), dan paket pip yang ikut dalam `python/lib` Blender. Metadata `bpy==5.2.0` di PyPI menyebut `cattrs`, `cython`, `numpy`, `requests`, `zstandard`; daftar persisnya (termasuk dependensi `requests` seperti `certifi`, `idna`, `urllib3`) harus dicek di `python/lib` instalasi 5.2 LTS.
 
-**Alur unduh wheel** (dijalankan manual/CI sebelum build; `./wheels/` ada di `.gitignore` dan **tidak di-commit**, karena wheel diunduh ulang dari PyPI dengan pin persis setiap build):
+**Alur unduh wheel** (dijalankan manual/CI sebelum build; `./wheels/` ada di `.gitignore` dan **tidak di-commit**, karena wheel diunduh ulang dari PyPI dengan pin persis setiap build). Implementasinya `python scripts/download_wheels.py`: menjalankan `pip download` yang setara dengan perintah di bawah, mencocokkan SHA-256 tiap file dengan tabel di bawah, dan keluar dengan exit 1 kalau ada wheel yang hilang, hash-nya beda, atau ada wheel tak terdaftar di `./wheels/` (karena akan ikut ter-build). `--check` hanya memverifikasi. Perintah manualnya:
 
 ```bash
 mkdir -p wheels
@@ -203,14 +223,16 @@ Karena `./wheels/` tidak di-commit, hash di atas adalah pegangan reproduktibilit
 
 Batas ukuran: extensions.blender.org menegakkan batas efektif **~200MB per zip** (HTTP 413 di atas itu). Total wheel Fase 0 hanya ±4MB, jauh di bawah batas, jadi satu zip universal cukup. Kalau fase mendatang menambah `scipy` (±100MB untuk tiga platform, lihat §8) atau `Open3D` (disebut "besar" di RESEARCH.md), pantau ukuran total dan gunakan `blender --command extension build --split-platforms` untuk memecah jadi satu zip per platform.
 
-Gerbang validasi wajib sebelum setiap rilis (dan di CI, lihat §7): `blender --command extension build --source-dir . --output-filepath dist/dentalcad.zip` lalu `blender --command extension validate dist/dentalcad.zip`. Keduanya CLI argparse biasa dengan exit code benar (0/1) tanpa perlu `--python-exit-code`.
+Gerbang validasi wajib sebelum setiap rilis (dan di CI, lihat §7): `blender --command extension build --source-dir . --output-filepath dist/dentalcad-0.1.0.zip` lalu `blender --command extension validate dist/dentalcad-0.1.0.zip`. Keduanya CLI argparse biasa dengan exit code benar (0/1) tanpa perlu `--python-exit-code`.
 
 ## 6. Modul `core/` yang bisa diuji tanpa Blender
 
 Aturan keras: **tidak ada file di `core/` yang boleh `import bpy`, `bmesh`, `mathutils`, atau `gpu`.** Semua representasi mesh di dalam `core/` adalah array `numpy` murni, dibungkus struktur ringan (misalnya `MeshData` dengan atribut `vertices: np.ndarray[N,3]`, `faces: np.ndarray[M,3]`), bukan `bpy.types.Mesh`. Ini yang membuatnya bisa diuji dengan `pytest` biasa di host mana pun (laptop developer, GitHub Actions `ubuntu-latest` tanpa Blender sama sekali).
 
 ### 6.1 `core/mesh_io.py`
-- `load_mesh(path: str | Path) -> MeshData`: delegasi ke `trimesh.load()`, baca STL dan PLY (termasuk vertex color untuk scan IOS berwarna). Mengembalikan `MeshData` yang juga membawa warna vertex bila ada.
+- `load_mesh(path: str | Path) -> MeshData`: baca STL dan PLY (termasuk vertex color untuk scan IOS berwarna). Mengembalikan `MeshData` yang juga membawa warna vertex bila ada.
+  - STL biner dibaca langsung dengan `numpy.frombuffer`, lalu sudut segitiga yang koordinat float32-nya identik digabung (`merge_exact_vertices`: hash 64-bit + `argsort`, dicek ulang dan jatuh ke `lexsort` kalau ada tabrakan). Di Blender 5.2.3 jalur ini memuat 1,31 juta segitiga dalam ±1,3 s, dibanding ±4,1 s lewat `trimesh.load(process=True)`.
+  - STL ASCII dan PLY lewat `trimesh.load()`. PLY tidak digabung ulang karena formatnya sudah berindeks.
 - `save_mesh(mesh: MeshData, path) -> None`: tulis STL/PLY lewat `trimesh`.
 - Lapisan ini adalah satu-satunya tempat yang tahu soal format file. `ops/import_mesh.py` memanggil ini, lalu menuang hasilnya ke `bpy.data.meshes` lewat `foreach_set` (lihat §6.5), bukan sebaliknya.
 
@@ -254,32 +276,38 @@ Dua lapis, sesuai pembagian `core/` vs `ops/` di atas:
 Python biasa (matrix CI `ubuntu-latest`, Python 3.13, sama dengan interpreter Blender 5.2 LTS), cepat, tidak butuh men-download Blender. Menjalankan semua test `mesh_io`, `mesh_validate`, `material_db`, `units` terhadap fixture mesh sintetis dan golden STL. Ini mayoritas test suite.
 
 ### Lapis 2: `blender --background`, untuk `ops/` dan integrasi penuh
-Perintah dasar:
+Yang dites adalah **zip hasil build**, bukan folder repo, supaya wheel dan aturan `[build]` ikut teruji. Satu perintah menjalankan seluruh gerbang:
+```bash
+python scripts/run_blender_tests.py --blender "<path ke blender>"
+```
+Urutannya: cek wheel (`download_wheels.verify`), `extension build` ke `dist/dentalcad-<version>.zip`, `extension validate`, `extension install-file -r user_default -e` ke profil Blender sementara (env `BLENDER_USER_RESOURCES` diarahkan ke folder temp, jadi preferensi dan extension di profil pengguna tidak tersentuh), lalu:
 ```bash
 blender --background --python-exit-code 1 --python tests/blender/run_integration.py -- tests/golden
 ```
+Profil sementara dihapus di akhir (`--keep-profile` untuk menyimpannya saat debugging).
 
 Dua hal krusial dari riset yang **wajib** dipegang:
 - **`--python-exit-code 1` harus ditulis sebelum `--python`.** Tanpanya, exception Python yang tidak tertangkap di dalam skrip tetap membuat proses Blender keluar dengan kode 0, sehingga CI akan melaporkan sukses palsu. Ini bug/perilaku lama Blender yang dikonfirmasi di tracker resminya dan berulang kali menjebak proyek add-on lain.
 - `sys.exit(code)` di dalam skrip tetap diteruskan sebagai exit code proses Blender sungguhan (dengan flag di atas terpasang). Ini mekanisme yang dipakai untuk menjalankan `pytest.main([...])` di dalam sesi Blender dan meneruskan hasilnya: `sys.exit(pytest.main(["-v", "tests/blender"]))`.
 - `fake-bpy-module-5.2` (paket PyPI) **hanya stub tipe untuk editor/IDE** (autocomplete, type checking): tidak eksekutabel, tidak bisa dipakai menjalankan test di luar Blender. Jangan dicoba sebagai pengganti layer 2.
 
-`run_integration.py` untuk setiap folder di `tests/golden/<case_id>/`: panggil operator `DENTALCAD_OT_import_stl` pada `input.stl`, lalu baca balik hasilnya jadi `MeshData` (lewat `foreach_get` dari `bpy.data.meshes` aktif) dan jalankan fungsi `core.mesh_validate` yang **sama** yang sudah dites di Lapis 1, bandingkan dengan `expected.json`. Ini sengaja memakai ulang fungsi `core/` yang sama, tidak menulis logika validasi kedua di sisi Blender.
+`run_integration.py` memeriksa registrasi panel/operator, memuat wheel `trimesh` dan `manifold3d` dari extension yang terinstal, lalu untuk setiap folder di `tests/golden/<case_id>/`: panggil operator `DENTALCAD_OT_import_stl` (atau `_ply`) pada file input, lalu baca balik hasilnya jadi `MeshData` (lewat `foreach_get` dari `bpy.data.meshes` aktif) dan jalankan fungsi `core.mesh_validate` yang **sama** yang sudah dites di Lapis 1, bandingkan dengan `expected.json`. Ini sengaja memakai ulang fungsi `core/` yang sama, tidak menulis logika validasi kedua di sisi Blender.
 
 ### Gerbang manifest/packaging
 ```bash
-blender --command extension build --source-dir . --output-filepath dist/dentalcad.zip
-blender --command extension validate dist/dentalcad.zip
+blender --command extension build --source-dir . --output-filepath dist/dentalcad-0.1.0.zip
+blender --command extension validate dist/dentalcad-0.1.0.zip
 ```
 Keduanya subcommand argparse biasa dengan exit code benar secara native (0/1), tanpa butuh `--python-exit-code`. Jalankan di setiap PR sebagai gerbang terpisah dari test suite.
 
 ### Matriks CI (GitHub Actions)
-- Job `core-tests`: `ubuntu-latest`, tanpa Blender. `pip install -r requirements-dev.txt && pytest tests/core`.
-- Job `manifest-check`: `ubuntu-latest`, pakai action `bradyajohnston/setup-blender@v5` dengan `version: "5.2"`, jalankan `extension build` + `extension validate`.
-- Job `blender-integration`: matrix `os: [ubuntu-latest, windows-latest, macos-latest]`, `bradyajohnston/setup-blender@v5` versi `"5.2"`, jalankan Lapis 2 di atas terhadap semua `tests/golden/*`.
+- Job `core-tests`: `ubuntu-latest`, Python 3.13, tanpa Blender. `pip install -r requirements-dev.txt && pytest tests/core`.
+- Job `blender`: matrix `os: [ubuntu-latest, windows-latest, macos-latest]`, `bradyajohnston/setup-blender@v5` versi `"5.2"`, lalu `python scripts/download_wheels.py` dan `python scripts/run_blender_tests.py` (build, validate, instal, Lapis 2). Zip dari runner Ubuntu diunggah sebagai artifact.
 
 ### Golden case
-`tests/golden/<case_id>/input.stl` (anonim: nama/ID pasien dan metadata lab dihapus sebelum commit, sesuai RESEARCH.md §7) + `expected.json` berisi `{triangle_count, watertight, bbox_min, bbox_max, max_import_seconds}`. Target Fase 0: 10 case. `max_import_seconds` mengikat ke kriteria "impor 1 juta segitiga di bawah 5 detik": diukur di `run_integration.py`, gagal build kalau terlampaui.
+`tests/golden/<case_id>/input.stl` atau `input.ply` (anonim: nama/ID pasien dan metadata lab dihapus sebelum commit, sesuai RESEARCH.md §7) + `expected.json` berisi `{triangle_count, watertight, bbox_min, bbox_max, max_import_seconds}`, opsional `vertex_colors` dan `mean_rgba`. Target Fase 0: 10 case dari scan nyata. Sampai scan itu tersedia, `scripts/make_synthetic_golden.py` membuat 3 case sintetis (`syn_*`: icosphere tertutup, kotak terbuka, PLY berwarna) yang nilai expected-nya dihitung dari array yang ditulis, bukan lewat `core/`. Case yang sama juga dites di Lapis 1 (`test_mesh_io.py`).
+
+Kriteria "impor 1 juta segitiga di bawah 5 detik" diuji terpisah di `run_integration.py`: icosphere 1.310.720 segitiga dibuat saat tes (file ±65MB, tidak di-commit), lalu operator impor diukur dari awal sampai selesai. Hasil di Blender 5.2.3 LTS (Windows x64): 2,24 s.
 
 ## 8. Keputusan terbuka dan risiko dibawa ke fase berikutnya
 

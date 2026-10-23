@@ -1,0 +1,18 @@
+{
+  "source": "synthetic",
+  "description": "Kotak 10x8x6 mm tanpa tutup atas (10 segitiga, 4 edge tepi).",
+  "input": "input.stl",
+  "triangle_count": 10,
+  "watertight": false,
+  "bbox_min": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "bbox_max": [
+    10.0,
+    8.0,
+    6.0
+  ],
+  "max_import_seconds": 5.0
+}

@@ -1,0 +1,150 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Uji integrasi di dalam Blender (Lapis 2). Dijalankan oleh scripts/run_blender_tests.py:
+
+    blender --background --python-exit-code 1 --python tests/blender/run_integration.py -- tests/golden
+
+Extension harus sudah terinstal dan aktif (dari zip hasil build), supaya yang dites adalah paket
+yang sama dengan yang dirilis, termasuk wheel-nya. Exit code 1 kalau ada yang gagal.
+"""
+
+import importlib
+import json
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+import addon_utils
+import bpy
+
+PERF_TRIANGLES_MIN = 1_000_000
+PERF_MAX_SECONDS = 5.0
+
+
+def find_extension() -> str:
+    for mod in addon_utils.modules():
+        if mod.__name__.startswith("bl_ext.") and mod.__name__.endswith(".dentalcad"):
+            name = mod.__name__
+            if not addon_utils.check(name)[1]:
+                addon_utils.enable(name, default_set=True)
+            return name
+    raise RuntimeError("extension dentalcad tidak terinstal (bl_ext.*.dentalcad tidak ditemukan)")
+
+
+def clear_scene() -> None:
+    for obj in list(bpy.data.objects):
+        bpy.data.objects.remove(obj)
+    for mesh in list(bpy.data.meshes):
+        bpy.data.meshes.remove(mesh)
+
+
+def import_file(path: Path) -> tuple[bpy.types.Object, float]:
+    op = bpy.ops.dentalcad.import_ply if path.suffix.lower() == ".ply" else bpy.ops.dentalcad.import_stl
+    start = time.perf_counter()
+    result = op(filepath=str(path))
+    seconds = time.perf_counter() - start
+    if result != {"FINISHED"}:
+        raise RuntimeError(f"operator mengembalikan {result}")
+    return bpy.context.view_layer.objects.active, seconds
+
+
+class Runner:
+    def __init__(self, package: str):
+        self.validate = importlib.import_module(f"{package}.core.mesh_validate")
+        self.bridge = importlib.import_module(f"{package}.ops.mesh_bridge")
+        self.failures: list[str] = []
+
+    def check(self, label: str, problems: list[str]) -> None:
+        status = "OK  " if not problems else "GAGAL"
+        print(f"[{status}] {label}")
+        for problem in problems:
+            print(f"         {problem}")
+            self.failures.append(f"{label}: {problem}")
+
+    def golden_case(self, case: Path) -> None:
+        expected = json.loads((case / "expected.json").read_text(encoding="utf-8"))
+        clear_scene()
+        try:
+            obj, seconds = import_file(case / expected["input"])
+        except Exception as exc:
+            self.check(case.name, [f"impor gagal: {exc}"])
+            return
+        data = self.bridge.from_blender_mesh(obj.data)
+        problems = self.validate.compare_to_expected(self.validate.summarize(data), expected)
+        if seconds > expected["max_import_seconds"]:
+            problems.append(f"impor {seconds:.2f} s melebihi {expected['max_import_seconds']} s")
+        if data.has_vertex_colors != expected.get("vertex_colors", False):
+            problems.append(f"vertex color: didapat {data.has_vertex_colors}")
+        if "mean_rgba" in expected and data.has_vertex_colors:
+            mean = data.vertex_colors.mean(axis=0)
+            if max(abs(a - b) for a, b in zip(mean, expected["mean_rgba"])) > 0.5:
+                problems.append(f"rata-rata warna {mean.tolist()} != {expected['mean_rgba']}")
+        self.check(f"{case.name} ({len(data.faces):,} segitiga, {seconds:.2f} s)", problems)
+
+    def performance(self) -> None:
+        import trimesh  # dari wheel yang dibundel extension
+
+        mesh = trimesh.creation.icosphere(subdivisions=8, radius=10.0)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "perf.stl"
+            mesh.export(path)
+            clear_scene()
+            obj, seconds = import_file(path)
+            count = len(obj.data.polygons)
+        problems = []
+        if count < PERF_TRIANGLES_MIN:
+            problems.append(f"hanya {count:,} segitiga")
+        if seconds > PERF_MAX_SECONDS:
+            problems.append(f"impor {seconds:.2f} s melebihi {PERF_MAX_SECONDS} s")
+        self.check(f"performa impor STL ({count:,} segitiga, {seconds:.2f} s)", problems)
+
+    def bundled_wheels(self) -> None:
+        problems = []
+        try:
+            import manifold3d
+            import trimesh
+
+            volume = manifold3d.Manifold.cube((2.0, 2.0, 2.0)).volume()
+            if abs(volume - 8.0) > 1e-9:
+                problems.append(f"volume kubus manifold3d {volume} != 8")
+            print(f"         trimesh {trimesh.__version__}, manifold3d dari {Path(manifold3d.__file__).parent}")
+        except Exception as exc:
+            problems.append(f"{type(exc).__name__}: {exc}")
+        self.check("wheel trimesh + manifold3d termuat", problems)
+
+    def registration(self) -> None:
+        problems = []
+        for name in ("DENTALCAD_PT_main", "DENTALCAD_OT_import_stl", "DENTALCAD_OT_import_ply"):
+            if not hasattr(bpy.types, name):
+                problems.append(f"{name} tidak teregistrasi")
+        if not hasattr(bpy.types.Scene, "dentalcad_case"):
+            problems.append("Scene.dentalcad_case tidak ada")
+        self.check("registrasi panel dan operator", problems)
+
+
+def main() -> int:
+    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    golden = Path(argv[0] if argv else "tests/golden").resolve()
+
+    package = find_extension()
+    import numpy
+
+    print(f"Blender {bpy.app.version_string}, Python {sys.version.split()[0]}, numpy {numpy.__version__}")
+    print(f"extension: {package}")
+
+    runner = Runner(package)
+    runner.registration()
+    runner.bundled_wheels()
+    cases = sorted(p for p in golden.iterdir() if (p / "expected.json").exists())
+    if not cases:
+        runner.failures.append(f"tidak ada golden case di {golden}")
+    for case in cases:
+        runner.golden_case(case)
+    runner.performance()
+
+    print(f"\n{len(runner.failures)} kegagalan" if runner.failures else "\nSemua uji integrasi lulus")
+    return 1 if runner.failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

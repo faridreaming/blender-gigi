@@ -1,0 +1,5 @@
+# Lingkungan dev host (Python 3.13) untuk tests/core dan skrip. Bukan wheel yang dibundel.
+# numpy dipin sama dengan numpy bawaan Blender 5.2 LTS (docs/ARCHITECTURE.md §5).
+numpy==2.3.4
+trimesh==5.1.1
+pytest==9.1.1
