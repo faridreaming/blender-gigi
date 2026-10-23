@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Blender
+*.blend1
+*.blend2
+*.blend@
+/dist/
+*.zip
+
+# Wheel yang diunduh lewat pip download (lihat docs/ARCHITECTURE.md §5)
+/wheels/
+
+# Pengaturan lokal Claude Code
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
