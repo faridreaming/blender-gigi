@@ -16,7 +16,9 @@ jobs:
       - run: pytest tests/core
 
   blender:
-    # Build, validate, instal ke profil sementara, lalu uji integrasi headless (scripts/run_blender_tests.py).
+    # scripts/run_blender_tests.py: build satu zip per platform (--split-platforms), check_zip dan
+    # validate untuk setiap zip, lalu instal dan uji headless zip milik OS runner ini sendiri, supaya
+    # wheel platform (scipy, manifold3d) benar-benar dimuat di OS-nya.
     strategy:
       fail-fast: false
       matrix:
@@ -35,5 +37,5 @@ jobs:
       - if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: dentalcad-zip
+          name: dentalcad-zips-per-platform
           path: dist/*.zip

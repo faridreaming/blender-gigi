@@ -1,6 +1,6 @@
 # Fase 2: Crown zirkonia single (rancangan)
 
-Status: **rancangan disetujui, belum ada kode.** Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
+Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). Fitur §5 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
 
 Dasar dokumen ini:
 - RESEARCH.md Roadmap, Fase 2: deliverable *margin semi-auto, sumbu insersi/undercut, spacer, library CC0 + morphing, kontak, heatmap ketebalan, ekspor STL ke MillBox*; kriteria selesai *20 kasus: deviasi margin vs desain exocad ≤50 µm (median), lolos cek ketebalan, 5 crown dimilling dan dicoba di die*.
@@ -39,6 +39,8 @@ Material: preset `data/materials/zircad_prime.json` dari Fase 0 dipakai, dengan 
 |---|---|---|
 | **IVO** | Ivoclar, "Ivoclar Software Parameter Chart: exocad", 2024-02-07 / EN / Rev. 1, 8 halaman. Link dari maintainer (icde-fr.ivoclar.com, dokumen 43360) mengembalikan HTTP 503 saat dicek; yang dibaca adalah salinan di domain resmi ivoclar.com (`/it_IT/CMS/Ivoclar Vivadent/Technical/Service/Ivoclar-Digital-Parametri-Software-Chart-Exocad.pdf`, isi berbahasa Inggris). Belum dipastikan apakah revisinya sama dengan dokumen 43360. | Baris **IPS e.max ZirCAD Prime (Full and partial anatomical restorations), single crown**: Gap thickness of cement 0.06 mm; Add. distance x/y 0.01 mm; Beginning of cement 1.00 mm; Minimal thickness (1 elemen) anterior 0.80 mm, premolar 1.00 mm, molar 1.00 mm; Horizontal margin thickness 0.20 mm; Crown margin angle 65°; Angled margin thickness 0.10 mm; Anticipate milling Yes, Diameter 1.2 mm. Catatan dokumen: "The given dimensions for internal crown surfaces serve as guidelines and may be customized". **Jarak ke antagonis dan ke tetangga tidak tercantum.** |
 | **KUL** | Kulzer, "Setting Parameters exocad for cara Print 4.0" (sama dengan PHASE1.md §2), halaman 2, resin cetak cor dima Print Cast ruby | Distance to antagonist 0.1 mm, Distance to neighbour 0 mm. **Hanya pembanding**, bukan default: materialnya resin cetak untuk dicor, bukan zirkonia (K4). |
+| **DTX** | DTX Studio Lab 1.10 Help, "Crown bottoms" (helpfiles.dtxstudio.com/Help/2f5dd4d8-2a46-429b-ab87-cf4df5ddb0f1/1.10/EN/Crown_bottoms.htm), © 2019 Medicim N.V.; software lab berbasis exocad | "The From margin slider [2] defines the start of the cement gap relative to the margin line, in millimeters": dengan nilai 1, daerah dalam 1 mm dari margin line tidak punya cement gap. Additional spacing diatur terpisah untuk Radial ("mesial/distal") dan Axial, default terkunci bersama; "Additional spacing is also applied in the area where there is no cement gap" dan ditambahkan di atas cement gap di daerah yang punya gap. Border crown: Horizontal = lebar border horizontal ("for zirconia a common minimum value is 0.2 mm"), Angled = panjang bagian bersudut, Angle = sudut bagian itu, Vertical = border vertikal tambahan. |
+| **EXW** | exocad wiki, "Designing the inside of the crown" (wiki.exocad.com/wiki/index.php/Designing_the_inside_of_the_crown). Server aslinya menolak koneksi saat dicek; yang dibaca adalah arsip Wayback Machine snapshot 2026-10-05 | "You can add spacing in axial direction that will be applied everywhere using the slider Axial [4]. To add horizontal spacing perpendicular to the axial direction, use the slider Radial [5]." Definisi border crown sama dengan DTX. Versi ini mengatur zona cement gap dengan kuas, tanpa slider "From margin". |
 | **PAT** | Google Patents, US8359114B2 "Haptically enabled dental modeling system", DentsAble Inc (patents.google.com/patent/US8359114B2/en) | Diberikan 2013-01-22; status "Expired - Fee Related"; event "PATENT EXPIRED DUE TO NONPAYMENT OF MAINTENANCE FEES" (2017); expiration teradjust semula 2029-10-19. Google menulis: "The legal status is an assumption and is not a legal conclusion." |
 
 ## 3. Teeth3DS+: hasil pengecekan
@@ -87,6 +89,10 @@ Modul `core/synthetic.py`, numpy murni. Semua kurva dan permukaan didefinisikan 
 **Crown referensi untuk uji ketebalan:** cangkang analitis (permukaan dalam = offset die + gap, permukaan luar = offset dengan peta ketebalan yang diketahui, termasuk satu daerah sengaja di bawah minimum material).
 
 **Parameter.** Semua berstatus **desain data uji**: a, b, sudut konvergensi, w, z₀, A, kepadatan mesh, σ. Nilainya dipilih supaya ukurannya masuk akal untuk gigi posterior, dan dicatat di setiap golden case sintetis (`expected.json`). Nilai-nilai ini bukan default desain crown.
+
+**Status:** die (shoulder, chamfer, scallop, undercut, derau, rotasi) sudah diimplementasikan di `core/synthetic.py` dengan tes di `tests/core/test_synthetic.py`. Gigi tetangga, antagonis, dan crown referensi menyusul bersama fitur yang memakainya (§5.5, §5.6).
+
+**Temuan untuk algoritma undercut (§5.2):** pada mesh dengan jitter parameter 0,45 sel, normal face mentah bisa menyimpang lebih dari sudut taper dinding (6°), sehingga sebagian face dinding yang sebenarnya bukan undercut punya `dot(normal, sumbu) < 0`. Algoritma undercut perlu normal yang dihaluskan (misalnya rata-rata cincin), bukan tanda normal face mentah; ini akan diukur terhadap jawaban benar `undercut_faces()`.
 
 **Pengujian generator itu sendiri (Lapis 1):**
 - Titik kurva margin analitis terletak di permukaan analitis.
@@ -140,7 +146,11 @@ Modul `core/synthetic.py`, numpy murni. Semua kurva dan permukaan didefinisikan 
 
 ### 5.3 Spacer (cement gap)
 
-**Algoritma** (RESEARCH.md §4): permukaan dalam crown = permukaan die hasil block-out yang di-offset sepanjang normal sebesar gap(d) + extra(n), dengan d = jarak geodesik ke margin dan extra(n) = jarak tambahan x/y yang diskalakan dengan komponen horizontal normal terhadap sumbu insersi (interpretasi IVO, lihat tabel).
+**Algoritma** (RESEARCH.md §4, definisi parameter dari DTX dan EXW): permukaan dalam crown = permukaan die hasil block-out yang digeser sebesar gap(d)·n + s_r·h(n), dengan:
+- d = jarak geodesik ke margin line, n = normal permukaan;
+- gap(d) = 0 untuk d < "from margin", lalu naik ke gap semen (DTX: awal cement gap diukur dari margin line);
+- h(n) = komponen normal yang tegak lurus sumbu insersi (arah horizontal), dan s_r = spacing radial. Spacing radial berlaku di seluruh permukaan dalam, **termasuk zona tanpa cement gap**, dan ditambahkan di atas cement gap di zona yang punya gap (DTX; arah tegak lurus sumbu dari EXW);
+- spacing axial (EXW: "applied everywhere") tidak tercantum di IVO, jadi 0 sampai ada sumber.
 - gap = 0 untuk d ≤ jarak ke margin.
 - Transisi halus ke gap aksial/oklusal.
 - Jarak geodesik dihitung dengan Dijkstra multi-sumber dari vertex margin (pendekatan di graf edge; galatnya diukur di uji).
@@ -150,8 +160,9 @@ Modul `core/synthetic.py`, numpy murni. Semua kurva dan permukaan didefinisikan 
 | Parameter | Status | Nilai | Sumber |
 |---|---|---|---|
 | Gap semen | default pabrikan | 0,06 mm | IVO "Gap thickness of cement". Menggantikan default literatur RESEARCH.md §2 (30-60 µm, nilai lama 50 µm di `zircad_prime.json`). |
-| Jarak dari margin tanpa gap | default pabrikan | 1,00 mm | IVO "Beginning of cement". Menggantikan rentang literatur 0,5-1,0 mm (RESEARCH.md §2). |
-| Jarak tambahan x/y (extra spacer lateral) | default pabrikan | 0,01 mm | IVO "Add. distance x/y". **Interpretasi:** tambahan gap pada arah horizontal (dinding aksial) di atas gap semen; definisi persis exocad tidak dijelaskan di dokumen IVO dan dicek di S4. |
+| Jarak dari margin tanpa gap ("from margin") | default pabrikan | 1,00 mm | IVO "Beginning of cement" = slider "From margin" di exocad (DTX). Menggantikan rentang literatur 0,5-1,0 mm (RESEARCH.md §2). |
+| Spacing radial | default pabrikan | 0,01 mm | IVO "Add. distance x/y" = Additional spacing Radial: horizontal, tegak lurus sumbu insersi (EXW), berlaku juga di zona tanpa cement gap (DTX). |
+| Spacing axial | perlu kalibrasi | 0 mm + peringatan | Tidak tercantum di IVO. Di exocad default terkunci bersama radial (DTX), tetapi IVO hanya memberi x/y, jadi tidak diasumsikan sama. |
 | Bentuk transisi gap | perlu kalibrasi | linear + peringatan | Tidak ada di RESEARCH.md maupun IVO. |
 
 Catatan: angka Kulzer untuk exocad (gap 0,08 mm, beginning of cement gap 1 mm) **tidak** dipakai. Angka itu untuk resin cetak cor dima Print Cast ruby, bukan zirkonia.
@@ -170,15 +181,15 @@ Catatan: angka Kulzer untuk exocad (gap 0,08 mm, beginning of cement gap 1 mm) *
 3. **Fit ke margin:** batas bawah template dipetakan ke kurva margin; deformasi Laplacian (sistem sparse) menjaga detail permukaan sambil memaksa batas tepat di margin dan permukaan dalam tepat di spacer.
 4. **Jahitan:** permukaan luar dan dalam disatukan di margin menjadi solid tertutup (manifold3d).
 
-5. **Tepi crown di margin** (IVO): permukaan luar di dekat margin dibentuk dengan ketebalan horizontal 0,20 mm di margin, lalu bagian bersudut 65° dengan ketebalan 0,10 mm. Ketiga angka ini nama parameternya dari exocad; pemetaannya ke geometri DentalCAD (diukur dari mana, sudut terhadap apa) adalah interpretasi yang dicek di S4.
+5. **Border crown di margin** (IVO, definisi dari DTX dan EXW): dari margin line, border horizontal selebar 0,20 mm ("Horizontal"), lalu bagian bersudut sepanjang 0,10 mm ("Angled", di IVO bernama "Angled margin thickness") dengan sudut 65° ("Angle"), lalu permukaan luar crown. Border vertikal tambahan tidak dipakai (tidak ada di IVO). Acuan sudut "Angle" tidak dijelaskan di DTX maupun EXW, jadi arah sudut 65° adalah satu-satunya bagian yang masih interpretasi (S4).
 
 **Parameter.**
 
 | Parameter | Status | Nilai | Sumber |
 |---|---|---|---|
-| Horizontal margin thickness | default pabrikan | 0,20 mm | IVO |
-| Crown margin angle | default pabrikan | 65° | IVO |
-| Angled margin thickness | default pabrikan | 0,10 mm | IVO |
+| Border horizontal | default pabrikan | 0,20 mm | IVO "Horizontal margin thickness" = slider Horizontal (DTX, EXW) |
+| Sudut bagian bersudut | default pabrikan | 65° | IVO "Crown margin angle" = slider Angle (DTX, EXW); acuan sudut masih interpretasi (S4) |
+| Panjang bagian bersudut | default pabrikan | 0,10 mm | IVO "Angled margin thickness" = slider Angled, "the length of the angled part of the border" (DTX, EXW) |
 | Bentuk template, bobot Laplacian, pengaturan solver | desain data uji / dari S3 | | Bukan parameter klinis. |
 
 **Modul core/.** `core/template.py`, `core/morph.py` (butuh `scipy.sparse`, lihat K1), `core/crown.py` (`assemble_crown`).
@@ -290,7 +301,7 @@ Ditambah:
 | ID | Pertanyaan | Cara menjawab | Kalau gagal |
 |---|---|---|---|
 | S0 | Apakah angka IFU ZirCAD Prime (0,8/1,0 mm) masih sesuai revisi terbaru, dan apakah dokumen IVO yang dibaca sama dengan dokumen 43360 yang ditautkan maintainer? | Baca IFU terbaru di situs Ivoclar (RESEARCH.md Caveats); coba lagi link icde-fr saat servernya pulih dan bandingkan revisinya. | Perbarui `zircad_prime.json` dan catat revisinya. |
-| S4 | Bagaimana exocad mendefinisikan "Add. distance x/y", "Beginning of cement", dan parameter margin crown (horizontal, sudut, angled)? | Dokumentasi exocad yang terbuka untuk publik; kalau tidak ada, uji visual dengan kasus sintetis dan catat interpretasinya. | Tetap pakai interpretasi di §5.3 dan §5.4, ditandai sebagai interpretasi di laporan ekspor. |
+| S4 | Bagaimana exocad mendefinisikan "Add. distance x/y", "Beginning of cement", dan parameter border crown? | **Sebagian besar terjawab** (2026-10-23) dari DTX dan EXW: "Beginning of cement" = "From margin"; "Add. distance x/y" = spacing Radial, tegak lurus sumbu, berlaku juga di zona tanpa gap; Horizontal, Angled, dan Angle didefinisikan di kedua sumber. **Tersisa:** acuan sudut "Angle" (diukur terhadap apa). | Uji visual dengan kasus sintetis saat §5.4 dikerjakan; tandai sebagai interpretasi di laporan ekspor. |
 | S1 | Seberapa akurat curvature + Dijkstra pada data sintetis berderau? | Jalankan matriks §7 dengan beberapa bentuk f(κ); ukur median dan p95. | Tambah penghalusan permukaan lokal sebelum estimasi curvature, atau fit kuadrik pada cincin yang lebih lebar. |
 | S2 | Apakah cKDTree + penyempurnaan titik-ke-segitiga cukup cepat untuk crown sekitar 100 ribu segitiga? | Ukur di host dan di Blender. | Kurangi sampel dengan sampling adaptif, atau batasi penyempurnaan eksak ke daerah dekat ambang. |
 | S3 | Apakah Laplacian dengan batas margin stabil (tanpa self-intersection) untuk scallop besar? | Uji pada varian A > 0. | Bobot cotangent dan pembatas lokal, atau iterasi kecil bertahap. |

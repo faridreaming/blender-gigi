@@ -52,6 +52,7 @@ dentalcad/                          # root repo == root isi .zip extension
 │  ├─ model_presets.py              # preset cetak per printer + resin, status per parameter (Fase 1)
 │  ├─ solid.py                      # MeshData <-> manifold3d, validasi, rongga tertutup (Fase 1)
 │  ├─ calibration.py                # kupon kalibrasi, lembar ukur, fit_scale (Fase 1)
+│  ├─ synthetic.py                  # die preparasi sintetis dengan margin analitis (Fase 2)
 │  └─ units.py                      # konversi mm, tabel penomoran FDI<->Universal/Palmer
 ├─ ops/                             # bpy.types.Operator, tipis, delegasi ke core/
 │  ├─ __init__.py
@@ -161,6 +162,9 @@ wheels = [
   "./wheels/manifold3d-3.5.4-cp313-cp313-win_amd64.whl",
   "./wheels/manifold3d-3.5.4-cp313-cp313-macosx_11_0_arm64.whl",
   "./wheels/manifold3d-3.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+  "./wheels/scipy-1.18.1-cp313-cp313-win_amd64.whl",
+  "./wheels/scipy-1.18.1-cp313-cp313-macosx_12_0_arm64.whl",
+  "./wheels/scipy-1.18.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
 ]
 
 [permissions]
@@ -196,11 +200,12 @@ Semua pin di bawah diverifikasi di pypi.org (JSON API) pada 2026-10-23, dan nama
 | Paket | Lisensi | Pin untuk cp313 (Blender 5.2 LTS) | `requires_dist` (PyPI) | Alasan pin |
 |---|---|---|---|---|
 | `manifold3d` | Apache-2.0 | `3.5.4` (terbaru, rilis 2026-09-25) | `numpy>=1.26.0b1` (Python ≥3.12) | Wheel cp313 tersedia untuk `win_amd64`, `macosx_11_0_arm64`, dan `manylinux_2_27_x86_64.manylinux_2_28_x86_64`, jadi tidak perlu build dari sumber. |
+| `scipy` | BSD-3-Clause | `1.18.1` (terbaru, rilis 2026-08-21; `requires_python >=3.12`; dicek ulang 2026-10-23) | `numpy>=2.0.0,<2.8` | Masuk di Fase 2 (docs/PHASE2.md §6, K1) untuk `scipy.sparse` dan `scipy.spatial`. Wheel cp313 untuk ketiga platform; macOS arm64 memakai `macosx_12_0_arm64` (OpenBLAS), bukan `macosx_14_0_arm64`, karena minimum macOS Blender adalah 13. Rentang numpy mencakup 2.3.4. |
 | `trimesh` | MIT | `5.1.1` (terbaru, rilis 2026-10-02), unduh dengan `--no-deps` | `numpy>=1.21` | Wheel tunggal `py3-none-any` (pure Python, tanpa ekstensi terkompilasi): satu file berlaku untuk semua platform/OS. Dependensi wajibnya hanya `numpy`, yang sudah dibundel Blender, jadi `--no-deps` mencegah duplikasi. |
 
-`scipy` dikeluarkan dari Fase 0 karena belum ada kode Fase 0 yang memakainya. Pin kandidat dan syarat numpy-nya dicatat sebagai backlog di §8.
+`scipy` tidak dibundel di Fase 0 dan Fase 1, dan masuk mulai Fase 2 bersama build per platform.
 
-**Versi numpy di Blender 5.2 LTS: 2.3.4.** Dicek langsung oleh maintainer di dalam Blender 5.2 LTS (`import numpy; numpy.__version__`) pada 2026-10-23. Ini konsisten dengan VFX Reference Platform CY2026 (NumPy 2.3.x) dan metadata `bpy==5.2.0` di PyPI (`numpy>=2.2,<3.0`), dan memenuhi `requires_dist` kedua wheel di atas (`manifold3d`: `>=1.26.0b1`, `trimesh`: `>=1.21`). Metadata paket `bpy` di PyPI tidak selalu konsisten dengan numpy yang benar-benar dibundel, jadi angka 2.3.4 inilah pegangannya. Cek ulang setiap kali target dinaikkan ke rilis koreksi 5.2.x baru.
+**Versi numpy di Blender 5.2 LTS: 2.3.4.** Dicek langsung oleh maintainer di dalam Blender 5.2 LTS (`import numpy; numpy.__version__`) pada 2026-10-23. Ini konsisten dengan VFX Reference Platform CY2026 (NumPy 2.3.x) dan metadata `bpy==5.2.0` di PyPI (`numpy>=2.2,<3.0`), dan memenuhi `requires_dist` semua wheel di atas (`manifold3d`: `>=1.26.0b1`, `scipy`: `>=2.0.0,<2.8`, `trimesh`: `>=1.21`). Metadata paket `bpy` di PyPI tidak selalu konsisten dengan numpy yang benar-benar dibundel, jadi angka 2.3.4 inilah pegangannya. Cek ulang setiap kali target dinaikkan ke rilis koreksi 5.2.x baru.
 
 **Jangan dibundel ulang** (sudah ada di dalam Blender 5.2 LTS, membundel ulang berisiko konflik versi): `numpy` (2.3.4), serta modul intrinsik yang selalu built-in dan tidak pernah berbentuk wheel (`bpy`, `mathutils`, `bmesh`, `gpu`, `blf`, `aud`, `imbuf`, `idprop`, `freestyle`, `bpy_extras`), dan paket pip yang ikut dalam `python/lib` Blender. Metadata `bpy==5.2.0` di PyPI menyebut `cattrs`, `cython`, `numpy`, `requests`, `zstandard`; daftar persisnya (termasuk dependensi `requests` seperti `certifi`, `idna`, `urllib3`) harus dicek di `python/lib` instalasi 5.2 LTS.
 
@@ -216,12 +221,14 @@ pip download trimesh==5.1.1 --dest wheels --no-deps --only-binary=:all:
 for plat in win_amd64 macosx_13_0_arm64 manylinux_2_28_x86_64; do
   pip download manifold3d==3.5.4 --dest wheels --no-deps --only-binary=:all: \
     --python-version 313 --implementation cp --abi cp313 --platform "$plat"
+  pip download scipy==1.18.1 --dest wheels --no-deps --only-binary=:all: \
+    --python-version 313 --implementation cp --abi cp313 --platform "$plat"
 done
 ```
 
 `--only-binary=:all:` memaksa pip gagal (bukan build dari sumber) kalau wheel prebuilt tidak ada untuk kombinasi itu. `--no-deps` wajib supaya `numpy` tidak ikut terunduh/terbundel.
 
-Hasil persis perintah di atas (diverifikasi 2026-10-23), sama dengan daftar `wheels` di manifest §4:
+Hasil persis perintah di atas (diverifikasi 2026-10-23; hash scipy juga cocok dengan digest yang dipublikasikan PyPI), sama dengan daftar `wheels` di manifest §4:
 
 | File | Ukuran | SHA-256 |
 |---|---|---|
@@ -229,12 +236,15 @@ Hasil persis perintah di atas (diverifikasi 2026-10-23), sama dengan daftar `whe
 | `manifold3d-3.5.4-cp313-cp313-win_amd64.whl` | 1,0 MB | `76975aa4ebd18dcb0481e43dac3ed70d78066e9ad047e73a5f7dbc0df1553cf4` |
 | `manifold3d-3.5.4-cp313-cp313-macosx_11_0_arm64.whl` | 0,9 MB | `ed0736f472c3362b8084867f10a724a9a483927bdb7cbfceb564acc52a7f4273` |
 | `manifold3d-3.5.4-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl` | 1,4 MB | `7a5469641713f1bc291fea873cb134c435704df36828d134190fc2475b304259` |
+| `scipy-1.18.1-cp313-cp313-win_amd64.whl` | 36,6 MB | `559ed65f60c1af5a03f3912605a1b5114f522c7c32fb23c3376ae8f03219fe28` |
+| `scipy-1.18.1-cp313-cp313-macosx_12_0_arm64.whl` | 28,7 MB | `e6fb6a55cc0ba97b59a1f288fb86dc6fce8bdfc0fffcbfd015e3a954bf2a2d93` |
+| `scipy-1.18.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl` | 35,3 MB | `fdaf5ea890a6183d0565f51a61799d67081bd5b1cf03c5f4b3fd3732108625c9` |
 
 Karena `./wheels/` tidak di-commit, hash di atas adalah pegangan reproduktibilitas: skrip unduh di CI sebaiknya mencocokkan SHA-256 ini (atau memakai `requirements` dengan `--require-hashes`) sebelum `extension build`.
 
-Batas ukuran: extensions.blender.org menegakkan batas efektif **~200MB per zip** (HTTP 413 di atas itu). Total wheel Fase 0 hanya ±4MB, jauh di bawah batas, jadi satu zip universal cukup. Kalau fase mendatang menambah `scipy` (±100MB untuk tiga platform, lihat §8) atau `Open3D` (disebut "besar" di RESEARCH.md), pantau ukuran total dan gunakan `blender --command extension build --split-platforms` untuk memecah jadi satu zip per platform.
+Batas ukuran: extensions.blender.org menegakkan batas efektif **~200MB per zip** (HTTP 413 di atas itu). Sejak Fase 2 total wheel ±105MB (scipy ±35MB per platform), jadi build memakai `blender --command extension build --split-platforms`: satu zip per platform dengan sufiks nama platform, masing-masing hanya membawa wheel platformnya. `check_zip` memeriksa setiap zip terhadap batas 200MB dan anggaran per zip (lihat §7). Kalau fase mendatang menambah `Open3D` (disebut "besar" di RESEARCH.md), anggaran itu diukur ulang.
 
-Gerbang validasi wajib sebelum setiap rilis (dan di CI, lihat §7): `blender --command extension build --source-dir . --output-filepath dist/dentalcad-0.1.0.zip` lalu `blender --command extension validate dist/dentalcad-0.1.0.zip`. Keduanya CLI argparse biasa dengan exit code benar (0/1) tanpa perlu `--python-exit-code`.
+Gerbang validasi wajib sebelum setiap rilis (dan di CI, lihat §7): `blender --command extension build --source-dir . --output-dir dist --split-platforms` lalu `blender --command extension validate` untuk setiap zip di `dist/`. Keduanya CLI argparse biasa dengan exit code benar (0/1) tanpa perlu `--python-exit-code`.
 
 ## 6. Modul `core/` yang bisa diuji tanpa Blender
 
@@ -291,7 +301,7 @@ Yang dites adalah **zip hasil build**, bukan folder repo, supaya wheel dan atura
 ```bash
 python scripts/run_blender_tests.py --blender "<path ke blender>"
 ```
-Urutannya: cek wheel (`download_wheels.verify`), `extension build` ke `dist/dentalcad-<version>.zip`, pemeriksaan isi zip (`check_zip`: hanya `blender_manifest.toml`, `LICENSE`, `__init__.py`, `core/`, `ops/`, `ui/`, `gpu_draw/`, `data/`, `wheels/` di tingkat teratas, tanpa `__pycache__`, wheel sama persis dengan manifest, ukuran di bawah 200MB), `extension validate`, `extension install-file -r user_default -e` ke profil Blender sementara (env `BLENDER_USER_RESOURCES` diarahkan ke folder temp, jadi preferensi dan extension di profil pengguna tidak tersentuh), lalu:
+Urutannya: cek wheel (`download_wheels.verify`), `extension build --split-platforms` ke `dist/dentalcad-<version>-<platform>.zip` (satu zip per platform di manifest), pemeriksaan setiap zip (`check_zip`: hanya `blender_manifest.toml`, `LICENSE`, `__init__.py`, `core/`, `ops/`, `ui/`, `gpu_draw/`, `data/`, `wheels/` di tingkat teratas, tanpa `__pycache__`, wheel sama persis dengan wheel manifest untuk platform zip itu ditambah wheel `-none-any`, ukuran di bawah 200MB dan di bawah anggaran per zip 60MB), `extension validate` untuk setiap zip, lalu `extension install-file -r user_default -e` untuk **zip milik platform host** ke profil Blender sementara (env `BLENDER_USER_RESOURCES` diarahkan ke folder temp, jadi preferensi dan extension di profil pengguna tidak tersentuh), lalu:
 ```bash
 blender --background --python-exit-code 1 --python tests/blender/run_integration.py -- tests/golden
 ```
@@ -302,18 +312,18 @@ Dua hal krusial dari riset yang **wajib** dipegang:
 - `sys.exit(code)` di dalam skrip tetap diteruskan sebagai exit code proses Blender sungguhan (dengan flag di atas terpasang). Ini mekanisme yang dipakai untuk menjalankan `pytest.main([...])` di dalam sesi Blender dan meneruskan hasilnya: `sys.exit(pytest.main(["-v", "tests/blender"]))`.
 - `fake-bpy-module-5.2` (paket PyPI) **hanya stub tipe untuk editor/IDE** (autocomplete, type checking): tidak eksekutabel, tidak bisa dipakai menjalankan test di luar Blender. Jangan dicoba sebagai pengganti layer 2.
 
-`run_integration.py` memeriksa registrasi panel/operator, memuat wheel `trimesh` dan `manifold3d` dari extension yang terinstal, lalu untuk setiap folder di `tests/golden/<case_id>/`: panggil operator `DENTALCAD_OT_import_stl` (atau `_ply`) pada file input, lalu baca balik hasilnya jadi `MeshData` (lewat `foreach_get` dari `bpy.data.meshes` aktif) dan jalankan fungsi `core.mesh_validate` yang **sama** yang sudah dites di Lapis 1, bandingkan dengan `expected.json`. Ini sengaja memakai ulang fungsi `core/` yang sama, tidak menulis logika validasi kedua di sisi Blender.
+`run_integration.py` memeriksa registrasi panel/operator, memuat wheel `trimesh`, `manifold3d`, dan `scipy` dari extension yang terinstal (scipy wajib dimuat dari folder extension, bukan dari tempat lain), lalu untuk setiap folder di `tests/golden/<case_id>/`: panggil operator `DENTALCAD_OT_import_stl` (atau `_ply`) pada file input, lalu baca balik hasilnya jadi `MeshData` (lewat `foreach_get` dari `bpy.data.meshes` aktif) dan jalankan fungsi `core.mesh_validate` yang **sama** yang sudah dites di Lapis 1, bandingkan dengan `expected.json`. Ini sengaja memakai ulang fungsi `core/` yang sama, tidak menulis logika validasi kedua di sisi Blender.
 
 ### Gerbang manifest/packaging
 ```bash
-blender --command extension build --source-dir . --output-filepath dist/dentalcad-0.1.0.zip
-blender --command extension validate dist/dentalcad-0.1.0.zip
+blender --command extension build --source-dir . --output-dir dist --split-platforms
+blender --command extension validate dist/dentalcad-0.1.0-windows_x64.zip   # dan setiap zip platform lain
 ```
 Keduanya subcommand argparse biasa dengan exit code benar secara native (0/1), tanpa butuh `--python-exit-code`. Jalankan di setiap PR sebagai gerbang terpisah dari test suite.
 
 ### Matriks CI (GitHub Actions)
 - Job `core-tests`: `ubuntu-latest`, Python 3.13, tanpa Blender. `pip install -r requirements-dev.txt && pytest tests/core`.
-- Job `blender`: matrix `os: [ubuntu-latest, windows-latest, macos-latest]`, `bradyajohnston/setup-blender@v5` versi `"5.2"`, lalu `python scripts/download_wheels.py` dan `python scripts/run_blender_tests.py` (build, validate, instal, Lapis 2). Zip dari runner Ubuntu diunggah sebagai artifact.
+- Job `blender`: matrix `os: [ubuntu-latest, windows-latest, macos-latest]`, `bradyajohnston/setup-blender@v5` versi `"5.2"`, lalu `python scripts/download_wheels.py` dan `python scripts/run_blender_tests.py`. Setiap runner membangun dan memeriksa ketiga zip, lalu menginstal dan menguji zip milik OS-nya sendiri, sehingga wheel platform (scipy, manifold3d) teruji di OS masing-masing. Ketiga zip dari runner Ubuntu diunggah sebagai artifact.
 
 ### Golden case
 `tests/golden/<case_id>/input.stl` atau `input.ply` (anonim: nama/ID pasien dan metadata lab dihapus sebelum commit, sesuai RESEARCH.md §7) + `expected.json` berisi `{triangle_count, watertight, bbox_min, bbox_max, max_import_seconds}`, opsional `vertex_colors` dan `mean_rgba`. Target Fase 0: 10 case dari scan nyata. Sampai scan itu tersedia, `scripts/make_synthetic_golden.py` membuat 3 case sintetis (`syn_*`: icosphere tertutup, kotak terbuka, PLY berwarna) yang nilai expected-nya dihitung dari array yang ditulis, bukan lewat `core/`. Case yang sama juga dites di Lapis 1 (`test_mesh_io.py`).
@@ -324,11 +334,7 @@ Kriteria "impor 1 juta segitiga di bawah 5 detik" diuji terpisah di `run_integra
 
 ## 8. Keputusan terbuka dan risiko dibawa ke fase berikutnya
 
-- **`scipy` (backlog, untuk fase yang benar-benar memakainya).** Diputuskan masuk di Fase 2 bersama build per platform (docs/PHASE2.md §6, K1); dikerjakan sebagai langkah implementasi pertama Fase 2. RESEARCH.md menyebut scipy untuk sparse solver Laplacian, yang dipakai morphing tooth library (deformasi RBF/Laplacian) di Fase 2. Fase 0 tidak punya kode yang memakainya, jadi tidak dibundel. Pin kandidat yang sudah diverifikasi di PyPI pada 2026-10-23:
-  - `scipy==1.18.1` (BSD-3-Clause, rilis 2026-08-21, `requires_python >=3.12`), `requires_dist`: `numpy>=2.0.0,<2.8`. Rentang ini mencakup numpy 2.3.4 di Blender 5.2 LTS.
-  - Wheel cp313 yang dipilih: `scipy-1.18.1-cp313-cp313-win_amd64.whl`, `scipy-1.18.1-cp313-cp313-macosx_12_0_arm64.whl`, `scipy-1.18.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl`. Untuk macOS arm64 pakai `macosx_12_0_arm64` (OpenBLAS), bukan `macosx_14_0_arm64` (Accelerate), karena minimum macOS Blender adalah 13. Perintah unduhnya sama dengan pola `manifold3d` di §5.
-  - Total ±100MB untuk tiga platform, jadi saat scipy ditambahkan, `--split-platforms` kemungkinan besar diperlukan.
-  - Saat fase itu dimulai: cek ulang di PyPI bahwa versi terbaru masih punya wheel cp313 untuk ketiga platform dan bahwa rentang `numpy` di `requires_dist` masih mencakup numpy yang dibundel Blender target. Catat hash SHA-256-nya seperti tabel di §5.
+- **`scipy`**: sudah masuk di Fase 2 (docs/PHASE2.md §6, K1), lihat tabel wheel di §5. Setiap menaikkan versinya, cek di PyPI bahwa masih ada wheel cp313 untuk ketiga platform dan bahwa rentang `numpy` di `requires_dist` masih mencakup numpy Blender target.
 - **Blender 4.5 LTS (cp311) tidak didukung**, dan tidak ada rencana backport. Kalau suatu saat dibutuhkan, itu berarti set wheel cp311 kedua dan rilis extension terpisah, bukan pekerjaan Fase 0.
 - **Mac Intel tidak didukung** karena Blender 5.x sendiri tidak berjalan di sana (lihat §2). `windows-arm64` mungkin ditambahkan nanti (wheel `win_arm64` cp313 tersedia untuk `manifold3d`).
 - **Workspace "Dental" penuh** (bukan sekadar N-panel) butuh pendekatan append `.blend` atau Application Template. Belum diputuskan, lihat §6.7. Jangan dikerjakan sebelum ada kebutuhan konkret dari Fase 1/2.

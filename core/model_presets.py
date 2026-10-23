@@ -93,7 +93,7 @@ class Preset:
         """Salinan preset dengan satu parameter diganti (misalnya hasil kalibrasi kupon)."""
         old = self.params.get(name)
         unit = old.unit if old is not None else ""
-        param = _parse_param(
+        param = parse_param(
             name,
             {"value": value, "unit": unit, "status": status, "source": source, "source_date": source_date},
             where=self.id,
@@ -120,7 +120,7 @@ def _text(data: dict, key: str, where: str) -> str:
     return value
 
 
-def _parse_param(name: str, data: dict, where: str) -> Param:
+def parse_param(name: str, data: dict, where: str) -> Param:
     where = f"{where}.{name}"
     if not isinstance(data, dict):
         raise PresetError(f"{where}: wajib objek JSON")
@@ -175,7 +175,7 @@ def parse_preset(data: dict, where: str = "preset") -> Preset:
         id=preset_id,
         printer=_text(data, "printer", where),
         resin=_text(data, "resin", where),
-        params={name: _parse_param(name, p, preset_id) for name, p in params.items()},
+        params={name: parse_param(name, p, preset_id) for name, p in params.items()},
     )
 
 

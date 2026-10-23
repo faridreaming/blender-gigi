@@ -108,13 +108,29 @@ class Runner:
             import manifold3d
             import trimesh
 
+            import numpy
+            import scipy
+            from scipy.sparse import identity
+            from scipy.spatial import cKDTree
+
             volume = manifold3d.Manifold.cube((2.0, 2.0, 2.0)).volume()
             if abs(volume - 8.0) > 1e-9:
                 problems.append(f"volume kubus manifold3d {volume} != 8")
-            print(f"         trimesh {trimesh.__version__}, manifold3d dari {Path(manifold3d.__file__).parent}")
+            points = numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 2.0, 0.0]])
+            distance, index = cKDTree(points).query([0.9, 0.1, 0.0])
+            if index != 1 or abs(distance - numpy.hypot(0.1, 0.1)) > 1e-12:
+                problems.append(f"cKDTree salah: indeks {index}, jarak {distance}")
+            if identity(3, format="csr").sum() != 3:
+                problems.append("scipy.sparse salah")
+            if scipy.__version__ != "1.18.1":
+                problems.append(f"scipy {scipy.__version__}, diharapkan 1.18.1")
+            if "extensions" not in Path(scipy.__file__).parts:
+                problems.append(f"scipy dimuat dari luar extension: {scipy.__file__}")
+            print(f"         trimesh {trimesh.__version__}, scipy {scipy.__version__}, "
+                  f"manifold3d dari {Path(manifold3d.__file__).parent}")
         except Exception as exc:
             problems.append(f"{type(exc).__name__}: {exc}")
-        self.check("wheel trimesh + manifold3d termuat", problems)
+        self.check("wheel trimesh + manifold3d + scipy termuat", problems)
 
     def coupons(self, package: str) -> None:
         """Operator kupon kalibrasi: file STL, lembar ukur, laporan, dan objek pratinjau."""

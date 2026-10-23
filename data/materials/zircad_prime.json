@@ -2,13 +2,97 @@
   "id": "ivoclar_zircad_prime_full_contour",
   "name": "IPS e.max ZirCAD Prime (full-contour)",
   "manufacturer": "Ivoclar",
-  "min_thickness_anterior_mm": 0.8,
-  "min_thickness_posterior_mm": 1.0,
-  "connector_area_mm2": {
-    "anterior": 9,
-    "posterior": 9
-  },
-  "cement_gap_um": 50,
-  "source": "Ivoclar IFU IPS e.max ZirCAD (labside); konektor untuk bridge 3 unit",
-  "source_date": "2023"
+  "params": {
+    "min_thickness_anterior_mm": {
+      "value": 0.8,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Minimal thickness'. Sama dengan IFU di RESEARCH.md §2 [25]",
+      "source_date": "2024-02-07"
+    },
+    "min_thickness_premolar_mm": {
+      "value": 1.0,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Minimal thickness'. Sama dengan IFU di RESEARCH.md §2 [25]",
+      "source_date": "2024-02-07"
+    },
+    "min_thickness_molar_mm": {
+      "value": 1.0,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Minimal thickness'. Sama dengan IFU di RESEARCH.md §2 [25]",
+      "source_date": "2024-02-07"
+    },
+    "connector_area_anterior_mm2": {
+      "value": 9,
+      "unit": "mm2",
+      "status": "default_pabrikan",
+      "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Minimum connector area between two crowns'. Sama dengan IFU di RESEARCH.md §2 [25] (bridge 3 unit)",
+      "source_date": "2024-02-07"
+    },
+    "connector_area_posterior_mm2": {
+      "value": 9,
+      "unit": "mm2",
+      "status": "default_pabrikan",
+      "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Minimum connector area between two crowns'. Sama dengan IFU di RESEARCH.md §2 [25] (bridge 3 unit)",
+      "source_date": "2024-02-07"
+    },
+    "cement_gap_um": {
+      "value": 60,
+      "unit": "um",
+      "status": "default_pabrikan",
+      "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Gap thickness of cement' 0.06 mm. Menggantikan default literatur 50 um",
+      "source_date": "2024-02-07"
+    },
+    "cement_gap_from_margin_mm": {
+      "value": 1.0,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Beginning of cement' = slider 'From margin' (DTX)",
+      "source_date": "2024-02-07"
+    },
+    "radial_spacing_um": {
+      "value": 10,
+      "unit": "um",
+      "status": "default_pabrikan",
+      "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Add. distance x/y' 0.01 mm = Additional spacing Radial (EXW, DTX), berlaku juga di zona tanpa cement gap",
+      "source_date": "2024-02-07"
+    },
+    "axial_spacing_um": {
+      "value": 0,
+      "unit": "um",
+      "status": "perlu_kalibrasi",
+      "source": "tidak tercantum di IVO; 0 sampai ada sumber (docs/PHASE2.md §5.3)",
+      "source_date": "2026-10-23"
+    },
+    "margin_horizontal_mm": {
+      "value": 0.2,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Horizontal margin thickness' = slider Horizontal (DTX, EXW)",
+      "source_date": "2024-02-07"
+    },
+    "margin_angled_length_mm": {
+      "value": 0.1,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Angled margin thickness' = slider Angled, panjang bagian bersudut (DTX, EXW)",
+      "source_date": "2024-02-07"
+    },
+    "margin_angle_deg": {
+      "value": 65,
+      "unit": "deg",
+      "status": "default_pabrikan",
+      "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Crown margin angle' = slider Angle (DTX, EXW); acuan sudut masih interpretasi (PHASE2.md S4)",
+      "source_date": "2024-02-07"
+    },
+    "milling_tool_diameter_mm": {
+      "value": 1.2,
+      "unit": "mm",
+      "status": "default_pabrikan",
+      "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Anticipate milling: Yes, Diameter 1.2 mm'",
+      "source_date": "2024-02-07"
+    }
+  }
 }

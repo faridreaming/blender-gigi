@@ -65,6 +65,26 @@ WHEELS = (
         "7a5469641713f1bc291fea873cb134c435704df36828d134190fc2475b304259",
         platform="manylinux_2_28_x86_64",
     ),
+    # scipy: Fase 2 (docs/PHASE2.md §6). macOS memakai macosx_12_0 (OpenBLAS) karena macosx_14_0
+    # tidak bisa diinstal di macOS 13, minimum Blender 5.2.
+    Wheel(
+        "scipy-1.18.1-cp313-cp313-win_amd64.whl",
+        "scipy==1.18.1",
+        "559ed65f60c1af5a03f3912605a1b5114f522c7c32fb23c3376ae8f03219fe28",
+        platform="win_amd64",
+    ),
+    Wheel(
+        "scipy-1.18.1-cp313-cp313-macosx_12_0_arm64.whl",
+        "scipy==1.18.1",
+        "e6fb6a55cc0ba97b59a1f288fb86dc6fce8bdfc0fffcbfd015e3a954bf2a2d93",
+        platform="macosx_13_0_arm64",
+    ),
+    Wheel(
+        "scipy-1.18.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+        "scipy==1.18.1",
+        "fdaf5ea890a6183d0565f51a61799d67081bd5b1cf03c5f4b3fd3732108625c9",
+        platform="manylinux_2_28_x86_64",
+    ),
 )
 
 
