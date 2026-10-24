@@ -42,6 +42,7 @@ Platform rilis (field `platforms` di manifest, lihat §4): `windows-x64`, `macos
 dentalcad/                          # root repo == root isi .zip extension
 ├─ blender_manifest.toml
 ├─ LICENSE                          # teks GPL-3.0, ikut di dalam zip
+├─ README.md                        # status, instalasi, catatan paten; tidak ikut zip
 ├─ __init__.py                      # entry point: register_submodule_factory
 ├─ core/                            # murni Python+numpy, TIDAK PERNAH import bpy/bmesh/mathutils
 │  ├─ __init__.py
@@ -199,6 +200,7 @@ paths_exclude_pattern = [
   "/tests/",
   "/.gitignore",
   "/CLAUDE.md",
+  "/README.md",
   "/requirements-dev.txt",
 ]
 ```

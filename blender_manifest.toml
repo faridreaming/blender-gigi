@@ -53,5 +53,6 @@ paths_exclude_pattern = [
   "/tests/",
   "/.gitignore",
   "/CLAUDE.md",
+  "/README.md",
   "/requirements-dev.txt",
 ]

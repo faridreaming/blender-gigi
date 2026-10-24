@@ -1,6 +1,6 @@
 # Fase 2: Crown zirkonia single (rancangan)
 
-Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis ditutup** (2026-10-24) dengan ringkasan status di akhir §5.1: terbukti pada data sintetis saja, dan **belum divalidasi dengan scan asli**. Hasil Detect dan Draw selalu berstatus **draf**, hanya margin yang sudah di-**Confirm** yang boleh dipakai langkah crown dan ekspor, dan segmen merah hanya petunjuk ringan. **§5.2 sumbu insersi dan undercut terimplementasi** (2026-10-24), juga hanya terbukti pada data sintetis (hasil di §5.2). **§5.3 spacer terimplementasi** (2026-10-24), sama-sama hanya terbukti pada data sintetis (hasil di §5.3). Fitur §5.4 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
+Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis ditutup** (2026-10-24) dengan ringkasan status di akhir §5.1: terbukti pada data sintetis saja, dan **belum divalidasi dengan scan asli**. Hasil Detect dan Draw selalu berstatus **draf**, hanya margin yang sudah di-**Confirm** yang boleh dipakai langkah crown dan ekspor, dan segmen merah hanya petunjuk ringan. **§5.2 sumbu insersi dan undercut terimplementasi** (2026-10-24), juga hanya terbukti pada data sintetis (hasil di §5.2). **§5.3 spacer terimplementasi** (2026-10-24) dengan normal dihaluskan dan block-out kedua untuk milling 3/4 axis, sama-sama hanya terbukti pada data sintetis (hasil di §5.3). Catatan paten: EP2187833B1 (Institut Straumann AG) masih aktif di Eropa menurut Google Patents (perkiraan berakhir 2028-07-24). Versi AS US20100233659 ditinggalkan sejak 2014. Pengguna di Eropa sebaiknya mematikan block-out kedua (`use_second_block_out`) sampai paten berakhir. Ini bukan kesimpulan hukum. Fitur §5.4 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
 
 Dasar dokumen ini:
 - RESEARCH.md Roadmap, Fase 2: deliverable *margin semi-auto, sumbu insersi/undercut, spacer, library CC0 + morphing, kontak, heatmap ketebalan, ekspor STL ke MillBox*; kriteria selesai *20 kasus: deviasi margin vs desain exocad ≤50 µm (median), lolos cek ketebalan, 5 crown dimilling dan dicoba di die*.
@@ -48,6 +48,7 @@ Material: preset `data/materials/zircad_prime.json` dari Fase 0 dipakai, dengan 
 | **EXI** | exocad wiki, "Setting insertion axis" (wiki.exocad.com/wiki/index.php/Setting_Insertion_axis). Server aslinya menolak koneksi saat dicek (2026-10-24); yang dibaca adalah arsip Wayback Machine snapshot 2024-02-23, oldid 12143, dokumentasi rilis 2020 ke atas. | Sumbu dideteksi otomatis; pengguna diminta mengecek "When the software has doubts about the insertion axis it auto-detected", biasanya "when the margin line lies within an undercut area". Software menyajikan sumbu "by adjusting the viewpoint so that you look onto the preparation(s) from the insertion direction" dan menandai undercut dengan skala warna. Mengubah sumbu: putar pandangan lalu "Set current view as insertion axis", atau seret bola di ujung panah; visualisasi undercut diperbarui. |
 | **EXQ** | "exocad Quick Guide: Crown Bottoms", transkrip video di voicetube.com/videos/46150. Halaman aslinya hanya memuat "Loading..." saat dicek; yang dibaca adalah transkrip di arsip Wayback snapshot 2024-02-25. Video aslinya dari exocad; tanggal rilis video dan versi exocad yang ditunjukkan tidak tercantum di transkrip. | "A red arrow indicates that the insertion axis for this tooth might not be optimally defined"; "While rotating, undercuts are marked in red"; "Undercuts are always blocked out parallel to the insertion axis" kecuali sudut dipilih. "Don't block out zone near prepline" = "untouchable zone" di sekitar margin yang tidak pernah di-block-out; "The default value in our generic version is 0.1 mm"; 3-axis biasanya 0; 5-axis disarankan sama dengan jarak cement gap. Urutan: "In most material configurations for 5-axis milling, the cement gap is applied after doing the block-out", dan "for steep preparations, generating the cement gap itself may cause new undercuts" ("a 5-axis machine can produce these"). "Additional Spacing" ditambahkan "to the entire crown bottom, independent of the cement gap", cement gap "applied on top of the additional spacing"; "Radial" = offset "perpendicular to the occlusal direction". Bentuk atau lebar transisi zona tidak disebut. |
 | **PAT2** | Google Patents, DE102006044215A1 / DE102006044215B4 "Dental prosthesis part's (e.g. crown) insertion axial direction optimizing method", Sirona Dental Systems GmbH, penemu Frank Seibert (dicek 2026-10-24). | Prioritas dan pengajuan 2006-09-15, publikasi A1 2008-03-27, diberikan B4 2014-02-20. Status "Expired - Fee Related"; event R119 2024-04-03 "Application deemed withdrawn, or ip right lapsed, due to non-payment of renewal fee". Halaman yang sama masih menulis "Anticipated expiration" 2026-09-16, jadi status perlu dicek di register DPMA. Isi: daerah terbayang dari arah pandang ditandai, sumbu disesuaikan dengan arah pandang yang diubah pengguna, dan kandidat arah di bola dinilai dengan kriteria kualitas, dioptimalkan pengguna atau otomatis. Google: "The legal status is an assumption and is not a legal conclusion." |
+| **PAT3** | Google Patents, US20100233659A1 dan EP2187833B1 "Method for designing a tooth replacement part", Institut Straumann AG, penemu Stephan Holzner dan Gerhard Weber (dicek 2026-10-24). Klaim EP dibaca dari dokumen B1 di server publikasi EPO (data.epo.org); teks klaim bahasa Inggris terpotong, jadi yang dibaca teks Jerman. EP Register menolak akses (HTTP 403). | **US20100233659A1:** prioritas 2007-07-25, pengajuan 2008-07-24, publikasi 2010-09-16, status "Abandoned"; event "ABANDONED -- FAILURE TO RESPOND TO AN OFFICE ACTION" 2014-04-03 (dari ringkasan halaman, belum dicek di USPTO). **EP2187833B1:** diberikan 2019-05-22, status "Active", "2028-07-24 Anticipated expiration". Menurut ringkasan halaman (belum dicek di register), tidak ada oposisi, banyak negara gugur karena tidak membayar biaya atau tidak menyerahkan terjemahan, dan biaya tahunan 2025 dibayar untuk DE, ES, FR, GB, CH. Daftar keluarga di ringkasan halaman: US dan CA ditinggalkan, DE dan WO berhenti, ES aktif, JP tercantum "pending"; tidak ada anggota Indonesia. Daftar keluarga ini belum dicek di Espacenet. **Klaim 1 (EP, teks Jerman):** metode komputer: menyediakan spacing antara bagian prostesis dan sisa gigi, lalu memeriksa apakah ada undercut terhadap arah insersi. Spacing punya dua atau lebih zona tebal berbeda dengan zona transisi di antaranya, dan bentuk transisinya dibatasi supaya tidak melewati bidang yang sejajar arah insersi, "so dass ein Hinterschnitt vermieden wird". Klaim 4: undercut dihapus, atau spacing diubah otomatis sampai tidak ada undercut; klaim 9: pemeriksaan otomatis setelah setiap perubahan. Google: "The legal status is an assumption and is not a legal conclusion." |
 | **PAT** | Google Patents, US8359114B2 "Haptically enabled dental modeling system", DentsAble Inc (patents.google.com/patent/US8359114B2/en) | Diberikan 2013-01-22; status "Expired - Fee Related"; event "PATENT EXPIRED DUE TO NONPAYMENT OF MAINTENANCE FEES" (2017); expiration teradjust semula 2029-10-19. Google menulis: "The legal status is an assumption and is not a legal conclusion." |
 
 ## 3. Teeth3DS+: hasil pengecekan
@@ -623,7 +624,9 @@ Kesimpulan:
     gap(d) · n + s_r · h(n) + s_a · (n·a) a
 
 - **d** = jarak geodesik ke margin line.
-- **n** = normal vertex die hasil block-out, **a** = sumbu insersi.
+- **n** = normal vertex die hasil block-out yang **dihaluskan** (rata-rata Gauss dalam radius max(0,5 mm, 10σ), sama dengan peta undercut §5.2), **a** = sumbu insersi.
+  - *Beda dari versi pertama:* normal mentah. Pada derau ≥ 10 µm itu membuat 19-144 lipatan non-sliver (di atap dekat kutub) dan undercut baru sampai 1,1 mm di dinding (set ukur pertama, sekarang set tuning).
+  - Konsekuensi yang diukur: di dalam radius penghalusan dari crease, normal dinding tercampur dengan normal ledge, jadi spacing radial di sana lebih kecil (sekitar 4,7 µm alih-alih 9,9 µm di dinding 0,4 mm dari crease shoulder; `test_smoothing_reduces_radial_spacing_next_to_a_crease`).
 - **h(n)** = komponen n yang tegak lurus sumbu (radial = "perpendicular to the occlusal direction", EXQ).
 - **gap(d)** = 0 sampai "from margin", lalu naik linear sepanjang lebar transisi sampai cement gap penuh.
 - **Spacing** radial s_r dan axial s_a berlaku di seluruh permukaan dalam, termasuk zona tanpa cement gap. Cement gap ditambahkan di atasnya (EXQ, DTX). Bila s_r = s_a, offset spacing = s·n (diuji).
@@ -634,6 +637,11 @@ Kesimpulan:
   - *Beda dari rancangan:* rancangan menyebut Dijkstra di graf edge. Pada silinder ber-scallop yang dibuka menjadi bidang (jawaban tertutup), Dijkstra meleset p95 185-202 µm. Fast marching saja meleset p95 6 µm (grid teratur) dan 69 µm (jitter 0,45); dengan relaksasi segitiga maya, 16 µm dan 50 µm.
   - Batas sudut 150° memberi p95 lebih kecil pada mesh ber-jitter (40 µm) tetapi taksiran terlalu kecil sampai 87 µm di grid teratur. 120° membatasi taksiran terlalu kecil ke 32 µm, dan letaknya jauh dari batas zona.
 - **Pemeriksaan:** face permukaan dalam yang terbalik terhadap face die dihitung, dengan segitiga sliver (tinggi < 10 µm) dipisah. Undercut baru di permukaan dalam diukur dengan uji bayangan §5.2.
+- **Milling 3/4 axis vs 5 axis** (`milling_axes` di preset):
+  - **3 atau 4 axis:** block-out kedua sejajar sumbu pada permukaan dalam setelah cement gap, sampai margin (zona 0), dengan algoritma yang sama dengan block-out §5.2 (`core.insertion.block_out_mesh`). Sumber EXQ: "For 3- or 4-axis production, material configurations typically define an additional block-out being applied after generating the cement gap", "to avoid any undercuts that 4-axis machines cannot mill", dan "undercuts are very often blocked out all the way down to the margin using a value set to 0".
+  - **5 axis:** tidak ada block-out kedua (EXQ: "a 5-axis machine can produce these"). Undercut permukaan dalam ditulis sebagai atribut warna `DentalCAD Undercut` di `<die> Spacer` dan ditampilkan dengan **Show Undercuts** (EXQ: "The button "Show undercuts" leads to the cement gap undercuts being displayed with a color scale").
+  - Opsi operator `use_second_block_out` (default aktif) mematikan block-out kedua. Peta undercut tetap ditulis.
+- **Catatan paten (PAT3, §2.1):** "periksa undercut setelah spacing" bersinggungan dengan langkah di klaim 1 EP2187833B1, dan "hapus undercut atau ubah spacing otomatis" dengan klaim 4/9. EP2187833B1 (Institut Straumann AG) masih aktif di Eropa menurut Google Patents (perkiraan berakhir 2028-07-24). Versi AS US20100233659 ditinggalkan sejak 2014. Pengguna di Eropa sebaiknya mematikan block-out kedua (`use_second_block_out`) sampai paten berakhir. Ini bukan kesimpulan hukum. Pemeriksaan undercut setelah spacing yang sudah ada sejak `3f931af` dibiarkan atas keputusan maintainer (2026-10-24) dan perlu ditinjau ahli paten sebelum rilis.
 
 **Parameter** (`data/materials/zircad_prime.json`):
 
@@ -644,100 +652,161 @@ Kesimpulan:
 | Spacing radial | default pabrikan | 0,01 mm | IVO "Add. distance x/y" = Additional spacing Radial (EXW, DTX, EXQ). |
 | Spacing axial | perlu kalibrasi | 0 mm + peringatan | Tidak tercantum di IVO. Di exocad default terkunci bersama radial (DTX, EXQ: "Both sliders are locked"), tetapi IVO hanya memberi x/y, jadi tidak diasumsikan sama. |
 | Lebar transisi (`cement_gap_transition_mm`) | perlu kalibrasi | 0,5 mm, linear + peringatan | Tidak ada di IVO, DTX, EXW, maupun EXQ. |
+| Jumlah sumbu mesin milling (`milling_axes`) | praktik lab | 5 (isian sementara) | Diisi dari mesin lab: 3, 4, atau 5. Fase 2 belum punya mesin milling, jadi nilai 5 hanya isian. 3/4 axis menambah block-out kedua (EXQ). |
 
 Catatan: angka Kulzer untuk exocad (gap 0,08 mm, beginning of cement gap 1 mm) **tidak** dipakai, karena itu untuk resin cetak cor dima Print Cast ruby, bukan zirkonia.
 
-**Benchmark** (`python scripts/spacer_benchmark.py --seeds 3`, 2026-10-24).
-- Set ukur didefinisikan dan dikunci di commit `09e4c7e`, lalu dijalankan sekali. Tidak ada parameter yang disetel di benchmark ini, karena semuanya dari preset.
-- Margin analitis, sumbu sebenarnya, dan block-out §5.2 dengan zona 0,1 mm.
-- **Jawaban benar eksak** hanya ada untuk die lingkaran tanpa scallop dan tanpa undercut: jarak geodesik ke margin = panjang busur meridian (permukaan putar), dan offset benar = gap(d)·n + s_r·h(n) dari normal analitis.
-- Untuk die elips, ber-scallop, atau ber-undercut hanya lipatan, undercut baru, dan waktu yang dilaporkan.
+**Benchmark** (`python scripts/spacer_benchmark.py --set <set> --seeds 3`, 2026-10-24).
+- Margin analitis, sumbu sebenarnya, block-out §5.2 dengan zona 0,1 mm, lalu spacer. Setiap kasus diukur untuk 5 axis (undercut permukaan dalam setelah spacing) dan 3/4 axis (block-out kedua, lalu sisa undercut).
+- **Jawaban benar eksak** hanya ada untuk die lingkaran tanpa scallop dan tanpa undercut: jarak geodesik ke margin = panjang busur meridian (permukaan putar), dan offset benar = gap(d)·n + s_r·h(n) dari normal analitis. Untuk die elips, ber-scallop, atau ber-undercut hanya lipatan, undercut, dan waktu yang dilaporkan.
 - "Gap di zona nol" = vertex dengan jarak benar < 1 mm yang mendapat cement gap > 1 µm.
 - Galat jarak geodesik pada derau tinggi sebagian adalah efek yang nyata, bukan galat metode: permukaan berderau memang lebih panjang daripada permukaan analitis yang dijadikan acuan.
+- **Riwayat set:**
+  - *tuning*: set ukur pertama, dikunci di `09e4c7e` dan dijalankan sekali dengan normal mentah. Hasilnya saat itu: lipatan non-sliver 0-5 tanpa derau dan 19-144 dengan derau; undercut baru di permukaan dalam 30-50 µm (derau 10 µm), 125-365 µm (30 µm), dan 605-1145 µm (90 µm). Hasil itu dipakai untuk memperbaiki arah offset dan menambah block-out kedua, jadi set ini sekarang set tuning. Tabelnya di bawah adalah hasil ulang dengan kode baru.
+  - *ukur*: set ukur kedua, didefinisikan dan dikunci bersama kode di commit `7b2e009`, lalu dijalankan sekali.
+- **Kriteria maintainer:** untuk 3/4 axis, nol undercut di permukaan dalam pada derau 0-30 µm (resolusi uji 20 µm). Lipatan non-sliver dilaporkan apa adanya.
 
-| Die | Finish | Derau | Galat jarak geodesik median / p95 / maks | Gap di zona nol (vertex, maks) | Galat gap zona penuh maks | Galat gap terbesar (transisi) | Galat spacing radial dinding maks | Galat vektor offset p95 / maks | Face terlipat (bukan sliver) | Undercut baru di permukaan dalam | Waktu spacer |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| lingkaran r5 taper 6 | shoulder | 0 µm | 10 / 56 / 171 µm | 35 dari 1011, 12,1 µm | 3,4 µm | 13,9 µm | 9,9 µm | 6,7 / 21,3 µm | 0 (+7 sliver) | 10 µm | 0,67 s |
-| lingkaran r5 taper 6 | shoulder | 10 µm | 11 / 60 / 184 µm | 39 dari 1008, 20,7 µm | 3,2 µm | 20,7 µm | 8,6 µm | 9,3 / 58,5 µm | 22 (+12 sliver) | 50 µm | 0,64 s |
-| lingkaran r5 taper 6 | shoulder | 30 µm | 29 / 91 / 199 µm | 58 dari 1005, 22,5 µm | 2,3 µm | 22,5 µm | 9,2 µm | 18,5 / 80,2 µm | 41 (+10 sliver) | 125 µm | 0,75 s |
-| lingkaran r5 taper 6 | shoulder | 90 µm | 130 / 260 / 519 µm | 163 dari 988, 40,1 µm | 1,0 µm | 45,5 µm | 8,6 µm | 45,4 / 88,2 µm | 62 (+7 sliver) | 1095 µm | 0,67 s |
-| lingkaran r5 taper 6 | chamfer | 0 µm | 9 / 57 / 162 µm | 5 dari 647, 6,9 µm | 0,0 µm | 16,6 µm | 8,9 µm | 5,9 / 21,2 µm | 0 (+9 sliver) | 0 µm | 0,72 s |
-| lingkaran r5 taper 6 | chamfer | 10 µm | 10 / 62 / 172 µm | 4 dari 649, 7,6 µm | 0,0 µm | 12,8 µm | 9,1 µm | 9,0 / 57,6 µm | 21 (+13 sliver) | 30 µm | 0,67 s |
-| lingkaran r5 taper 6 | chamfer | 30 µm | 21 / 79 / 189 µm | 8 dari 647, 8,5 µm | 0,0 µm | 13,3 µm | 9,9 µm | 18,4 / 79,9 µm | 39 (+9 sliver) | 125 µm | 0,67 s |
-| lingkaran r5 taper 6 | chamfer | 90 µm | 71 / 200 / 421 µm | 45 dari 637, 25,7 µm | 0,5 µm | 32,1 µm | 8,3 µm | 46,3 / 88,0 µm | 65 (+7 sliver) | 1145 µm | 0,70 s |
-| lingkaran r4 taper 10 tinggi 4 | shoulder | 0 µm | 10 / 38 / 120 µm | 21 dari 1012, 7,0 µm | 3,7 µm | 10,0 µm | 0,0 µm | 6,3 / 18,0 µm | 4 (+12 sliver) | 10 µm | 0,67 s |
-| lingkaran r4 taper 10 tinggi 4 | shoulder | 10 µm | 8 / 42 / 107 µm | 23 dari 1009, 11,2 µm | 3,2 µm | 11,2 µm | 9,5 µm | 10,7 / 68,7 µm | 49 (+17 sliver) | 30 µm | 0,78 s |
-| lingkaran r4 taper 10 tinggi 4 | shoulder | 30 µm | 27 / 75 / 136 µm | 53 dari 1005, 13,2 µm | 1,4 µm | 13,2 µm | 9,2 µm | 25,9 / 84,0 µm | 85 (+12 sliver) | 330 µm | 0,66 s |
-| lingkaran r4 taper 10 tinggi 4 | shoulder | 90 µm | 118 / 236 / 484 µm | 145 dari 989, 36,9 µm | 3,4 µm | 39,9 µm | 8,3 µm | 57,2 / 90,0 µm | 118 (+6 sliver) | 630 µm | 0,69 s |
-| lingkaran r4 taper 10 tinggi 4 | chamfer | 0 µm | 6 / 38 / 113 µm | 1 dari 646, 3,4 µm | 0,0 µm | 11,3 µm | 0,0 µm | 6,0 / 16,7 µm | 3 (+10 sliver) | 0 µm | 0,67 s |
-| lingkaran r4 taper 10 tinggi 4 | chamfer | 10 µm | 9 / 47 / 121 µm | 2 dari 648, 3,6 µm | 0,0 µm | 8,0 µm | 9,2 µm | 10,7 / 67,1 µm | 41 (+17 sliver) | 30 µm | 0,67 s |
-| lingkaran r4 taper 10 tinggi 4 | chamfer | 30 µm | 20 / 77 / 146 µm | 4 dari 646, 4,8 µm | 0,0 µm | 9,3 µm | 9,9 µm | 24,9 / 83,4 µm | 81 (+13 sliver) | 345 µm | 0,68 s |
-| lingkaran r4 taper 10 tinggi 4 | chamfer | 90 µm | 75 / 228 / 459 µm | 35 dari 638, 24,9 µm | 1,5 µm | 29,1 µm | 7,9 µm | 56,5 / 89,7 µm | 130 (+10 sliver) | 805 µm | 0,76 s |
-| elips + scallop PL 2 | shoulder | 0 µm | - | - | - | - | - | - | 1 (+8 sliver) | 10 µm | 0,66 s |
-| elips + scallop PL 2 | shoulder | 10 µm | - | - | - | - | - | - | 25 (+12 sliver) | 30 µm | 0,67 s |
-| elips + scallop PL 2 | shoulder | 30 µm | - | - | - | - | - | - | 47 (+12 sliver) | 245 µm | 0,67 s |
-| elips + scallop PL 2 | shoulder | 90 µm | - | - | - | - | - | - | 78 (+12 sliver) | 755 µm | 0,71 s |
-| elips + scallop PL 2 | chamfer | 0 µm | - | - | - | - | - | - | 1 (+7 sliver) | 10 µm | 0,69 s |
-| elips + scallop PL 2 | chamfer | 10 µm | - | - | - | - | - | - | 23 (+14 sliver) | 30 µm | 0,67 s |
-| elips + scallop PL 2 | chamfer | 30 µm | - | - | - | - | - | - | 46 (+10 sliver) | 150 µm | 0,70 s |
-| elips + scallop PL 2 | chamfer | 90 µm | - | - | - | - | - | - | 80 (+9 sliver) | 855 µm | 0,71 s |
-| elips + CEJ PL 3,5 | shoulder | 0 µm | - | - | - | - | - | - | 3 (+16 sliver) | 10 µm | 0,68 s |
-| elips + CEJ PL 3,5 | shoulder | 10 µm | - | - | - | - | - | - | 54 (+21 sliver) | 30 µm | 0,69 s |
-| elips + CEJ PL 3,5 | shoulder | 30 µm | - | - | - | - | - | - | 89 (+16 sliver) | 345 µm | 1,23 s |
-| elips + CEJ PL 3,5 | shoulder | 90 µm | - | - | - | - | - | - | 142 (+17 sliver) | 835 µm | 0,73 s |
-| elips + CEJ PL 3,5 | chamfer | 0 µm | - | - | - | - | - | - | 5 (+18 sliver) | 10 µm | 0,72 s |
-| elips + CEJ PL 3,5 | chamfer | 10 µm | - | - | - | - | - | - | 50 (+19 sliver) | 30 µm | 0,70 s |
-| elips + CEJ PL 3,5 | chamfer | 30 µm | - | - | - | - | - | - | 87 (+18 sliver) | 365 µm | 0,75 s |
-| elips + CEJ PL 3,5 | chamfer | 90 µm | - | - | - | - | - | - | 144 (+11 sliver) | 605 µm | 0,72 s |
-| lingkaran + undercut 8 | shoulder | 0 µm | - | - | - | - | - | - | 1 (+17 sliver) | 95 µm | 0,70 s |
-| lingkaran + undercut 8 | shoulder | 10 µm | - | - | - | - | - | - | 19 (+15 sliver) | 85 µm | 0,70 s |
-| lingkaran + undercut 8 | shoulder | 30 µm | - | - | - | - | - | - | 38 (+10 sliver) | 210 µm | 0,71 s |
-| lingkaran + undercut 8 | shoulder | 90 µm | - | - | - | - | - | - | 62 (+7 sliver) | 1015 µm | 0,69 s |
-| lingkaran + undercut 8 | chamfer | 0 µm | - | - | - | - | - | - | 1 (+10 sliver) | 85 µm | 0,66 s |
-| lingkaran + undercut 8 | chamfer | 10 µm | - | - | - | - | - | - | 19 (+11 sliver) | 75 µm | 0,66 s |
-| lingkaran + undercut 8 | chamfer | 30 µm | - | - | - | - | - | - | 38 (+10 sliver) | 110 µm | 0,74 s |
-| lingkaran + undercut 8 | chamfer | 90 µm | - | - | - | - | - | - | 67 (+7 sliver) | 1155 µm | 0,70 s |
+**Set tuning (kode baru):**
+
+| Die | Finish | Derau | Galat jarak geodesik median / p95 / maks | Gap di zona nol (vertex, maks) | Galat gap zona penuh maks | Galat gap terbesar (transisi) | Galat spacing radial dinding maks | Galat vektor offset p95 / maks | Face terlipat (bukan sliver) | Undercut permukaan dalam, 5 axis | 3/4 axis: block-out kedua (vertex, maks) | 3/4 axis: sisa undercut | Waktu spacer + block-out kedua |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| lingkaran r5 taper 6 | shoulder | 0 µm | 10 / 56 / 171 µm | 35 dari 1011, 12,1 µm | 3,4 µm | 13,9 µm | 9,9 µm | 7,2 / 18,0 µm | 0 (+1 sliver) | 10 µm | 27, 20 µm | 0 µm | 0,96 + 0,37 s |
+| lingkaran r5 taper 6 | shoulder | 10 µm | 11 / 60 / 184 µm | 39 dari 1008, 20,7 µm | 3,2 µm | 20,7 µm | 9,6 µm | 7,3 / 24,7 µm | 0 (+2 sliver) | 50 µm | 85, 50 µm | 0 µm | 0,99 + 0,49 s |
+| lingkaran r5 taper 6 | shoulder | 30 µm | 29 / 91 / 199 µm | 58 dari 1005, 22,5 µm | 2,3 µm | 22,5 µm | 9,7 µm | 9,2 / 26,7 µm | 0 (+3 sliver) | 65 µm | 179, 65 µm | 0 µm | 0,85 + 0,50 s |
+| lingkaran r5 taper 6 | shoulder | 90 µm | 130 / 260 / 519 µm | 163 dari 988, 40,1 µm | 1,0 µm | 45,5 µm | 9,8 µm | 19,8 / 45,0 µm | 0 (+1 sliver) | 275 µm | 313, 275 µm | 0 µm | 1,05 + 1,05 s |
+| lingkaran r5 taper 6 | chamfer | 0 µm | 9 / 57 / 162 µm | 5 dari 647, 6,9 µm | 0,0 µm | 16,6 µm | 8,4 µm | 5,7 / 17,6 µm | 0 (+2 sliver) | 0 µm | 0, 0 µm | 0 µm | 0,88 + 0,25 s |
+| lingkaran r5 taper 6 | chamfer | 10 µm | 10 / 62 / 172 µm | 4 dari 649, 7,6 µm | 0,0 µm | 12,8 µm | 8,7 µm | 5,9 / 19,5 µm | 0 (+1 sliver) | 30 µm | 11, 30 µm | 0 µm | 1,13 + 0,49 s |
+| lingkaran r5 taper 6 | chamfer | 30 µm | 21 / 79 / 189 µm | 8 dari 647, 8,5 µm | 0,0 µm | 13,3 µm | 9,1 µm | 8,0 / 25,4 µm | 0 (+2 sliver) | 65 µm | 69, 65 µm | 0 µm | 0,97 + 0,52 s |
+| lingkaran r5 taper 6 | chamfer | 90 µm | 71 / 200 / 421 µm | 45 dari 637, 25,7 µm | 0,5 µm | 32,1 µm | 8,0 µm | 11,8 / 32,3 µm | 0 (+1 sliver) | 150 µm | 259, 150 µm | 0 µm | 0,98 + 0,86 s |
+| lingkaran r4 taper 10 tinggi 4 | shoulder | 0 µm | 10 / 38 / 120 µm | 21 dari 1012, 7,0 µm | 3,7 µm | 10,0 µm | 0,0 µm | 6,3 / 15,6 µm | 0 (+1 sliver) | 0 µm | 0, 0 µm | 0 µm | 0,94 + 0,13 s |
+| lingkaran r4 taper 10 tinggi 4 | shoulder | 10 µm | 8 / 42 / 107 µm | 23 dari 1009, 11,2 µm | 3,2 µm | 11,2 µm | 9,8 µm | 6,3 / 16,6 µm | 0 (+0 sliver) | 30 µm | 20, 30 µm | 0 µm | 1,00 + 0,35 s |
+| lingkaran r4 taper 10 tinggi 4 | shoulder | 30 µm | 27 / 75 / 136 µm | 53 dari 1005, 13,2 µm | 1,4 µm | 13,2 µm | 9,7 µm | 7,5 / 21,3 µm | 0 (+1 sliver) | 50 µm | 121, 60 µm | 0 µm | 0,87 + 0,43 s |
+| lingkaran r4 taper 10 tinggi 4 | shoulder | 90 µm | 118 / 236 / 484 µm | 145 dari 989, 36,9 µm | 3,4 µm | 39,9 µm | 9,7 µm | 17,5 / 40,9 µm | 0 (+1 sliver) | 125 µm | 294, 125 µm | 0 µm | 1,11 + 0,61 s |
+| lingkaran r4 taper 10 tinggi 4 | chamfer | 0 µm | 6 / 38 / 113 µm | 1 dari 646, 3,4 µm | 0,0 µm | 11,3 µm | 0,0 µm | 3,8 / 15,6 µm | 0 (+0 sliver) | 0 µm | 0, 0 µm | 0 µm | 1,05 + 0,16 s |
+| lingkaran r4 taper 10 tinggi 4 | chamfer | 10 µm | 9 / 47 / 121 µm | 2 dari 648, 3,6 µm | 0,0 µm | 8,0 µm | 8,4 µm | 3,9 / 16,6 µm | 0 (+1 sliver) | 30 µm | 11, 30 µm | 0 µm | 0,93 + 0,25 s |
+| lingkaran r4 taper 10 tinggi 4 | chamfer | 30 µm | 20 / 77 / 146 µm | 4 dari 646, 4,8 µm | 0,0 µm | 9,3 µm | 8,4 µm | 6,4 / 21,4 µm | 0 (+1 sliver) | 50 µm | 64, 50 µm | 0 µm | 0,98 + 0,41 s |
+| lingkaran r4 taper 10 tinggi 4 | chamfer | 90 µm | 75 / 228 / 459 µm | 35 dari 638, 24,9 µm | 1,5 µm | 29,1 µm | 8,1 µm | 9,8 / 29,2 µm | 0 (+1 sliver) | 150 µm | 268, 150 µm | 0 µm | 1,40 + 0,79 s |
+| elips + scallop PL 2 | shoulder | 0 µm | - | - | - | - | - | - | 0 (+1 sliver) | 10 µm | 37, 20 µm | 0 µm | 0,95 + 0,40 s |
+| elips + scallop PL 2 | shoulder | 10 µm | - | - | - | - | - | - | 0 (+1 sliver) | 50 µm | 102, 50 µm | 0 µm | 0,84 + 0,53 s |
+| elips + scallop PL 2 | shoulder | 30 µm | - | - | - | - | - | - | 0 (+2 sliver) | 65 µm | 184, 75 µm | 0 µm | 0,91 + 0,55 s |
+| elips + scallop PL 2 | shoulder | 90 µm | - | - | - | - | - | - | 0 (+2 sliver) | 135 µm | 342, 135 µm | 0 µm | 1,09 + 0,93 s |
+| elips + scallop PL 2 | chamfer | 0 µm | - | - | - | - | - | - | 0 (+2 sliver) | 10 µm | 2, 10 µm | 0 µm | 0,88 + 0,31 s |
+| elips + scallop PL 2 | chamfer | 10 µm | - | - | - | - | - | - | 0 (+1 sliver) | 30 µm | 17, 30 µm | 0 µm | 1,00 + 0,35 s |
+| elips + scallop PL 2 | chamfer | 30 µm | - | - | - | - | - | - | 0 (+2 sliver) | 65 µm | 79, 65 µm | 0 µm | 0,98 + 0,48 s |
+| elips + scallop PL 2 | chamfer | 90 µm | - | - | - | - | - | - | 0 (+2 sliver) | 245 µm | 281, 245 µm | 0 µm | 1,04 + 1,02 s |
+| elips + CEJ PL 3,5 | shoulder | 0 µm | - | - | - | - | - | - | 0 (+1 sliver) | 10 µm | 30, 20 µm | 0 µm | 1,08 + 0,38 s |
+| elips + CEJ PL 3,5 | shoulder | 10 µm | - | - | - | - | - | - | 0 (+2 sliver) | 30 µm | 78, 40 µm | 0 µm | 1,01 + 0,48 s |
+| elips + CEJ PL 3,5 | shoulder | 30 µm | - | - | - | - | - | - | 0 (+3 sliver) | 65 µm | 162, 70 µm | 0 µm | 0,92 + 0,42 s |
+| elips + CEJ PL 3,5 | shoulder | 90 µm | - | - | - | - | - | - | 1 (+1 sliver) | 255 µm | 355, 255 µm | 0 µm | 1,02 + 1,01 s |
+| elips + CEJ PL 3,5 | chamfer | 0 µm | - | - | - | - | - | - | 0 (+2 sliver) | 10 µm | 5, 20 µm | 0 µm | 0,89 + 0,33 s |
+| elips + CEJ PL 3,5 | chamfer | 10 µm | - | - | - | - | - | - | 1 (+1 sliver) | 30 µm | 31, 30 µm | 0 µm | 0,85 + 0,40 s |
+| elips + CEJ PL 3,5 | chamfer | 30 µm | - | - | - | - | - | - | 0 (+1 sliver) | 75 µm | 102, 75 µm | 0 µm | 0,88 + 0,53 s |
+| elips + CEJ PL 3,5 | chamfer | 90 µm | - | - | - | - | - | - | 0 (+2 sliver) | 385 µm | 323, 385 µm | 0 µm | 1,09 + 1,13 s |
+| lingkaran + undercut 8 | shoulder | 0 µm | - | - | - | - | - | - | 0 (+5 sliver) | 95 µm | 185, 105 µm | 0 µm | 0,97 + 1,31 s |
+| lingkaran + undercut 8 | shoulder | 10 µm | - | - | - | - | - | - | 0 (+2 sliver) | 85 µm | 211, 105 µm | 0 µm | 1,01 + 0,97 s |
+| lingkaran + undercut 8 | shoulder | 30 µm | - | - | - | - | - | - | 0 (+3 sliver) | 85 µm | 280, 120 µm | 0 µm | 0,98 + 1,26 s |
+| lingkaran + undercut 8 | shoulder | 90 µm | - | - | - | - | - | - | 0 (+1 sliver) | 275 µm | 395, 275 µm | 10 µm | 1,01 + 2,38 s |
+| lingkaran + undercut 8 | chamfer | 0 µm | - | - | - | - | - | - | 0 (+2 sliver) | 85 µm | 83, 95 µm | 0 µm | 0,99 + 0,91 s |
+| lingkaran + undercut 8 | chamfer | 10 µm | - | - | - | - | - | - | 0 (+1 sliver) | 75 µm | 86, 85 µm | 0 µm | 0,94 + 1,08 s |
+| lingkaran + undercut 8 | chamfer | 30 µm | - | - | - | - | - | - | 0 (+2 sliver) | 85 µm | 176, 105 µm | 0 µm | 0,93 + 1,73 s |
+| lingkaran + undercut 8 | chamfer | 90 µm | - | - | - | - | - | - | 0 (+1 sliver) | 150 µm | 350, 150 µm | 0 µm | 1,07 + 1,79 s |
+
+**Set ukur kedua (dijalankan sekali):**
+
+| Die set ukur | Radius x/y | Tinggi | Taper | Lebar finish | PL scallop | Lainnya |
+|---|---|---|---|---|---|---|
+| lingkaran r4,5 | 4,5 / 4,5 mm | 5,5 mm | 8° | 1,0 mm | 0 | |
+| lingkaran r6 | 6,0 / 6,0 mm | 5,0 mm | 4° | 0,7 mm | 0 | |
+| elips taper 12 | 5,2 / 4,6 mm | 5,0 mm | 12° | 1,0 mm | 1,2 mm | |
+| insisif sentral | 3,6 / 3,2 mm | 5,5 mm | 8° | 0,8 mm | 3,2 mm | |
+| elips + undercut | 4,8 / 4,3 mm | 5,0 mm | 6° | 1,0 mm | 1,6 mm | undercut 10° di 200° |
+
+| Die | Finish | Derau | Galat jarak geodesik median / p95 / maks | Gap di zona nol (vertex, maks) | Galat gap zona penuh maks | Galat gap terbesar (transisi) | Galat spacing radial dinding maks | Galat vektor offset p95 / maks | Face terlipat (bukan sliver) | Undercut permukaan dalam, 5 axis | 3/4 axis: block-out kedua (vertex, maks) | 3/4 axis: sisa undercut | Waktu spacer + block-out kedua |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| lingkaran r4,5 taper 8 tinggi 5,5 | shoulder | 0 µm | 11 / 48 / 141 µm | 27 dari 1012, 9,6 µm | 5,5 µm | 11,4 µm | 10,0 µm | 6,6 / 16,9 µm | 0 (+1 sliver) | 10 µm | 3, 10 µm | 0 µm | 0,83 + 0,24 s |
+| lingkaran r4,5 taper 8 tinggi 5,5 | shoulder | 10 µm | 9 / 48 / 138 µm | 28 dari 1009, 15,1 µm | 5,3 µm | 15,1 µm | 9,8 µm | 6,5 / 19,1 µm | 0 (+1 sliver) | 30 µm | 24, 30 µm | 0 µm | 0,83 + 0,28 s |
+| lingkaran r4,5 taper 8 tinggi 5,5 | shoulder | 30 µm | 23 / 75 / 145 µm | 54 dari 1005, 15,5 µm | 4,4 µm | 15,5 µm | 9,7 µm | 8,3 / 23,2 µm | 0 (+1 sliver) | 65 µm | 104, 65 µm | 0 µm | 0,93 + 0,37 s |
+| lingkaran r4,5 taper 8 tinggi 5,5 | shoulder | 90 µm | 109 / 229 / 457 µm | 157 dari 989, 38,1 µm | 8,9 µm | 43,2 µm | 9,8 µm | 18,6 / 41,5 µm | 0 (+2 sliver) | 170 µm | 257, 170 µm | 0 µm | 1,04 + 0,66 s |
+| lingkaran r4,5 taper 8 tinggi 5,5 | chamfer | 0 µm | 6 / 37 / 117 µm | 3 dari 645, 4,7 µm | 0,0 µm | 13,8 µm | 8,2 µm | 4,6 / 16,8 µm | 0 (+1 sliver) | 0 µm | 0, 0 µm | 0 µm | 0,83 + 0,15 s |
+| lingkaran r4,5 taper 8 tinggi 5,5 | chamfer | 10 µm | 7 / 41 / 121 µm | 3 dari 648, 5,0 µm | 0,0 µm | 10,2 µm | 0,0 µm | 4,8 / 18,5 µm | 0 (+1 sliver) | 30 µm | 10, 30 µm | 0 µm | 1,08 + 0,23 s |
+| lingkaran r4,5 taper 8 tinggi 5,5 | chamfer | 30 µm | 15 / 61 / 146 µm | 6 dari 646, 6,1 µm | 0,0 µm | 11,0 µm | 8,4 µm | 7,1 / 23,6 µm | 0 (+1 sliver) | 50 µm | 57, 50 µm | 0 µm | 0,91 + 0,39 s |
+| lingkaran r4,5 taper 8 tinggi 5,5 | chamfer | 90 µm | 59 / 160 / 381 µm | 40 dari 637, 25,3 µm | 0,0 µm | 30,7 µm | 8,0 µm | 10,7 / 30,8 µm | 0 (+2 sliver) | 195 µm | 247, 195 µm | 0 µm | 0,99 + 0,73 s |
+| lingkaran r6 taper 4 finish 0,7 | shoulder | 0 µm | 38 / 121 / 294 µm | 18 dari 1203, 12,1 µm | 1,6 µm | 26,5 µm | 11,5 µm | 7,2 / 26,5 µm | 0 (+3 sliver) | 30 µm | 196, 30 µm | 0 µm | 1,05 + 0,71 s |
+| lingkaran r6 taper 4 finish 0,7 | shoulder | 10 µm | 43 / 125 / 310 µm | 23 dari 1198, 12,2 µm | 0,9 µm | 26,2 µm | 11,6 µm | 7,5 / 26,2 µm | 0 (+3 sliver) | 50 µm | 299, 60 µm | 0 µm | 0,89 + 0,80 s |
+| lingkaran r6 taper 4 finish 0,7 | shoulder | 30 µm | 77 / 160 / 330 µm | 47 dari 1197, 17,2 µm | 0,0 µm | 25,8 µm | 16,7 µm | 10,8 / 32,0 µm | 0 (+3 sliver) | 75 µm | 361, 75 µm | 0 µm | 0,81 + 0,88 s |
+| lingkaran r6 taper 4 finish 0,7 | shoulder | 90 µm | 233 / 422 / 694 µm | 173 dari 1164, 52,0 µm | 0,0 µm | 55,9 µm | 50,6 µm | 21,9 / 55,4 µm | 0 (+2 sliver) | 230 µm | 446, 230 µm | 0 µm | 0,91 + 1,45 s |
+| lingkaran r6 taper 4 finish 0,7 | chamfer | 0 µm | 35 / 123 / 286 µm | 28 dari 918, 18,8 µm | 0,4 µm | 19,7 µm | 18,4 µm | 7,4 / 21,2 µm | 0 (+1 sliver) | 30 µm | 132, 40 µm | 0 µm | 0,91 + 0,74 s |
+| lingkaran r6 taper 4 finish 0,7 | chamfer | 10 µm | 42 / 130 / 292 µm | 29 dari 918, 19,2 µm | 0,0 µm | 20,3 µm | 18,9 µm | 7,6 / 24,2 µm | 1 (+2 sliver) | 50 µm | 259, 60 µm | 0 µm | 0,89 + 0,89 s |
+| lingkaran r6 taper 4 finish 0,7 | chamfer | 30 µm | 58 / 153 / 312 µm | 47 dari 913, 18,3 µm | 0,0 µm | 22,5 µm | 18,2 µm | 10,3 / 31,5 µm | 1 (+3 sliver) | 65 µm | 351, 90 µm | 0 µm | 0,82 + 0,96 s |
+| lingkaran r6 taper 4 finish 0,7 | chamfer | 90 µm | 141 / 343 / 593 µm | 99 dari 897, 37,1 µm | 0,0 µm | 50,2 µm | 36,6 µm | 17,1 / 50,2 µm | 0 (+2 sliver) | 230 µm | 505, 230 µm | 0 µm | 0,99 + 1,30 s |
+| elips taper 12 scallop PL 1,2 | shoulder | 0 µm | - | - | - | - | - | - | 0 (+1 sliver) | 0 µm | 0, 0 µm | 0 µm | 0,92 + 0,13 s |
+| elips taper 12 scallop PL 1,2 | shoulder | 10 µm | - | - | - | - | - | - | 0 (+2 sliver) | 30 µm | 4, 30 µm | 0 µm | 0,88 + 0,21 s |
+| elips taper 12 scallop PL 1,2 | shoulder | 30 µm | - | - | - | - | - | - | 0 (+1 sliver) | 85 µm | 62, 85 µm | 0 µm | 0,87 + 0,37 s |
+| elips taper 12 scallop PL 1,2 | shoulder | 90 µm | - | - | - | - | - | - | 0 (+2 sliver) | 195 µm | 187, 195 µm | 0 µm | 1,03 + 0,55 s |
+| elips taper 12 scallop PL 1,2 | chamfer | 0 µm | - | - | - | - | - | - | 0 (+2 sliver) | 0 µm | 0, 0 µm | 0 µm | 0,85 + 0,14 s |
+| elips taper 12 scallop PL 1,2 | chamfer | 10 µm | - | - | - | - | - | - | 0 (+1 sliver) | 30 µm | 6, 30 µm | 0 µm | 0,84 + 0,22 s |
+| elips taper 12 scallop PL 1,2 | chamfer | 30 µm | - | - | - | - | - | - | 0 (+1 sliver) | 50 µm | 49, 60 µm | 0 µm | 0,92 + 0,30 s |
+| elips taper 12 scallop PL 1,2 | chamfer | 90 µm | - | - | - | - | - | - | 0 (+3 sliver) | 170 µm | 226, 175 µm | 0 µm | 1,05 + 0,58 s |
+| insisif sentral PL 3,2 | shoulder | 0 µm | - | - | - | - | - | - | 0 (+2 sliver) | 10 µm | 1, 10 µm | 0 µm | 0,94 + 0,18 s |
+| insisif sentral PL 3,2 | shoulder | 10 µm | - | - | - | - | - | - | 0 (+1 sliver) | 30 µm | 27, 40 µm | 0 µm | 0,88 + 0,25 s |
+| insisif sentral PL 3,2 | shoulder | 30 µm | - | - | - | - | - | - | 0 (+2 sliver) | 95 µm | 147, 95 µm | 0 µm | 1,06 + 0,42 s |
+| insisif sentral PL 3,2 | shoulder | 90 µm | - | - | - | - | - | - | 0 (+1 sliver) | 230 µm | 356, 230 µm | 0 µm | 1,02 + 1,07 s |
+| insisif sentral PL 3,2 | chamfer | 0 µm | - | - | - | - | - | - | 0 (+2 sliver) | 10 µm | 6, 10 µm | 0 µm | 0,92 + 0,22 s |
+| insisif sentral PL 3,2 | chamfer | 10 µm | - | - | - | - | - | - | 1 (+0 sliver) | 50 µm | 53, 50 µm | 0 µm | 0,86 + 0,38 s |
+| insisif sentral PL 3,2 | chamfer | 30 µm | - | - | - | - | - | - | 0 (+1 sliver) | 50 µm | 183, 80 µm | 0 µm | 0,96 + 0,37 s |
+| insisif sentral PL 3,2 | chamfer | 90 µm | - | - | - | - | - | - | 1 (+2 sliver) | 245 µm | 437, 245 µm | 0 µm | 1,05 + 0,85 s |
+| elips + undercut 10 di 200 | shoulder | 0 µm | - | - | - | - | - | - | 0 (+4 sliver) | 95 µm | 202, 115 µm | 0 µm | 0,86 + 1,14 s |
+| elips + undercut 10 di 200 | shoulder | 10 µm | - | - | - | - | - | - | 0 (+1 sliver) | 95 µm | 224, 105 µm | 0 µm | 1,42 + 0,85 s |
+| elips + undercut 10 di 200 | shoulder | 30 µm | - | - | - | - | - | - | 0 (+2 sliver) | 95 µm | 287, 120 µm | 0 µm | 0,90 + 1,27 s |
+| elips + undercut 10 di 200 | shoulder | 90 µm | - | - | - | - | - | - | 0 (+2 sliver) | 195 µm | 471, 205 µm | 10 µm | 0,96 + 2,16 s |
+| elips + undercut 10 di 200 | chamfer | 0 µm | - | - | - | - | - | - | 0 (+2 sliver) | 95 µm | 95, 105 µm | 0 µm | 0,92 + 0,95 s |
+| elips + undercut 10 di 200 | chamfer | 10 µm | - | - | - | - | - | - | 0 (+1 sliver) | 85 µm | 115, 105 µm | 0 µm | 0,85 + 1,03 s |
+| elips + undercut 10 di 200 | chamfer | 30 µm | - | - | - | - | - | - | 0 (+2 sliver) | 85 µm | 186, 95 µm | 0 µm | 0,90 + 1,47 s |
+| elips + undercut 10 di 200 | chamfer | 90 µm | - | - | - | - | - | - | 0 (+1 sliver) | 185 µm | 395, 185 µm | 0 µm | 0,98 + 1,43 s |
 
 Kesimpulan:
-- **Zona gap penuh:** galat gap ≤ 3,7 µm di semua kasus.
-- **Spacing radial di zona tanpa cement gap:** galat ≤ 9,9 µm (sebesar spacing itu sendiri). Galat terbesar ada di vertex crease, tempat normal vertex rata-rata dari dinding dan ledge.
-- **Batas zona.** Jarak geodesik meleset median 6-29 µm, p95 38-91 µm, maks 107-199 µm pada derau 0-30 µm; pada derau 90 µm median 71-130 µm, p95 200-260 µm, maks sampai 519 µm. Akibatnya:
-  - sebagian vertex dengan jarak benar < 1 mm tetap mendapat cement gap: shoulder 21-58 dari sekitar 1000 vertex zona nol (maks 7-23 µm), chamfer 1-8 dari sekitar 650 (maks 3-9 µm), pada derau 0-30 µm; pada derau 90 µm sampai 163 vertex (maks 40 µm);
-  - galat gap terbesar (di transisi) 8-23 µm pada derau 0-30 µm dan sampai 46 µm pada derau 90 µm.
-- **Vektor offset:** p95 6-26 µm pada derau 0-30 µm dan 45-57 µm pada 90 µm; maks 17-90 µm. Galat maks pada derau ≥ 10 µm hampir sebesar offset itu sendiri, karena normal vertex mentah berderau.
-- **Lipatan:** tanpa derau 0-5 face (selain sliver, yang merupakan efek jitter: tinggi 0,8-7 µm); dengan derau 19-144 face, terkumpul di atap dekat kutub. Di sana segitiga kipas kecil (tinggi median 21-29 µm) dan normal mentah tetangganya berbeda 36-47°. Tidak ada lipatan di dinding atau dekat margin pada kasus yang didiagnosis.
-- **Undercut baru di permukaan dalam (gagal pada derau tinggi):**
-  - die tanpa undercut: 0-10 µm tanpa derau, 30-50 µm pada 10 µm, 125-365 µm pada 30 µm, 605-1145 µm pada 90 µm. Undercut ini berupa vertex terisolasi di dinding (derau 30 µm: 1 vertex > 50 µm; derau 90 µm: 24 vertex), karena normal mentah yang berderau.
-  - die dengan undercut 8°, tanpa derau: 85-95 µm di ledge di bawah dinding hasil block-out (dinding digeser keluar oleh gap, ledge di zona nol tidak). Ini sesuai peringatan EXQ untuk 5-axis. Permukaan dalam yang terbayang tidak menghalangi crown masuk (rongganya selalu memuat die hasil block-out ditambah gap), tetapi tidak bisa digiling dengan 3/4-axis.
-  - Perbaikan yang belum dicoba: memakai normal yang dihaluskan untuk arah offset. Tidak diterapkan setelah run, supaya hasil set ukur tetap sah.
-- **Waktu:** 0,6-1,2 s per die (sekitar 5.300 vertex permukaan dalam).
+- **Kriteria terpenuhi:** 3/4 axis tanpa sisa undercut di permukaan dalam pada derau 0-30 µm, 90 dari 90 run di set ukur (dan 90 dari 90 di set tuning). Pada derau 90 µm sisa 10 µm muncul di 1 run set tuning dan 2 run set ukur (die dengan undercut, shoulder). Block-out kedua menggeser 0-361 vertex sampai 120 µm pada derau 0-30 µm.
+- **Lipatan non-sliver:** 0-1 face di semua kasus kedua set (normal mentah: 19-144).
+- **Undercut permukaan dalam pada 5 axis (tanpa block-out kedua):**
+  - die tanpa undercut: 0-30 µm tanpa derau, 10-50 µm pada derau 10 µm, 30-95 µm pada 30 µm, dan 50-385 µm pada 90 µm;
+  - die dengan undercut: 75-95 µm pada derau 0-30 µm, di ledge di bawah dinding hasil block-out.
+  - Ini sesuai peringatan EXQ untuk 5-axis, dan memang hanya ditampilkan, tidak dihapus.
+- **Akurasi spacer** (die lingkaran, derau 0-30 µm):
+  - galat gap di zona penuh ≤ 5,5 µm;
+  - galat vektor offset p95 4-11 µm dan maks 15-32 µm (normal mentah: maks sampai 90 µm);
+  - galat spacing radial dinding sampai 9,9 µm pada die r4,5/r5, tetapi 16,7-18,9 µm pada die r6 finish 0,7. Di sana galat jarak geodesik membuat vertex dinding di zona nol ikut mendapat gap.
+- **Galat jarak geodesik** tetap terbatas oleh mesh:
+  - p95 37-91 µm pada die r4/r4,5/r5 derau 0-30 µm;
+  - **121-160 µm pada die r6** (segitiga lebih besar: n_theta 128 pada jari-jari 6 mm);
+  - akibatnya sampai 58 dari sekitar 1.000 vertex zona nol mendapat cement gap (maks 23 µm), dan galat gap di transisi sampai 26,5 µm.
+- **Waktu:** spacer 0,7-1,4 s, block-out kedua 0,1-2,4 s.
 
 **Keterbatasan dan yang perlu diuji ulang dengan scan asli:**
 - Jawaban benar eksak hanya pada die lingkaran tanpa scallop. Akurasi jarak pada margin ber-scallop hanya diuji di silinder yang dibuka.
-- Normal mentah membuat spacer kasar pada derau ≥ 10 µm (lipatan di atap, undercut baru di dinding).
-- Lebar transisi 0,5 mm dan spacing axial 0 berstatus perlu kalibrasi. Nilai akhir semua parameter spacer bergantung pada mesin milling, yang tidak ada di Fase 2.
+- Normal dihaluskan mengecilkan spacing radial dalam radius penghalusan dari crease.
+- Galat jarak geodesik naik dengan ukuran segitiga (die r6), jadi batas zona "from margin" pada scan kasar bisa bergeser sekitar 0,1-0,3 mm.
+- Lebar transisi 0,5 mm dan spacing axial 0 berstatus perlu kalibrasi; `milling_axes` = 5 hanya isian sampai lab mengisi. Nilai akhir semua parameter spacer bergantung pada mesin milling, yang tidak ada di Fase 2.
 - Pita margin yang dilewati margin tidak masuk permukaan dalam. Tepi crown di margin menjadi tugas §5.4.
+- Status paten EP2187833B1 (PAT3) belum dicek di register EPO maupun register nasional. Daftar keluarganya belum dicek di Espacenet.
 
 **Pengujian.**
-- Lapis 1 (`tests/core/test_spacer.py`, 11 kasus tes):
+- Lapis 1 (`tests/core/test_spacer.py`, 16 kasus tes):
   - fast marching terhadap silinder yang dibuka (grid teratur dan jitter);
   - graf tidak pernah di bawah eksak (kecuali efek faset) dan lebih buruk dari fast marching;
-  - profil gap (nol, transisi, penuh, tangga);
-  - parameter dari preset Ivoclar;
-  - parameter negatif ditolak;
+  - profil gap; parameter dari preset Ivoclar; parameter negatif ditolak;
   - zona gap terhadap jarak meridian analitis (shoulder dan chamfer);
-  - spacing radial di zona tanpa cement gap;
-  - radial = axial memberi offset sepanjang normal;
-  - permukaan dalam tanpa akar;
-  - lipatan di die bersih hanya sliver.
+  - spacing radial di dinding zona nol yang jauh dari crease, dan pengecilannya di dekat crease;
+  - radial = axial memberi offset sepanjang normal; permukaan dalam tanpa akar;
+  - lipatan di die bersih hanya sliver, dan tidak ada lipatan non-sliver pada derau 30 µm;
+  - block-out kedua menghapus undercut permukaan dalam (derau 0 dan 30 µm) dengan gerakan hanya tegak lurus sumbu;
+  - `milling_axes` dari preset berstatus praktik lab.
+- Lapis 1 (`tests/core/test_material_db.py`): `milling_axes` wajib 3, 4, atau 5.
 - Lapis 2 (`run_integration.py`):
-  - spacer ditolak tanpa block-out;
-  - spacer dari preset (offset maks 70 µm = gap + radial);
-  - setelah sumbu berubah: spacer kedaluwarsa dan ditolak karena block-out kedaluwarsa;
-  - block-out ulang membuat spacer kedaluwarsa, lalu berlaku lagi setelah dibuat ulang;
-  - margin diubah membuat spacer kedaluwarsa.
+  - gerbang, pembuatan, dan kedaluwarsa spacer seperti sebelumnya;
+  - 5 axis: peta undercut ditulis, tanpa block-out kedua, Show Undercuts jalan;
+  - 3 axis (preset diganti di memori): block-out kedua jalan dengan sisa undercut 0; `use_second_block_out=False` mematikannya.
 
-**Modul core/.** `core/geodesic.py` (`distance_from_curve`), `core/spacer.py` (`SpacerParams`, `gap_profile`, `inner_faces`, `spacer_surface`, `new_undercut_mm`).
+**Modul core/.** `core/geodesic.py` (`distance_from_curve`), `core/spacer.py` (`SpacerParams`, `gap_profile`, `inner_faces`, `smoothed_normals`, `spacer_surface`, `inner_undercut_depth`, `new_undercut_mm`, `second_block_out`), `core/insertion.py` (`block_out_mesh`).
 
 ### 5.4 Proposal crown: template + morphing
 
