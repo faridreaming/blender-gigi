@@ -1,6 +1,6 @@
 # Fase 2: Crown zirkonia single (rancangan)
 
-Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis ditutup** (2026-10-24) dengan ringkasan status di akhir §5.1: terbukti pada data sintetis saja, dan **belum divalidasi dengan scan asli**. Hasil Detect dan Draw selalu berstatus **draf**, hanya margin yang sudah di-**Confirm** yang boleh dipakai langkah crown dan ekspor, dan segmen merah hanya petunjuk ringan. Fitur §5.2 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
+Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis ditutup** (2026-10-24) dengan ringkasan status di akhir §5.1: terbukti pada data sintetis saja, dan **belum divalidasi dengan scan asli**. Hasil Detect dan Draw selalu berstatus **draf**, hanya margin yang sudah di-**Confirm** yang boleh dipakai langkah crown dan ekspor, dan segmen merah hanya petunjuk ringan. **§5.2 sumbu insersi dan undercut terimplementasi** (2026-10-24), juga hanya terbukti pada data sintetis (hasil di §5.2). Fitur §5.3 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
 
 Dasar dokumen ini:
 - RESEARCH.md Roadmap, Fase 2: deliverable *margin semi-auto, sumbu insersi/undercut, spacer, library CC0 + morphing, kontak, heatmap ketebalan, ekspor STL ke MillBox*; kriteria selesai *20 kasus: deviasi margin vs desain exocad ≤50 µm (median), lolos cek ketebalan, 5 crown dimilling dan dicoba di die*.
@@ -45,6 +45,9 @@ Material: preset `data/materials/zircad_prime.json` dari Fase 0 dipakai, dengan 
 | **GLC** | Gallucci GO, Belser UC, Bernard JP, Magne P. "Modeling and Characterization of the CEJ for Optimization of Esthetic Implant Design." Int J Periodontics Restorative Dent 2004;24(1):19-29. Link dari maintainer (admin.quintessence-publishing.com) mengarah ke halaman login; yang dibaca adalah abstrak di halaman publik quintessence-publishing.com/usa/en/article/853057 (dicek 2026-10-23). Teks lengkap berbayar, tidak dibaca. | 137 gigi anterior rahang atas hasil ekstraksi (45 insisif sentral, 46 lateral, 46 kaninus), citra digital terstandar tampak proksimal. Lengkungan CEJ mesial vs distal: insisif sentral 3,46 vs 3,13 mm, lateral 2,97 vs 2,38 mm, kaninus 2,55 vs 1,60 mm. Dipakai sebagai rentang tinggi puncak-lembah scallop di set tuning §5.1. Catatan: ini CEJ gigi asli, bukan garis finish preparasi, dan die sintetis memakai scallop simetris (mesial = distal). |
 | **JPM** | Badar SB, Zafar K, Ghafoor R, Khan FR. "Radiographic evaluation of the margins of clinically acceptable metal-ceramic crowns." JPMA 2022;72(2 Suppl 1):S-35, doi:10.47391/JPMA.AKU-08 (archive.jpma.org.pk/supplement-article-details/735, teks lengkap HTML, dicek 2026-10-23). | Studi prospektif, 115 crown metal-keramik, 230 sisi interproksimal, radiografi bitewing sebelum sementasi. Metode: "A marginal discrepancy >0.05mm on the proximal sites was labelled as a 'deficiency'"; abstrak menulis >0.5mm, jadi **ada ketidaksesuaian di paper**. 49,1% sisi proksimal crown yang lolos pemeriksaan klinis punya diskrepansi. Pendahuluan: pemeriksaan margin interproksimal dan subgingiva "poses a clinical challege". Paper juga mengutip Schaefer dkk. (0,05-0,15 mm dianggap dapat diterima). Yang diukur adalah celah crown di radiografi, bukan galat garis margin desain; dipakai sebagai alasan klinis untuk penanda segmen dan status draf §5.1, bukan sebagai ambang. |
 | **ANC** | Ancker JS, Edwards A, Nosal S, Hauser D, Mauer E, Kaushal R, HITEC Investigators. "Effects of workload, work complexity, and repeated alerts on alert fatigue in a clinical decision support system." BMC Med Inform Decis Mak 2017;17(1):36, doi:10.1186/s12911-017-0430-8 (PMC5387195). Halaman PMC menampilkan reCAPTCHA; abstrak dibaca lewat API resmi Europe PMC (dicek 2026-10-24), teks lengkap tidak dibaca. | Kohort retrospektif rekam medis elektronik 112 klinisi layanan primer (alert obat dan reminder klinis, 2010-2013). Penerimaan alert turun seiring makin banyak alert, terutama alert berulang: peluang reminder diterima turun 30% untuk setiap tambahan reminder per kunjungan, dan 10% untuk setiap kenaikan 5 poin persentase proporsi reminder berulang. Hipotesis desensitisasi seiring waktu **tidak** didukung. Konteksnya obat/reminder, bukan CAD; dipakai sebagai alasan menjadikan segmen merah petunjuk ringan (§5.1), bukan sebagai angka. |
+| **EXI** | exocad wiki, "Setting insertion axis" (wiki.exocad.com/wiki/index.php/Setting_Insertion_axis). Server aslinya menolak koneksi saat dicek (2026-10-24); yang dibaca adalah arsip Wayback Machine snapshot 2024-02-23, oldid 12143, dokumentasi rilis 2020 ke atas. | Sumbu dideteksi otomatis; pengguna diminta mengecek "When the software has doubts about the insertion axis it auto-detected", biasanya "when the margin line lies within an undercut area". Software menyajikan sumbu "by adjusting the viewpoint so that you look onto the preparation(s) from the insertion direction" dan menandai undercut dengan skala warna. Mengubah sumbu: putar pandangan lalu "Set current view as insertion axis", atau seret bola di ujung panah; visualisasi undercut diperbarui. |
+| **EXQ** | "exocad Quick Guide: Crown Bottoms", transkrip video di voicetube.com/videos/46150. Halaman aslinya hanya memuat "Loading..." saat dicek; yang dibaca adalah transkrip di arsip Wayback snapshot 2024-02-25. Video aslinya dari exocad; tanggal rilis video dan versi exocad yang ditunjukkan tidak tercantum di transkrip. | "A red arrow indicates that the insertion axis for this tooth might not be optimally defined"; "While rotating, undercuts are marked in red"; "Undercuts are always blocked out parallel to the insertion axis" kecuali sudut dipilih. "Don't block out zone near prepline" = "untouchable zone" di sekitar margin yang tidak pernah di-block-out; "The default value in our generic version is 0.1 mm"; 3-axis biasanya 0; 5-axis disarankan sama dengan jarak cement gap. |
+| **PAT2** | Google Patents, DE102006044215A1 / DE102006044215B4 "Dental prosthesis part's (e.g. crown) insertion axial direction optimizing method", Sirona Dental Systems GmbH, penemu Frank Seibert (dicek 2026-10-24). | Prioritas dan pengajuan 2006-09-15, publikasi A1 2008-03-27, diberikan B4 2014-02-20. Status "Expired - Fee Related"; event R119 2024-04-03 "Application deemed withdrawn, or ip right lapsed, due to non-payment of renewal fee". Halaman yang sama masih menulis "Anticipated expiration" 2026-09-16, jadi status perlu dicek di register DPMA. Isi: daerah terbayang dari arah pandang ditandai, sumbu disesuaikan dengan arah pandang yang diubah pengguna, dan kandidat arah di bola dinilai dengan kriteria kualitas, dioptimalkan pengguna atau otomatis. Google: "The legal status is an assumption and is not a legal conclusion." |
 | **PAT** | Google Patents, US8359114B2 "Haptically enabled dental modeling system", DentsAble Inc (patents.google.com/patent/US8359114B2/en) | Diberikan 2013-01-22; status "Expired - Fee Related"; event "PATENT EXPIRED DUE TO NONPAYMENT OF MAINTENANCE FEES" (2017); expiration teradjust semula 2029-10-19. Google menulis: "The legal status is an assumption and is not a legal conclusion." |
 
 ## 3. Teeth3DS+: hasil pengecekan
@@ -435,22 +438,174 @@ Kesimpulan:
 
 ### 5.2 Sumbu insersi dan undercut
 
-**Gerbang margin (berlaku untuk §5.2 sampai §5.7):** setiap operator wajib memanggil `require_confirmed_margin(die)` dan menolak jalan bila margin masih draf (§5.1).
+**Gerbang margin (berlaku untuk §5.2 sampai §5.7):** setiap operator wajib memanggil `require_confirmed_margin(die)` dan menolak jalan bila margin masih draf (§5.1). Operator §5.3 juga wajib memanggil `require_current_block_out(die)`: block-out harus ada dan dibuat untuk sumbu yang sedang dipakai.
 
-**Algoritma** (RESEARCH.md §4):
-1. **Sumbu default:** rata-rata normal berbobot luas dari face preparasi (di atas margin), dinormalisasi. Pengguna bisa memutarnya lewat gizmo.
-2. **Undercut:** face di atas margin dengan `dot(normal, sumbu) < 0` yang berada di bawah kontur terbesar terhadap sumbu itu. Kontur terbesar dihitung sebagai silhouette proyeksi sepanjang sumbu.
-3. **Heatmap:** kedalaman undercut per vertex = jarak horizontal ke silhouette, dikirim ke ops/ sebagai atribut warna.
-4. **Block-out** (untuk spacer): menyapu proyeksi sepanjang sumbu, sehingga permukaan dalam crown tidak masuk ke undercut.
+**Status: terimplementasi** (2026-10-24). Kode di `core/insertion.py`, operator di `ops/insertion.py`, benchmark di `scripts/insertion_benchmark.py`. Semua hasil berasal dari die sintetis.
 
-**Parameter.** Tidak ada parameter klinis. Sudut toleransi untuk "hampir sejajar" adalah ambang uji.
+**Perilaku (konvensi exocad, EXI dan EXQ, §2.1).**
+- **Detect Insertion Axis** menghitung sumbu otomatis dan peta undercut. Bila ragu, sumbu ditandai "needs checking" (panel dan laporan), lalu pandangan diarahkan sepanjang sumbu (EXI: software "adjusting the viewpoint"). Ada dua alasan ragu:
+  - margin line terbayang ("margin line lies in an undercut");
+  - ada kelompok arah lain yang terpisah ≥ 10° tetapi hampir sama baiknya ("another axis is almost as good").
+- **Set from View**: sumbu = arah dari preparasi ke pengamat pada pandangan saat ini (EXI: "Set current view as insertion axis").
+- **Bola pegangan** `<die> Axis Handle` di ujung panah `<die> Insertion Axis` diseret dengan G. Handler `depsgraph_update_post` menghitung ulang sumbu, tanda ragu, dan peta undercut (EXI: "The Undercut visualization will be updated"). Satu pembaruan peta 0,1-0,2 s pada mesh sintetis sekitar 14 ribu segitiga.
+- **Peta undercut**: atribut warna `DentalCAD Undercut` (abu-abu = tidak ada undercut; kuning ke merah sampai 0,5 mm, skala tampilan saja) dan atribut `dentalcad_undercut_mm`.
+- **Block Out Undercuts** membuat `<die> Block-out`, sejajar sumbu (EXQ: "always blocked out parallel to the insertion axis"), dengan zona tanpa block-out di dekat margin dari preset material. Block-out lama ditandai kedaluwarsa begitu sumbu berubah.
 
-**Modul core/.** `core/insertion.py` (`default_axis`, `undercut_faces`, `undercut_depth`, `block_out`).
+**Algoritma** (`core/insertion.py`):
+1. **Daerah preparasi:** pita face yang dilewati margin terkonfirmasi (ditambah satu cincin) dibuang, lalu komponen terhubung di sisi margin yang permukaannya menyempit ke dalam (median jarak radial vertex dalam 1 mm dari margin, relatif terhadap margin) dipilih sebagai preparasi.
+   - *Beda dari versi pertama:* kriteria "di dalam lingkar margin" untuk seluruh komponen memilih akar pada die dengan overhang yang melewati margin, karena dinding akar tepat di lingkar dan tutup dasar juga di dalam lingkar.
+2. **Normal dan posisi dihaluskan** (rata-rata Gauss dalam radius max(0,5 mm, 10σ)), karena normal mentah pada mesh ber-jitter menyimpang lebih dari sudut taper (temuan §4).
+3. **Sumbu default:** mulai dari luas vektor preparasi (jumlah normal face berbobot luas, sama dengan luas vektor lingkar margin), lalu dicari di grid arah 1° dalam kerucut 20° arah yang meminimalkan luas face membelakangi sumbu. Di antara arah yang hampir sama baiknya (selisih ≤ 0,2% luas preparasi), dipilih yang paling dekat ke arah awal. Kelompok arah hampir optimal lain yang terpisah ≥ 10° menjadi "kandidat sumbu lain".
+4. **Kedalaman undercut, uji bayangan eksak:** untuk titik x, permukaan pertama di atasnya (sepanjang sumbu) menentukan keadaannya:
+   - tidak ada: bebas;
+   - membelakangi sumbu (sisi bawah overhang): terbayang;
+   - menghadap sumbu: x di dalam material.
+   Kedalaman di titik permukaan = jarak berjalan keluar tegak lurus sumbu selama titiknya terbayang (langkah berlipat lalu bagi dua, resolusi 0,02 mm). Titik yang tidak terbayang di tempatnya diuji lagi satu langkah keluar, untuk dinding overhang itu sendiri dan sudut cekung di kakinya.
+   - *Beda dari dua versi pertama:* maksimum jari-jari per sektor sudut, lalu "ada permukaan di atas", sama-sama memberi kedalaman palsu sampai 1 mm di ledge ber-scallop. Penampang die di sana tidak berbentuk bintang, dan berjalan di bawah ledge yang naik berarti masuk ke dalam material. Jawaban benar pertama ikut salah karena memakai definisi yang sama; diperbaiki bersamaan.
+5. **Face undercut** (definisi rancangan): face preparasi dengan normal dihaluskan membelakangi sumbu **dan** vertex terbayang dengan kedalaman di atas ambang derau max(0,01 mm, 1σ).
+6. **Margin terbayang:** kedalaman titik margin > max(0,02 mm, 2σ).
+7. **Block-out:** dihitung pada mesh **mentah** tanpa ambang derau, karena ini geometri yang dipakai crown. Setiap vertex preparasi yang terbayang digeser keluar tegak lurus sumbu sejauh kedalamannya, diulang sampai 16 kali sampai tidak ada yang bergeser. Vertex dalam zona tanpa block-out tidak digeser. Peta tampilan tetap memakai posisi yang dihaluskan supaya tidak berbintik.
+
+**Parameter.**
+
+| Parameter | Status | Nilai | Sumber/asal |
+|---|---|---|---|
+| Zona tanpa block-out dekat margin (`blockout_free_zone_mm`, preset material) | perlu kalibrasi | 0,1 mm | EXQ: default generik exocad. Bukan angka material (tidak ada di IVO); 3-axis biasanya 0, 5-axis disarankan = cement gap (0,06 mm IVO). Bergantung mesin milling, yang tidak ada di Fase 2. |
+| Radius penghalusan | ambang algoritma | max(0,5 mm, 10σ) | Sapuan set tuning: 0,3 / 0,5 / 0,8 mm × ambang 1/2/3σ. 0,5 mm + 1σ memberi IoU rata-rata 0,826 (min 0,747) tanpa luas undercut palsu pada die tanpa undercut; 0,3 mm memberi luas palsu sampai 0,165 mm². |
+| Ambang kedalaman (derau) | ambang algoritma | max(0,01 mm, 1σ) | Sapuan yang sama. |
+| Kerucut pencarian / langkah grid | ambang algoritma | 20° / 1° | Pilihan awal, tidak disapu. |
+| Hampir sama baik | ambang algoritma | 0,2% luas preparasi | Pilihan awal, tidak disapu. |
+| Pemisahan kandidat lain | ambang uji | 10° | Pilihan awal. |
+| Margin terbayang | ambang algoritma | max(0,02 mm, 2σ) | Pilihan awal. |
+| ε tinggi bayangan / resolusi kedalaman | ambang algoritma | 0,02 mm / 0,02 mm | Pilihan awal. |
+
+**Benchmark** (`python scripts/insertion_benchmark.py --set <set> --seeds 3`, 2026-10-24).
+- Margin yang dipakai adalah margin analitis, supaya galat §5.2 tidak tercampur galat §5.1.
+- Die diputar acak dan mesh ber-jitter. Nilai per baris = terburuk dari 3 seed: IoU terendah, galat tertinggi.
+- Sudut sumbu default dibandingkan dengan sumbu die sebenarnya. Angka ini hanya bermakna untuk die tanpa undercut: pada die dengan undercut, sumbu default sengaja dimiringkan untuk mengurangi undercut.
+- IoU, kedalaman, dan margin terbayang diukur pada sumbu sebenarnya, terhadap `synthetic.undercut_faces()` (tanda normal analitis) dan `synthetic.undercut_depth_truth()` (uji bayangan eksak pada triangulasi analitis rapat, sel sekitar 0,03-0,05 mm).
+- "Sisa bayangan" = kedalaman bayangan terbesar pada mesh hasil block-out, di luar zona dekat margin; 30 µm adalah nilai terkecil yang bisa dilaporkan selain 0.
+- **Set uji** didefinisikan dan dikunci bersama `InsertionParams` di commit `dd3f901`, lalu dijalankan sekali. Varian undercut tepat di puncak scallop termasuk di dalamnya.
+
+**Set tuning:**
+
+| Die | Finish | Derau | Sudut sumbu default | Ragu (seed) | IoU face (rancangan / normal) | Kedalaman benar maks | Galat kedalaman MAE / p95 / maks | Vertex galat > 0,1 mm | Margin terbayang: benar / tertandai | Sisa bayangan setelah block-out | Waktu peta |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| standar | shoulder | 0 µm | 0,00° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5147 | tidak (0 µm) / 0/3 | 0 µm | 0,14 s |
+| standar | shoulder | 10 µm | 0,02° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5142 | tidak (0 µm) / 0/3 | 0 µm | 0,15 s |
+| standar | shoulder | 30 µm | 0,08° | 0/3  | 1,00 / 0,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5140 | tidak (0 µm) / 0/3 | 0 µm | 0,12 s |
+| standar | shoulder | 90 µm | 0,18° | 0/3  | 1,00 / 0,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5137 | tidak (0 µm) / 0/3 | 0 µm | 0,18 s |
+| standar | chamfer | 0 µm | 0,08° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5154 | tidak (0 µm) / 0/3 | 0 µm | 0,20 s |
+| standar | chamfer | 10 µm | 0,06° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5148 | tidak (0 µm) / 0/3 | 0 µm | 0,17 s |
+| standar | chamfer | 30 µm | 0,10° | 0/3  | 1,00 / 0,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5142 | tidak (0 µm) / 0/3 | 0 µm | 0,16 s |
+| standar | chamfer | 90 µm | 0,13° | 0/3  | 1,00 / 0,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5144 | tidak (0 µm) / 0/3 | 0 µm | 0,19 s |
+| standar + scallop PL 2 | shoulder | 0 µm | 0,03° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5142 | tidak (0 µm) / 0/3 | 0 µm | 0,17 s |
+| standar + scallop PL 2 | shoulder | 10 µm | 0,04° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5139 | tidak (0 µm) / 0/3 | 0 µm | 0,17 s |
+| standar + scallop PL 2 | shoulder | 30 µm | 0,08° | 0/3  | 1,00 / 0,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5139 | tidak (0 µm) / 0/3 | 0 µm | 0,19 s |
+| standar + scallop PL 2 | shoulder | 90 µm | 0,26° | 0/3  | 1,00 / 0,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5134 | tidak (0 µm) / 0/3 | 0 µm | 0,20 s |
+| standar + scallop PL 2 | chamfer | 0 µm | 0,07° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5147 | tidak (0 µm) / 0/3 | 0 µm | 0,13 s |
+| standar + scallop PL 2 | chamfer | 10 µm | 0,07° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5144 | tidak (0 µm) / 0/3 | 0 µm | 0,12 s |
+| standar + scallop PL 2 | chamfer | 30 µm | 0,09° | 0/3  | 1,00 / 0,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5141 | tidak (0 µm) / 0/3 | 0 µm | 0,14 s |
+| standar + scallop PL 2 | chamfer | 90 µm | 0,18° | 0/3  | 1,00 / 0,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5140 | tidak (0 µm) / 0/3 | 0 µm | 0,22 s |
+| undercut 8 di 90 | shoulder | 0 µm | 6,00° | 0/3  | 0,81 / 0,86 | 701 µm | 2,5 / 24 / 271 µm | 9 dari 5148 | tidak (0 µm) / 0/3 | 0 µm | 0,19 s |
+| undercut 8 di 90 | shoulder | 10 µm | 5,02° | 0/3  | 0,79 / 0,84 | 701 µm | 2,4 / 24 / 281 µm | 8 dari 5143 | tidak (0 µm) / 0/3 | 0 µm | 0,18 s |
+| undercut 8 di 90 | shoulder | 30 µm | 3,58° | 0/3  | 0,70 / 0,76 | 701 µm | 2,4 / 21 / 204 µm | 6 dari 5139 | tidak (0 µm) / 0/3 | 0 µm | 0,19 s |
+| undercut 8 di 90 | shoulder | 90 µm | 3,17° | 0/3  | 0,55 / 0,69 | 701 µm | 5,3 / 36 / 701 µm | 77 dari 5138 | tidak (0 µm) / 0/3 | 30 µm | 0,17 s |
+| undercut 8 di 90 | chamfer | 0 µm | 5,83° | 0/3  | 0,87 / 0,92 | 561 µm | 2,2 / 23 / 496 µm | 2 dari 5151 | tidak (0 µm) / 0/3 | 0 µm | 0,20 s |
+| undercut 8 di 90 | chamfer | 10 µm | 5,04° | 0/3  | 0,82 / 0,90 | 561 µm | 2,2 / 24 / 214 µm | 2 dari 5152 | tidak (0 µm) / 0/3 | 0 µm | 0,20 s |
+| undercut 8 di 90 | chamfer | 30 µm | 3,20° | 0/3  | 0,74 / 0,82 | 561 µm | 2,2 / 19 / 221 µm | 1 dari 5145 | tidak (0 µm) / 0/3 | 0 µm | 0,21 s |
+| undercut 8 di 90 | chamfer | 90 µm | 3,09° | 0/3  | 0,57 / 0,75 | 561 µm | 4,4 / 38 / 294 µm | 54 dari 5144 | tidak (0 µm) / 0/3 | 30 µm | 0,19 s |
+| undercut 8 di 90 + scallop PL 2 | shoulder | 0 µm | 5,85° | 0/3  | 0,83 / 0,86 | 841 µm | 2,6 / 26 / 391 µm | 8 dari 5140 | tidak (0 µm) / 0/3 | 0 µm | 0,17 s |
+| undercut 8 di 90 + scallop PL 2 | shoulder | 10 µm | 5,02° | 0/3  | 0,81 / 0,84 | 841 µm | 2,6 / 26 / 129 µm | 5 dari 5137 | tidak (0 µm) / 0/3 | 0 µm | 0,15 s |
+| undercut 8 di 90 + scallop PL 2 | shoulder | 30 µm | 4,05° | 0/3  | 0,72 / 0,78 | 841 µm | 2,6 / 24 / 318 µm | 8 dari 5139 | tidak (0 µm) / 0/3 | 0 µm | 0,14 s |
+| undercut 8 di 90 + scallop PL 2 | shoulder | 90 µm | 3,17° | 0/3  | 0,58 / 0,69 | 841 µm | 5,7 / 38 / 841 µm | 87 dari 5135 | tidak (0 µm) / 0/3 | 30 µm | 0,16 s |
+| undercut 8 di 90 + scallop PL 2 | chamfer | 0 µm | 5,99° | 0/3  | 0,88 / 0,93 | 704 µm | 2,4 / 26 / 294 µm | 4 dari 5149 | tidak (0 µm) / 0/3 | 0 µm | 0,22 s |
+| undercut 8 di 90 + scallop PL 2 | chamfer | 10 µm | 5,05° | 0/3  | 0,85 / 0,90 | 704 µm | 2,3 / 26 / 71 µm | 0 dari 5146 | tidak (0 µm) / 0/3 | 0 µm | 0,19 s |
+| undercut 8 di 90 + scallop PL 2 | chamfer | 30 µm | 3,58° | 0/3  | 0,77 / 0,82 | 704 µm | 2,3 / 21 / 101 µm | 1 dari 5141 | tidak (0 µm) / 0/3 | 0 µm | 0,20 s |
+| undercut 8 di 90 + scallop PL 2 | chamfer | 90 µm | 3,14° | 0/3  | 0,61 / 0,74 | 704 µm | 4,6 / 39 / 406 µm | 51 dari 5140 | tidak (0 µm) / 0/3 | 0 µm | 0,21 s |
+
+**Set uji (dijalankan sekali):**
+
+| Die | Finish | Derau | Sudut sumbu default | Ragu (seed) | IoU face (rancangan / normal) | Kedalaman benar maks | Galat kedalaman MAE / p95 / maks | Vertex galat > 0,1 mm | Margin terbayang: benar / tertandai | Sisa bayangan setelah block-out | Waktu peta |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| undercut 12 di puncak scallop (PL 2) | shoulder | 0 µm | 5,98° | 0/3  | 0,83 / 0,85 | 844 µm | 3,2 / 31 / 129 µm | 10 dari 5140 | tidak (0 µm) / 0/3 | 0 µm | 0,19 s |
+| undercut 12 di puncak scallop (PL 2) | shoulder | 10 µm | 5,00° | 0/3  | 0,80 / 0,83 | 844 µm | 3,0 / 29 / 464 µm | 9 dari 5140 | tidak (0 µm) / 0/3 | 0 µm | 0,15 s |
+| undercut 12 di puncak scallop (PL 2) | shoulder | 30 µm | 3,00° | 0/3  | 0,75 / 0,79 | 844 µm | 3,3 / 29 / 364 µm | 12 dari 5139 | tidak (0 µm) / 0/3 | 0 µm | 0,15 s |
+| undercut 12 di puncak scallop (PL 2) | shoulder | 90 µm | 3,54° | 0/3  | 0,59 / 0,68 | 844 µm | 7,2 / 56 / 836 µm | 108 dari 5135 | tidak (0 µm) / 0/3 | 10 µm | 0,17 s |
+| undercut 12 di puncak scallop (PL 2) | chamfer | 0 µm | 5,95° | 0/3  | 0,88 / 0,93 | 636 µm | 2,9 / 31 / 69 µm | 0 dari 5147 | tidak (0 µm) / 0/3 | 0 µm | 0,20 s |
+| undercut 12 di puncak scallop (PL 2) | chamfer | 10 µm | 4,97° | 0/3  | 0,85 / 0,90 | 636 µm | 2,7 / 28 / 239 µm | 1 dari 5146 | tidak (0 µm) / 0/3 | 0 µm | 0,24 s |
+| undercut 12 di puncak scallop (PL 2) | chamfer | 30 µm | 2,93° | 0/3  | 0,78 / 0,85 | 636 µm | 2,8 / 27 / 104 µm | 1 dari 5143 | tidak (0 µm) / 0/3 | 0 µm | 0,22 s |
+| undercut 12 di puncak scallop (PL 2) | chamfer | 90 µm | 3,47° | 0/3  | 0,63 / 0,77 | 636 µm | 5,6 / 46 / 554 µm | 69 dari 5142 | tidak (0 µm) / 0/3 | 0 µm | 0,18 s |
+| undercut 10 di puncak CEJ (PL 3) | shoulder | 0 µm | 6,95° | 0/3  | 0,82 / 0,85 | 701 µm | 2,7 / 24 / 299 µm | 16 dari 5139 | tidak (0 µm) / 0/3 | 0 µm | 0,12 s |
+| undercut 10 di puncak CEJ (PL 3) | shoulder | 10 µm | 6,41° | 0/3  | 0,79 / 0,84 | 701 µm | 2,7 / 24 / 284 µm | 15 dari 5138 | tidak (0 µm) / 0/3 | 0 µm | 0,10 s |
+| undercut 10 di puncak CEJ (PL 3) | shoulder | 30 µm | 5,05° | 0/3  | 0,73 / 0,78 | 701 µm | 2,9 / 26 / 229 µm | 17 dari 5134 | tidak (0 µm) / 0/3 | 0 µm | 0,10 s |
+| undercut 10 di puncak CEJ (PL 3) | shoulder | 90 µm | 5,66° | 0/3  | 0,59 / 0,68 | 701 µm | 6,1 / 46 / 611 µm | 84 dari 5131 | tidak (0 µm) / 0/3 | 10 µm | 0,12 s |
+| undercut 10 di puncak CEJ (PL 3) | chamfer | 0 µm | 6,97° | 0/3  | 0,88 / 0,93 | 564 µm | 2,4 / 26 / 231 µm | 1 dari 5147 | tidak (0 µm) / 0/3 | 0 µm | 0,11 s |
+| undercut 10 di puncak CEJ (PL 3) | chamfer | 10 µm | 5,98° | 0/3  | 0,85 / 0,90 | 564 µm | 2,4 / 26 / 71 µm | 0 dari 5145 | tidak (0 µm) / 0/3 | 0 µm | 0,11 s |
+| undercut 10 di puncak CEJ (PL 3) | chamfer | 30 µm | 5,00° | 0/3  | 0,78 / 0,85 | 564 µm | 2,6 / 24 / 94 µm | 0 dari 5139 | tidak (0 µm) / 0/3 | 0 µm | 0,11 s |
+| undercut 10 di puncak CEJ (PL 3) | chamfer | 90 µm | 4,97° | 0/3  | 0,64 / 0,77 | 564 µm | 4,9 / 41 / 484 µm | 60 dari 5136 | tidak (0 µm) / 0/3 | 0 µm | 0,11 s |
+| margin terbayang (undercut 15, finish 0,5) | shoulder | 0 µm | 6,00° | 3/3 margin line lies in an undercut | 0,86 / 0,87 | 1338 µm | 3,9 / 35 / 169 µm | 30 dari 5145 | ya (841 µm) / 3/3 | 0 µm | 0,14 s |
+| margin terbayang (undercut 15, finish 0,5) | shoulder | 10 µm | 5,02° | 3/3 margin line lies in an undercut | 0,84 / 0,86 | 1338 µm | 3,9 / 36 / 207 µm | 30 dari 5139 | ya (841 µm) / 3/3 | 0 µm | 0,15 s |
+| margin terbayang (undercut 15, finish 0,5) | shoulder | 30 µm | 2,26° | 3/3 margin line lies in an undercut | 0,81 / 0,81 | 1338 µm | 4,3 / 37 / 1182 µm | 33 dari 5129 | ya (841 µm) / 3/3 | 10 µm | 0,14 s |
+| margin terbayang (undercut 15, finish 0,5) | shoulder | 90 µm | 2,29° | 3/3 margin line lies in an undercut | 0,66 / 0,70 | 1338 µm | 10,2 / 71 / 1322 µm | 170 dari 5109 | ya (841 µm) / 3/3 | 30 µm | 0,15 s |
+| margin terbayang (undercut 15, finish 0,5) | chamfer | 0 µm | 5,68° | 3/3 margin line lies in an undercut | 0,91 / 0,93 | 1203 µm | 3,4 / 34 / 104 µm | 1 dari 5148 | ya (706 µm) / 3/3 | 0 µm | 0,16 s |
+| margin terbayang (undercut 15, finish 0,5) | chamfer | 10 µm | 4,47° | 3/3 margin line lies in an undercut | 0,90 / 0,91 | 1203 µm | 3,5 / 36 / 104 µm | 2 dari 5141 | ya (706 µm) / 3/3 | 0 µm | 0,15 s |
+| margin terbayang (undercut 15, finish 0,5) | chamfer | 30 µm | 2,29° | 3/3 margin line lies in an undercut | 0,86 / 0,86 | 1203 µm | 3,8 / 36 / 1066 µm | 8 dari 5140 | ya (706 µm) / 3/3 | 0 µm | 0,16 s |
+| margin terbayang (undercut 15, finish 0,5) | chamfer | 90 µm | 2,30° | 3/3 margin line lies in an undercut | 0,71 / 0,77 | 1203 µm | 8,0 / 74 / 1182 µm | 173 dari 5135 | ya (706 µm) / 3/3 | 10 µm | 0,14 s |
+| molar taper 10 tanpa undercut | shoulder | 0 µm | 0,01° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5145 | tidak (0 µm) / 0/3 | 0 µm | 0,08 s |
+| molar taper 10 tanpa undercut | shoulder | 10 µm | 0,02° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5141 | tidak (0 µm) / 0/3 | 0 µm | 0,08 s |
+| molar taper 10 tanpa undercut | shoulder | 30 µm | 0,06° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5139 | tidak (0 µm) / 0/3 | 0 µm | 0,08 s |
+| molar taper 10 tanpa undercut | shoulder | 90 µm | 0,17° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5135 | tidak (0 µm) / 0/3 | 0 µm | 0,09 s |
+| molar taper 10 tanpa undercut | chamfer | 0 µm | 0,06° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5150 | tidak (0 µm) / 0/3 | 0 µm | 0,09 s |
+| molar taper 10 tanpa undercut | chamfer | 10 µm | 0,05° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5145 | tidak (0 µm) / 0/3 | 0 µm | 0,09 s |
+| molar taper 10 tanpa undercut | chamfer | 30 µm | 0,09° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5141 | tidak (0 µm) / 0/3 | 0 µm | 0,09 s |
+| molar taper 10 tanpa undercut | chamfer | 90 µm | 0,15° | 0/3  | 1,00 / 1,00 | 0 µm | 0,0 / 0 / 0 µm | 0 dari 5140 | tidak (0 µm) / 0/3 | 0 µm | 0,10 s |
+| premolar undercut sempit 6 | shoulder | 0 µm | 5,01° | 0/3  | 0,80 / 0,84 | 494 µm | 1,2 / 0 / 214 µm | 9 dari 5146 | tidak (0 µm) / 0/3 | 0 µm | 0,11 s |
+| premolar undercut sempit 6 | shoulder | 10 µm | 4,23° | 0/3  | 0,77 / 0,81 | 494 µm | 1,3 / 0 / 214 µm | 10 dari 5143 | tidak (0 µm) / 0/3 | 0 µm | 0,11 s |
+| premolar undercut sempit 6 | shoulder | 30 µm | 2,16° | 0/3  | 0,64 / 0,72 | 494 µm | 1,6 / 0 / 224 µm | 10 dari 5139 | tidak (0 µm) / 0/3 | 0 µm | 0,12 s |
+| premolar undercut sempit 6 | shoulder | 90 µm | 2,08° | 0/3  | 0,48 / 0,59 | 494 µm | 2,8 / 0 / 446 µm | 55 dari 5137 | tidak (0 µm) / 0/3 | 10 µm | 0,10 s |
+| premolar undercut sempit 6 | chamfer | 0 µm | 5,01° | 0/3  | 0,85 / 0,90 | 396 µm | 1,1 / 0 / 81 µm | 0 dari 5151 | tidak (0 µm) / 0/3 | 0 µm | 0,11 s |
+| premolar undercut sempit 6 | chamfer | 10 µm | 4,17° | 0/3  | 0,78 / 0,87 | 396 µm | 1,2 / 0 / 81 µm | 0 dari 5148 | tidak (0 µm) / 0/3 | 0 µm | 0,12 s |
+| premolar undercut sempit 6 | chamfer | 30 µm | 2,18° | 0/3  | 0,64 / 0,74 | 396 µm | 1,3 / 0 / 112 µm | 2 dari 5143 | tidak (0 µm) / 0/3 | 0 µm | 0,12 s |
+| premolar undercut sempit 6 | chamfer | 90 µm | 3,02° | 0/3  | 0,52 / 0,63 | 396 µm | 2,6 / 0 / 354 µm | 55 dari 5143 | tidak (0 µm) / 0/3 | 0 µm | 0,13 s |
+
+Kesimpulan:
+- **Sumbu default pada die tanpa undercut:** galat ≤ 0,26° di set tuning dan ≤ 0,17° di set uji (molar taper 10°), sampai derau 90 µm. Tanpa tanda ragu palsu.
+- **Kedalaman undercut:** MAE 1-10 µm, p95 ≤ 74 µm di semua kasus. Tetapi ada beberapa vertex dengan galat besar (sampai 1,3 mm pada "margin terbayang" derau 30-90 µm), semuanya di sudut cekung antara ledge dan dinding overhang:
+  - derau 0-30 µm: 0 sampai 33 vertex per die;
+  - derau 90 µm: 51 sampai 173 vertex per die.
+- **IoU face undercut (definisi rancangan):** 0,77-0,91 pada derau 0-10 µm, 0,64-0,86 pada 30 µm, dan 0,48-0,71 pada 90 µm. Selisihnya terutama di tepi atas dinding overhang (kedalaman bayangan mendekati 0 tetapi normalnya membelakangi) dan di sudut cekung (normal tercampur). Jadi definisi rancangan dan jawaban benar tanda-normal berbeda di tempat itu, bukan hanya karena galat.
+- **Undercut tepat di puncak scallop:** IoU 0,59-0,88 dan kedalaman MAE ≤ 7 µm, setara dengan sektor lain. Margin tidak terbayang di varian ini, dan memang tidak ditandai.
+- **Margin terbayang:** tertandai di 24/24 run (shoulder dan chamfer, derau 0 sampai 90 µm), juga pada sumbu default (yang dimiringkan 2-6°). Tidak ada tanda ragu palsu di 192 run lain (tuning dan uji).
+- **"Another axis is almost as good" tidak pernah muncul** di kedua set. Logikanya hanya diuji dengan lanskap buatan (`test_separate_near_optimal_directions_are_reported`). Die sintetis dengan satu sektor undercut tidak punya dua lembah terpisah, jadi pendeteksiannya pada data realistis belum terbukti.
+- **Block-out:** sisa bayangan 0 pada derau 0-30 µm di semua kasus, dan ≤ 30 µm (satu langkah uji) pada sebagian kasus 90 µm (batas 16 putaran tercapai).
+- **Sumbu default pada die dengan undercut** miring 2-7° dari sumbu die. Ini disengaja (luas membelakangi minimum), tetapi belum dibandingkan dengan pilihan dokter atau teknisi. Pada derau tinggi kemiringannya lebih kecil, karena normal yang dihaluskan meremehkan undercut.
+
+**Keterbatasan dan yang perlu diuji ulang dengan scan asli:**
+- Bentuk die sintetis sederhana: satu sektor undercut, simetris, tanpa gigi tetangga atau gusi. Undercut alami (kontur servikal, preparasi miring) belum diuji.
+- Pemisahan preparasi dari akar bergantung pada margin terkonfirmasi yang menutup dan pada sisi preparasi yang menyempit ke dalam. Preparasi dengan margin di bawah kontur yang melebar (emergence negatif) belum diuji.
+- Zona tanpa block-out 0,1 mm adalah default software, bukan angka klinis.
+- Klik dan seret di viewport (Set from View dengan pandangan nyata, bola pegangan dengan G) tidak diuji headless. Logikanya diuji lewat properti `direction` dan perpindahan lokasi bola.
+- Paten PAT2 (penandaan daerah terbayang dan optimasi arah) menurut Google Patents sudah gugur (R119, 2024-04-03). Ini bukan kesimpulan hukum; status perlu dicek di register DPMA sebelum rilis.
 
 **Pengujian.**
-- Lapis 1: die sintetis yang diputar dengan rotasi R diketahui menghasilkan sumbu = R·Z, dengan galat sudut di bawah ambang uji untuk setiap level derau.
-- Lapis 1: varian undercut menghasilkan himpunan face undercut dengan IoU terhadap sektor analitis di atas ambang uji; die tanpa undercut menghasilkan himpunan kosong.
-- Lapis 1: setelah block-out, tidak ada titik permukaan dalam yang terlihat terhalang sepanjang sumbu.
+- Lapis 1 (`tests/core/test_insertion.py`, 16 kasus tes):
+  - sumbu default = sumbu sebenarnya tanpa undercut (shoulder/chamfer, derau 0/30 µm);
+  - daerah preparasi tanpa face akar;
+  - IoU sektor undercut ≥ 0,7 dan galat kedalaman (MAE < 10 µm, p95 < 50 µm);
+  - kebenaran kedalaman 0 tanpa undercut;
+  - margin terbayang tertandai, dan sumbu yang dimiringkan 25° membuat margin terbayang;
+  - logika kandidat sumbu lain (lanskap buatan);
+  - block-out tanpa sisa bayangan di luar zona, zona tidak digeser, gerakan hanya tegak lurus sumbu;
+  - tanpa block-out pada die tanpa undercut; zona negatif ditolak.
+- Lapis 2 (`run_integration.py`):
+  - gerbang menolak margin draf;
+  - Detect Insertion Axis pada die dengan undercut 12° di puncak scallop;
+  - seret bola 25°: handler depsgraph memperbarui sumbu, peta, dan tanda "margin line lies in an undercut";
+  - Set from View, lalu Block Out: sisa bayangan 0, zona 0,1 mm dari preset, gerbang block-out lolos lalu menolak setelah sumbu berubah;
+  - setelah margin diubah, semua operator §5.2 ditolak lagi.
+
+**Modul core/.** `core/insertion.py` (`prep_region`, `insertion_context`, `ShadowField`, `undercut_map`, `default_axis`, `check_axis`, `block_out`, `residual_shadow`); `core/synthetic.py` (`undercut_depth_truth`).
 
 ### 5.3 Spacer (cement gap)
 
