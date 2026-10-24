@@ -140,12 +140,14 @@ class DENTALCAD_PT_main(bpy.types.Panel):
         if not ok:
             layout.label(text=message, icon="ERROR")
             return
-        layout.operator("dentalcad.spacer", icon="MOD_SHRINKWRAP")
+        row = layout.row(align=True)
+        row.operator("dentalcad.spacer", icon="MOD_SHRINKWRAP")
+        row.operator("dentalcad.spacer_show_undercuts", icon="COLOR")
         preset = insertion.material_preset()
         box = layout.box()
         box.label(text=preset.name, icon="MATERIAL")
         for name in ("cement_gap_um", "cement_gap_from_margin_mm", "cement_gap_transition_mm", "radial_spacing_um",
-                     "axial_spacing_um"):
+                     "axial_spacing_um", "milling_axes"):
             p = preset.get(name)
             box.label(text=f"{name}: {p.value} {p.unit} ({p.status_label})",
                       icon="ERROR" if p.status == "perlu_kalibrasi" else "NONE")
@@ -157,7 +159,9 @@ class DENTALCAD_PT_main(bpy.types.Panel):
         else:
             box.label(text=status, icon="CHECKMARK" if current else "ERROR")
             box.label(text=f"Folded faces: {obj.get(spacer.KEY_FOLDED, 0)} (+{obj.get(spacer.KEY_SLIVERS, 0)} slivers)")
-            box.label(text=f"New undercut in crown bottom: {1000 * obj.get(spacer.KEY_NEW_UNDERCUT, 0.0):.0f} um")
+            second = "with second block-out" if obj.get(spacer.KEY_SECOND) else "no second block-out"
+            box.label(text=f"{obj.get(spacer.KEY_AXES, 0)}-axis milling, {second}")
+            box.label(text=f"Remaining undercut in crown bottom: {1000 * obj.get(spacer.KEY_INNER_UNDERCUT, 0.0):.0f} um")
 
     def draw_scan(self, layout, context):
         col = layout.column(align=True)

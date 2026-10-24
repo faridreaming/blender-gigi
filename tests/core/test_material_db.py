@@ -27,6 +27,7 @@ VALID = {
     "params": {name: _param(1.0, unit) for name, (unit, _) in REQUIRED_PARAMS.items()},
 }
 VALID["params"]["min_thickness_anterior_mm"] = _param(0.8, "mm")
+VALID["params"]["milling_axes"] = _param(5, "axis", "praktik_lab")
 
 
 def test_bundled_zircad_prime_matches_ivoclar_chart():
@@ -47,16 +48,18 @@ def test_bundled_zircad_prime_matches_ivoclar_chart():
         "margin_angle_deg": 65,
         "milling_tool_diameter_mm": 1.2,
         "blockout_free_zone_mm": 0.1,
+        "milling_axes": 5,
     }
     assert {name: p.value for name, p in preset.params.items()} == expected
     ivo = [name for name, p in preset.params.items() if p.source.startswith("IVO")]
-    assert set(ivo) == set(expected) - {"axial_spacing_um", "blockout_free_zone_mm", "cement_gap_transition_mm"}
+    assert set(ivo) == set(expected) - {"axial_spacing_um", "blockout_free_zone_mm", "cement_gap_transition_mm", "milling_axes"}
     assert all(preset.get(name).source_date == "2024-02-07" for name in ivo)
     assert preset.get("axial_spacing_um").status == "perlu_kalibrasi"
     assert preset.get("blockout_free_zone_mm").status == "perlu_kalibrasi"
     assert "exocad Quick Guide" in preset.get("blockout_free_zone_mm").source
     assert preset.min_thickness_mm("premolar") == 1.0
     assert preset.get("cement_gap_transition_mm").status == "perlu_kalibrasi"
+    assert preset.get("milling_axes").status == "praktik_lab"
     assert len(preset.warnings()) == 3
 
 
@@ -131,3 +134,11 @@ def test_invalid_json_and_duplicate_ids(tmp_path):
         (tmp_path / name).write_text(json.dumps(VALID), encoding="utf-8")
     with pytest.raises(MaterialPresetError, match="sudah dipakai"):
         load_material_presets(tmp_path)
+
+
+@pytest.mark.parametrize("axes", [2, 6, 3.5])
+def test_milling_axes_must_be_3_4_or_5(axes):
+    data = copy.deepcopy(VALID)
+    data["params"]["milling_axes"] = _param(axes, "axis")
+    with pytest.raises(MaterialPresetError, match="milling_axes"):
+        parse_material_preset(data)

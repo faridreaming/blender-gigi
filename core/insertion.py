@@ -512,18 +512,26 @@ def block_out(context: InsertionContext, axis, free_zone_mm: float, max_passes: 
     """
     if free_zone_mm < 0:
         raise InsertionError("zona tanpa block-out wajib >= 0")
-    axis = np.asarray(axis, float)
-    axis = axis / np.linalg.norm(axis)
-    p = context.params
     prep_v = np.flatnonzero(context.region.vertices)
     near_margin = cKDTree(context.margin).query(context.vertices[prep_v])[0] <= free_zone_mm
-    movable = prep_v[~near_margin]
-    center = context.margin.mean(axis=0)
-    vertices = context.vertices.copy()
+    return block_out_mesh(MeshData(context.vertices, context.faces), context.region.faces, prep_v[~near_margin],
+                          axis, context.margin.mean(axis=0), free_zone_mm, context.params, max_passes)
+
+
+def block_out_mesh(mesh: MeshData, caster_faces: np.ndarray, movable: np.ndarray, axis, center: np.ndarray,
+                   free_zone_mm: float, params: InsertionParams = InsertionParams(), max_passes: int = 16) -> BlockOut:
+    """Block-out sejajar sumbu pada mesh apa pun: vertex `movable` yang terbayang oleh face `caster_faces` digeser
+    keluar tegak lurus sumbu (menjauhi garis sumbu lewat `center`), diulang sampai tidak ada yang bergeser.
+    Dipakai untuk die (§5.2) dan untuk block-out kedua pada permukaan dalam crown setelah cement gap (§5.3)."""
+    axis = np.asarray(axis, float)
+    axis = axis / np.linalg.norm(axis)
+    vertices = np.asarray(mesh.vertices, float).copy()
+    faces = np.asarray(mesh.faces)
+    movable = np.asarray(movable)
     displacement = np.zeros(len(vertices))
-    tri_faces = context.faces[context.region.faces]
+    tri_faces = faces[caster_faces]
     for _ in range(max_passes):
-        field_ = ShadowField(vertices[tri_faces], axis, center, p.shadow_height_eps_mm, p.depth_step_mm, 3.0)
+        field_ = ShadowField(vertices[tri_faces], axis, center, params.shadow_height_eps_mm, params.depth_step_mm, 3.0)
         push = field_.depth(vertices[movable])
         sel = push > 0
         if not sel.any():
@@ -535,7 +543,7 @@ def block_out(context: InsertionContext, axis, free_zone_mm: float, max_passes: 
         vertices[idx] += push[sel][:, None] * radial
         displacement[idx] += push[sel]
     moved = displacement > 0
-    return BlockOut(MeshData(vertices, context.faces.copy()), axis, free_zone_mm, moved, displacement)
+    return BlockOut(MeshData(vertices, faces.copy()), axis, free_zone_mm, moved, displacement)
 
 
 def residual_shadow(context: InsertionContext, blocked: BlockOut, margin_clearance_mm: float = 0.05) -> float:

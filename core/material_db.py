@@ -31,7 +31,9 @@ REQUIRED_PARAMS: dict[str, tuple[str, bool]] = {
     "margin_angle_deg": ("deg", False),
     "milling_tool_diameter_mm": ("mm", True),
     "blockout_free_zone_mm": ("mm", False),
+    "milling_axes": ("axis", True),
 }
+MILLING_AXES = (3, 4, 5)
 
 
 class MaterialPresetError(PresetError):
@@ -104,6 +106,8 @@ def parse_material_preset(data: dict, where: str = "preset") -> MaterialPreset:
         manufacturer=_text(data, "manufacturer", where),
         params=params,
     )
+    if preset.value("milling_axes") not in MILLING_AXES:
+        raise MaterialPresetError(f"{where}.milling_axes: wajib 3, 4, atau 5, didapat {preset.value('milling_axes')}")
     anterior = preset.min_thickness_mm("anterior")
     if anterior > min(preset.min_thickness_mm("premolar"), preset.min_thickness_mm("molar")):
         raise MaterialPresetError(f"{where}: ketebalan minimum anterior melebihi posterior")

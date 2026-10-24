@@ -20,7 +20,7 @@ from .margin import (
     DENTALCAD_OT_margin_update,
     DENTALCAD_PG_margin_point,
 )
-from .spacer import DENTALCAD_OT_spacer
+from .spacer import DENTALCAD_OT_spacer, DENTALCAD_OT_spacer_show_undercuts
 from .synthetic_case import DENTALCAD_OT_load_synthetic_case
 
 classes = (
@@ -38,6 +38,7 @@ classes = (
     DENTALCAD_OT_insertion_view,
     DENTALCAD_OT_block_out,
     DENTALCAD_OT_spacer,
+    DENTALCAD_OT_spacer_show_undercuts,
 )
 
 _register_classes, _unregister_classes = bpy.utils.register_classes_factory(classes)

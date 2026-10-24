@@ -93,7 +93,7 @@ def _spacer_case(finish, noise=0.0, params=None, seed=0, **overrides):
     blocked = insertion.block_out(ctx, die.insertion_axis, 0.1)
     faces = spacer.inner_faces(ctx.vertices, ctx.faces, ctx.region.faces, ctx.region.band_faces, ctx.margin)
     params = params or spacer.SpacerParams.from_preset(PRESET)
-    result = spacer.spacer_surface(blocked.mesh, faces, ctx.margin, die.insertion_axis, params)
+    result = spacer.spacer_surface(blocked.mesh, faces, ctx.margin, die.insertion_axis, params, ctx.noise_sigma_mm)
     return spec, die, result, params
 
 
@@ -111,16 +111,29 @@ def test_gap_zones_match_the_analytic_meridian_distance(finish):
 
 
 def test_radial_spacing_is_applied_in_the_zone_without_cement_gap():
-    # Finish 0,4 mm supaya dinding (normal horizontal) sudah mulai di dalam zona tanpa cement gap (1 mm).
-    spec, die, result, p = _spacer_case("shoulder", finish_width_mm=0.4)
+    # Normal dihaluskan (radius 0,5 mm) mengurangi spacing radial di dekat crease, jadi yang diuji adalah dinding
+    # di zona tanpa cement gap yang jauh dari crease: finish 0,2 mm dan from margin 2 mm (khusus tes ini).
+    params = spacer.SpacerParams(0.06, 2.0, 0.5, 0.01, 0.0)
+    spec, die, result, p = _spacer_case("shoulder", params=params, finish_width_mm=0.2)
     vp = die.vertex_params[result.vertex_index]
-    zero = result.gap_mm == 0
+    d_true = _meridian(spec, vp[:, 1])
     n_true = synthetic.surface_normals(spec, vp[:, 0], np.minimum(vp[:, 1], 3.999)) @ die.rotation.T
     h = np.linalg.norm(n_true - (n_true @ result.axis)[:, None] * result.axis, axis=1)
-    wall = zero & (h > 0.95)
+    wall = (d_true > 0.9) & (d_true < 1.9) & (h > 0.95) & (result.gap_mm == 0)
     offset = np.linalg.norm(result.displacement[wall], axis=1)
     assert wall.sum() > 50
     assert np.percentile(np.abs(offset - p.radial_mm * h[wall]), 95) < 0.001
+
+
+def test_smoothing_reduces_radial_spacing_next_to_a_crease():
+    """Keterbatasan yang dicatat (PHASE2.md §5.3): dinding dalam radius penghalusan dari crease shoulder."""
+    spec, die, result, p = _spacer_case("shoulder", finish_width_mm=0.4)
+    vp = die.vertex_params[result.vertex_index]
+    d_true = _meridian(spec, vp[:, 1])
+    wall_near_crease = (vp[:, 1] > 2.0) & (d_true < 0.7) & (result.gap_mm == 0)
+    offset = np.linalg.norm(result.displacement[wall_near_crease], axis=1)
+    assert wall_near_crease.sum() > 20
+    assert np.median(offset) < 0.8 * p.radial_mm
 
 
 def test_equal_radial_and_axial_spacing_offsets_along_the_normal():
@@ -138,3 +151,31 @@ def test_inner_surface_does_not_include_the_root():
 def test_folds_are_only_sliver_triangles_on_a_clean_die():
     _, _, result, _ = _spacer_case("chamfer")
     assert result.folded_faces == result.folded_slivers
+
+
+def test_smoothed_normals_remove_folds_on_a_noisy_die():
+    """Versi pertama (normal mentah) membuat 19-144 lipatan non-sliver pada derau >= 10 um (PHASE2.md §5.3)."""
+    _, _, result, _ = _spacer_case("shoulder", noise=0.03, seed=1)
+    assert result.folded_faces - result.folded_slivers == 0
+
+
+@pytest.mark.parametrize("noise", [0.0, 0.03])
+def test_second_block_out_removes_crown_bottom_undercuts(noise):
+    spec = synthetic.DieSpec(radius_x_mm=5.0, radius_y_mm=5.0, undercut_deg=8.0, undercut_center_deg=90.0)
+    die = synthetic.make_die(spec, noise_sigma_mm=noise, rotate=True, seed=2)
+    ctx = insertion.insertion_context(die.mesh, die.margin_curve(1024))
+    blocked = insertion.block_out(ctx, die.insertion_axis, 0.1)
+    faces = spacer.inner_faces(ctx.vertices, ctx.faces, ctx.region.faces, ctx.region.band_faces, ctx.margin)
+    result = spacer.spacer_surface(blocked.mesh, faces, ctx.margin, die.insertion_axis,
+                                   spacer.SpacerParams.from_preset(PRESET), ctx.noise_sigma_mm)
+    assert spacer.new_undercut_mm(result, ctx.margin) > 0  # 5 axis: undercut dari cement gap tetap ada
+    second = spacer.second_block_out(result, ctx.margin)
+    assert second.moved.any()
+    assert spacer.inner_undercut_depth(second.mesh, die.insertion_axis, ctx.margin).max() == 0.0
+    delta = second.mesh.vertices - result.mesh.vertices
+    assert np.abs(delta @ die.insertion_axis).max() < 1e-9  # hanya tegak lurus sumbu
+
+
+def test_milling_axes_comes_from_the_preset_as_lab_practice():
+    param = PRESET.get("milling_axes")
+    assert param.value in spacer.MILLING_AXES and param.status == "praktik_lab"

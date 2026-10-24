@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Benchmark spacer (cement gap) terhadap jawaban analitis die sintetis (docs/PHASE2.md §5.3).
 
-    python scripts/spacer_benchmark.py                    # set "ukur": didefinisikan sebelum dijalankan
+    python scripts/spacer_benchmark.py --set tuning       # set ukur pertama (09e4c7e), sekarang set tuning
+    python scripts/spacer_benchmark.py --set ukur         # set ukur kedua: dikunci sebelum dijalankan sekali
     python scripts/spacer_benchmark.py --seeds 1 --json hasil.json
 
 Parameter spacer dari data/materials/zircad_prime.json (tidak ada yang disetel di benchmark ini). Margin analitis,
@@ -11,6 +12,10 @@ Jawaban benar eksak hanya ada untuk die lingkaran tanpa scallop dan tanpa underc
 panjang busur meridian dari margin (permukaan putar), dan offset benar = gap(d) n + s_r h(n) dari normal
 analitis. Untuk die lain (elips, scallop, undercut) hanya lipatan, undercut baru di permukaan dalam, dan waktu
 yang dilaporkan (kolom jawaban benar ditulis "-").
+
+Setiap kasus diukur untuk dua konfigurasi milling: 5 axis (tanpa block-out kedua; undercut permukaan dalam hanya
+ditampilkan) dan 3/4 axis (block-out kedua setelah cement gap, sampai margin). Kriteria maintainer: 3/4 axis,
+derau 0-30 um, sisa undercut di permukaan dalam = 0 (resolusi uji 20 um).
 """
 
 from __future__ import annotations
@@ -32,14 +37,26 @@ NOISE_UM = (0, 10, 30, 90)
 FREE_ZONE_MM = 0.1
 EXACT_RANGE_MM = 3.0  # galat geodesik diukur sampai jarak ini dari margin
 
-UKUR = {
+# Set ukur pertama (dijalankan sekali di 09e4c7e). Hasilnya dipakai untuk memperbaiki arah offset (normal
+# dihaluskan) dan menambah block-out kedua, jadi sekarang set tuning.
+TUNING = {
     "lingkaran r5 taper 6": dict(radius_x_mm=5.0, radius_y_mm=5.0),
     "lingkaran r4 taper 10 tinggi 4": dict(radius_x_mm=4.0, radius_y_mm=4.0, taper_deg=10.0, prep_height_mm=4.0),
     "elips + scallop PL 2": dict(scallop_mm=1.0),
     "elips + CEJ PL 3,5": dict(radius_x_mm=4.0, radius_y_mm=3.6, prep_height_mm=5.5, scallop_mm=1.75),
     "lingkaran + undercut 8": dict(radius_x_mm=5.0, radius_y_mm=5.0, undercut_deg=8.0, undercut_center_deg=90.0),
 }
-SETS = {"ukur": UKUR}
+# Set ukur kedua: didefinisikan dan dikunci bersama kode SEBELUM dijalankan, lalu dijalankan sekali.
+UKUR = {
+    "lingkaran r4,5 taper 8 tinggi 5,5": dict(radius_x_mm=4.5, radius_y_mm=4.5, taper_deg=8.0, prep_height_mm=5.5),
+    "lingkaran r6 taper 4 finish 0,7": dict(radius_x_mm=6.0, radius_y_mm=6.0, taper_deg=4.0, finish_width_mm=0.7),
+    "elips taper 12 scallop PL 1,2": dict(radius_x_mm=5.2, radius_y_mm=4.6, taper_deg=12.0, scallop_mm=0.6),
+    "insisif sentral PL 3,2": dict(radius_x_mm=3.6, radius_y_mm=3.2, prep_height_mm=5.5, taper_deg=8.0,
+                                   finish_width_mm=0.8, scallop_mm=1.6),
+    "elips + undercut 10 di 200": dict(radius_x_mm=4.8, radius_y_mm=4.3, undercut_deg=10.0,
+                                       undercut_center_deg=200.0, scallop_mm=0.8),
+}
+SETS = {"tuning": TUNING, "ukur": UKUR}
 
 
 def _exact(spec: synthetic.DieSpec) -> bool:
@@ -62,11 +79,19 @@ def run_case(spec: synthetic.DieSpec, noise_um: int, seed: int, params: spacer.S
     blocked = insertion.block_out(ctx, axis, FREE_ZONE_MM)
     faces = spacer.inner_faces(ctx.vertices, ctx.faces, ctx.region.faces, ctx.region.band_faces, ctx.margin)
     t0 = time.perf_counter()
-    result = spacer.spacer_surface(blocked.mesh, faces, ctx.margin, axis, params)
-    out = {"seconds_spacer": time.perf_counter() - t0, "seconds_total": time.perf_counter() - start,
+    result = spacer.spacer_surface(blocked.mesh, faces, ctx.margin, axis, params, ctx.noise_sigma_mm)
+    seconds_spacer = time.perf_counter() - t0
+    t1 = time.perf_counter()
+    second = spacer.second_block_out(result, ctx.margin)
+    residual = spacer.inner_undercut_depth(second.mesh, axis, ctx.margin)
+    out = {"seconds_spacer": seconds_spacer, "seconds_second": time.perf_counter() - t1,
+           "seconds_total": time.perf_counter() - start,
            "folded": result.folded_faces - result.folded_slivers, "slivers": result.folded_slivers,
            "inner_vertices": len(result.vertex_index),
-           "new_undercut_um": 1000 * spacer.new_undercut_mm(result, ctx.margin), "exact": _exact(spec)}
+           "new_undercut_um": 1000 * spacer.new_undercut_mm(result, ctx.margin),  # 5 axis
+           "residual_34_um": 1000 * float(residual.max()) if len(residual) else 0.0,  # 3/4 axis
+           "second_moved": int(second.moved.sum()), "second_push_um": 1000 * float(second.displacement.max()),
+           "exact": _exact(spec)}
     if not out["exact"]:
         return out
 
@@ -123,8 +148,9 @@ def main(argv: list[str] | None = None) -> int:
           f"{args.seeds} seed. Kolom jawaban benar hanya untuk die lingkaran tanpa scallop/undercut.\n")
     print("| Die | Finish | Derau | Galat jarak geodesik median / p95 / maks | Gap di zona nol (vertex, maks) | "
           "Galat gap zona penuh maks | Galat gap terbesar (transisi) | Galat spacing radial dinding maks | "
-          "Galat vektor offset p95 / maks | Face terlipat (bukan sliver) | Undercut baru di permukaan dalam | Waktu spacer |")
-    print("|---|---|---|---|---|---|---|---|---|---|---|---|")
+          "Galat vektor offset p95 / maks | Face terlipat (bukan sliver) | Undercut permukaan dalam, 5 axis | "
+          "3/4 axis: block-out kedua (vertex, maks) | 3/4 axis: sisa undercut | Waktu spacer + block-out kedua |")
+    print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         runs = r["runs"]
         worst = lambda k: max(x[k] for x in runs)
@@ -138,7 +164,13 @@ def main(argv: list[str] | None = None) -> int:
             cells = "- | - | - | - | - | -"
         print(f"| {r['die']} | {r['finish']} | {r['noise_um']} um | {cells} | {worst('folded')} "
               f"(+{worst('slivers')} sliver) | "
-              f"{worst('new_undercut_um'):.0f} um | {worst('seconds_spacer'):.2f} s |")
+              f"{worst('new_undercut_um'):.0f} um | {worst('second_moved')}, {worst('second_push_um'):.0f} um | "
+              f"{worst('residual_34_um'):.0f} um | {worst('seconds_spacer'):.2f} + {worst('seconds_second'):.2f} s |")
+    crit = [x for r in rows if r["noise_um"] <= 30 for x in r["runs"]]
+    print("")
+    print(f"Kriteria 3/4 axis (derau 0-30 um, sisa undercut = 0): "
+          f"{sum(x['residual_34_um'] == 0 for x in crit)} dari {len(crit)} run lolos; "
+          f"sisa terbesar {max(x['residual_34_um'] for x in crit):.0f} um")
     if args.json:
         args.json.write_text(json.dumps(rows, indent=2, default=float), encoding="utf-8")
     return 0

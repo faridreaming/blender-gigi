@@ -6,11 +6,20 @@ block-out"): block-out dulu (core/insertion.py), lalu setiap vertex permukaan da
 
     gap(d) * n + s_r * h(n) + s_a * (n . a) a
 
-dengan d = jarak geodesik ke margin line (core/geodesic.py), n = normal vertex die hasil block-out, a = sumbu
-insersi, dan h(n) = komponen n yang tegak lurus sumbu. gap(d) = 0 sampai "from margin", naik linear sepanjang
+dengan d = jarak geodesik ke margin line (core/geodesic.py), n = normal vertex die hasil block-out yang
+dihaluskan (radius max(0,5 mm, 10 sigma), sama dengan peta undercut §5.2), a = sumbu insersi, dan h(n) =
+komponen n yang tegak lurus sumbu. gap(d) = 0 sampai "from margin", naik linear sepanjang
 lebar transisi, lalu sama dengan cement gap. Spacing radial s_r dan axial s_a berlaku di seluruh permukaan dalam,
 termasuk zona tanpa cement gap, dan cement gap ditambahkan di atasnya (EXQ: "independent of the cement gap";
 DTX). Bila s_r = s_a, offset spacing = s * n.
+
+Untuk produksi 3 atau 4 axis (`milling_axes` di preset), block-out kedua sejajar sumbu diterapkan pada
+permukaan dalam setelah cement gap (EXQ: "material configurations typically define an additional block-out being
+applied after generating the cement gap"), sampai margin (zona 0). Untuk 5 axis tidak ada block-out kedua;
+undercut di permukaan dalam hanya ditampilkan ("Show undercuts").
+
+Pemeriksaan undercut setelah spacing lalu menghapusnya mirip klaim EP2187833B1 (Straumann), yang menurut Google
+Patents masih aktif di Eropa sampai perkiraan 2028-07-24; lihat docs/PHASE2.md §5.3. Bukan kesimpulan hukum.
 """
 
 from __future__ import annotations
@@ -22,7 +31,12 @@ from scipy.spatial import cKDTree
 
 from .geodesic import distance_from_curve
 from .geometry import face_normals, vertex_normals
+from .margin import crease_score
 from .mesh_data import MeshData
+
+SMOOTH_RADIUS_MIN_MM = 0.5  # sama dengan InsertionParams (PHASE2.md §5.2)
+SMOOTH_RADIUS_PER_NOISE = 10.0
+MILLING_AXES = (3, 4, 5)
 
 
 SLIVER_MM = 0.01  # segitiga dengan tinggi di bawah ini terbalik oleh beda normal kecil; bukan lipatan permukaan
@@ -117,9 +131,19 @@ class SpacerResult:
     axis: np.ndarray
 
 
+def smoothed_normals(vertices: np.ndarray, faces: np.ndarray, noise_sigma_mm: float) -> np.ndarray:
+    """Normal vertex dihaluskan (rata-rata Gauss dalam radius max(0,5 mm, 10 sigma)), seperti peta undercut §5.2."""
+    radius = max(SMOOTH_RADIUS_MIN_MM, SMOOTH_RADIUS_PER_NOISE * noise_sigma_mm)
+    _, _, smooth = crease_score(vertices, vertex_normals(vertices, faces), radius)
+    return smooth
+
+
 def spacer_surface(blocked: MeshData, faces_mask: np.ndarray, margin_points: np.ndarray, axis,
-                   params: SpacerParams) -> SpacerResult:
-    """Permukaan dalam crown dari mesh die hasil block-out (topologi sama dengan die asal)."""
+                   params: SpacerParams, noise_sigma_mm: float = 0.0, smooth: bool = True) -> SpacerResult:
+    """Permukaan dalam crown dari mesh die hasil block-out (topologi sama dengan die asal).
+
+    smooth=True: arah offset dari normal yang dihaluskan (versi pertama memakai normal mentah, yang pada derau
+    >= 10 um membuat lipatan di atap dan undercut baru di dinding; PHASE2.md §5.3)."""
     vertices = np.asarray(blocked.vertices, float)
     faces = np.asarray(blocked.faces)
     faces_mask = np.asarray(faces_mask, bool)
@@ -133,7 +157,10 @@ def spacer_surface(blocked: MeshData, faces_mask: np.ndarray, margin_points: np.
     if not np.isfinite(distance[used]).any():
         raise SpacerError("jarak ke margin tidak bisa dihitung di permukaan dalam")
 
-    normals = vertex_normals(vertices, faces[faces_mask])
+    if smooth:
+        normals = smoothed_normals(vertices, faces[faces_mask], noise_sigma_mm)
+    else:
+        normals = vertex_normals(vertices, faces[faces_mask])
     along = normals @ axis
     horizontal = normals - along[:, None] * axis
     gap = gap_profile(distance, params)
@@ -158,13 +185,32 @@ def spacer_surface(blocked: MeshData, faces_mask: np.ndarray, margin_points: np.
                         gap[vertex_index], displacement[vertex_index], int(flipped.sum()), slivers, params, axis)
 
 
+def inner_undercut_depth(mesh: MeshData, axis, margin_points: np.ndarray, height_eps_mm: float = 0.02,
+                         step_mm: float = 0.02) -> np.ndarray:
+    """Kedalaman undercut per vertex permukaan dalam terhadap sumbu (untuk "Show undercuts")."""
+    from .insertion import ShadowField
+
+    vertices = np.asarray(mesh.vertices, float)
+    tri = vertices[np.asarray(mesh.faces)]
+    field = ShadowField(tri, np.asarray(axis, float), np.asarray(margin_points, float).mean(axis=0), height_eps_mm,
+                        step_mm, 3.0)
+    return field.depth(vertices)
+
+
 def new_undercut_mm(result: SpacerResult, margin_points: np.ndarray, height_eps_mm: float = 0.02,
                     step_mm: float = 0.02) -> float:
     """Kedalaman bayangan terbesar pada permukaan dalam (EXQ: cement gap setelah block-out bisa menimbulkan
     undercut baru pada preparasi curam)."""
-    from .insertion import ShadowField
-
-    tri = result.mesh.vertices[result.mesh.faces]
-    field = ShadowField(tri, result.axis, np.asarray(margin_points, float).mean(axis=0), height_eps_mm, step_mm, 3.0)
-    depth = field.depth(result.mesh.vertices)
+    depth = inner_undercut_depth(result.mesh, result.axis, margin_points, height_eps_mm, step_mm)
     return float(depth.max()) if len(depth) else 0.0
+
+
+def second_block_out(result: SpacerResult, margin_points: np.ndarray, max_passes: int = 16):
+    """Block-out kedua sejajar sumbu pada permukaan dalam setelah cement gap, sampai margin (zona 0), untuk produksi
+    3 atau 4 axis (EXQ). Mengembalikan core.insertion.BlockOut dengan mesh permukaan dalam yang baru."""
+    from .insertion import block_out_mesh
+
+    mesh = result.mesh
+    faces = np.asarray(mesh.faces)
+    return block_out_mesh(mesh, np.ones(len(faces), dtype=bool), np.arange(len(mesh.vertices)), result.axis,
+                          np.asarray(margin_points, float).mean(axis=0), 0.0, max_passes=max_passes)

@@ -615,6 +615,59 @@ class Runner:
         if current or "margin" not in message.lower():
             problems.append(f"spacer tetap berlaku setelah margin diubah: {message}")
         self.check("spacer: kedaluwarsa bila sumbu, block-out, atau margin berubah", problems)
+        self.spacer_milling(package)
+
+    def spacer_milling(self, package: str) -> None:
+        """milling_axes: 5 axis = peta undercut + Show Undercuts; 3 axis = block-out kedua (bisa dimatikan)."""
+        import dataclasses
+
+        import numpy as np
+
+        ops_margin = importlib.import_module(f"{package}.ops.margin")
+        ops_ins = importlib.import_module(f"{package}.ops.insertion")
+        ops_sp = importlib.import_module(f"{package}.ops.spacer")
+        case = importlib.import_module(f"{package}.ops.synthetic_case")
+        problems = []
+        clear_scene()
+        bpy.ops.dentalcad.load_synthetic_case(finish="shoulder", scallop_mm=0.5, noise_um=30.0, undercut=True,
+                                              undercut_deg=8.0, undercut_center_deg=90.0, seed=1)
+        die = bpy.data.objects[case.DIE_NAME]
+        truth = np.array(die[case.KEY_TRUTH], dtype=float).reshape(-1, 3)
+        bpy.ops.dentalcad.margin_detect(use_seed=True, seed_point=tuple(truth[300] + 0.05))
+        bpy.context.view_layer.objects.active = ops_margin.margin_controls(die)
+        bpy.ops.dentalcad.margin_confirm()
+        bpy.context.view_layer.objects.active = die
+        bpy.ops.dentalcad.insertion_detect()
+        bpy.ops.dentalcad.block_out()
+
+        preset = ops_ins.material_preset()
+        bpy.ops.dentalcad.spacer()
+        obj = bpy.data.objects[ops_sp.spacer_name(die)]
+        if int(preset.value("milling_axes")) == 5:
+            if obj.get(ops_sp.KEY_SECOND) or obj.data.color_attributes.get(ops_sp.UNDERCUT_COLOR) is None:
+                problems.append("5 axis: block-out kedua jalan atau peta undercut tidak ditulis")
+            if bpy.ops.dentalcad.spacer_show_undercuts() != {"FINISHED"}:
+                problems.append("Show Undercuts gagal")
+        five_axis = 1000 * obj.get(ops_sp.KEY_INNER_UNDERCUT, -1)
+
+        original = ops_ins.material_preset
+        three = dataclasses.replace(preset, params={**preset.params, "milling_axes": dataclasses.replace(
+            preset.params["milling_axes"], value=3)})
+        ops_ins.material_preset = lambda: three
+        try:
+            bpy.ops.dentalcad.spacer()
+            obj = bpy.data.objects[ops_sp.spacer_name(die)]
+            three_axis = 1000 * obj[ops_sp.KEY_INNER_UNDERCUT]
+            if not obj.get(ops_sp.KEY_SECOND) or obj[ops_sp.KEY_INNER_UNDERCUT] != 0.0:
+                problems.append(f"3 axis: block-out kedua {obj.get(ops_sp.KEY_SECOND)}, sisa undercut {three_axis:.0f} um")
+            bpy.ops.dentalcad.spacer(use_second_block_out=False)
+            obj = bpy.data.objects[ops_sp.spacer_name(die)]
+            if obj.get(ops_sp.KEY_SECOND):
+                problems.append("3 axis: block-out kedua tetap jalan walau dimatikan")
+        finally:
+            ops_ins.material_preset = original
+        self.check(f"spacer milling: 5 axis undercut {five_axis:.0f} um ditampilkan, 3 axis sisa {three_axis:.0f} um, "
+                   "block-out kedua bisa dimatikan", problems)
 
     def registration(self) -> None:
         problems = []
@@ -623,7 +676,7 @@ class Runner:
                      "DENTALCAD_OT_load_synthetic_case", "DENTALCAD_OT_margin_draw",
                      "DENTALCAD_OT_margin_confirm", "DENTALCAD_OT_insertion_detect",
                      "DENTALCAD_OT_insertion_from_view", "DENTALCAD_OT_insertion_view", "DENTALCAD_OT_block_out",
-                     "DENTALCAD_OT_spacer"):
+                     "DENTALCAD_OT_spacer", "DENTALCAD_OT_spacer_show_undercuts"):
             if not hasattr(bpy.types, name):
                 problems.append(f"{name} tidak teregistrasi")
         if not hasattr(bpy.types.Scene, "dentalcad_case"):
