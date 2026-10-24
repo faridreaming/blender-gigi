@@ -23,6 +23,7 @@ REQUIRED_PARAMS: dict[str, tuple[str, bool]] = {
     "connector_area_posterior_mm2": ("mm2", True),
     "cement_gap_um": ("um", True),
     "cement_gap_from_margin_mm": ("mm", False),
+    "cement_gap_transition_mm": ("mm", False),
     "radial_spacing_um": ("um", False),
     "axial_spacing_um": ("um", False),
     "margin_horizontal_mm": ("mm", False),

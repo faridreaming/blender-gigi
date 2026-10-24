@@ -52,6 +52,13 @@
       "source": "IVO: Ivoclar Software Parameter Chart (exocad) Rev. 1, IPS e.max ZirCAD Prime (full/partial anatomical), single crown; docs/PHASE2.md §2.1; 'Beginning of cement' = slider 'From margin' (DTX)",
       "source_date": "2024-02-07"
     },
+    "cement_gap_transition_mm": {
+      "value": 0.5,
+      "unit": "mm",
+      "status": "perlu_kalibrasi",
+      "source": "tidak ada sumber: lebar dan bentuk transisi dari zona tanpa cement gap ke cement gap penuh tidak tercantum di IVO, DTX, EXW, maupun EXQ; linear sepanjang 0,5 mm sampai dikalibrasi (docs/PHASE2.md §5.3)",
+      "source_date": "2026-10-24"
+    },
     "radial_spacing_um": {
       "value": 10,
       "unit": "um",

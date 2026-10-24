@@ -509,6 +509,40 @@ class Runner:
                 if "draft" not in str(exc):
                     problems.append(f"pesan gerbang tidak sesuai: {exc}")
         self.check("sumbu insersi: gerbang menolak setelah margin kembali draf", problems)
+        self.insertion_noisy(package)
+
+    def insertion_noisy(self, package: str) -> None:
+        """Scan derau 90 um: margin lewat Draw Margin, sumbu dan block-out tetap jalan dengan penanda derau."""
+        import numpy as np
+
+        ops_margin = importlib.import_module(f"{package}.ops.margin")
+        ops_ins = importlib.import_module(f"{package}.ops.insertion")
+        case = importlib.import_module(f"{package}.ops.synthetic_case")
+        problems = []
+        clear_scene()
+        bpy.ops.dentalcad.load_synthetic_case(finish="shoulder", scallop_mm=0.0, noise_um=90.0, undercut=True,
+                                              undercut_deg=12.0, undercut_center_deg=90.0, seed=0)
+        die = bpy.data.objects[case.DIE_NAME]
+        truth = np.array(die[case.KEY_TRUTH], dtype=float).reshape(-1, 3)
+        clicks = [{"name": "", "co": tuple(p)} for p in truth[::32]]
+        bpy.ops.dentalcad.margin_draw(points=clicks)
+        bpy.context.view_layer.objects.active = ops_margin.margin_controls(die)
+        bpy.ops.dentalcad.margin_confirm()
+        bpy.context.view_layer.objects.active = die
+        if bpy.ops.dentalcad.insertion_detect() != {"FINISHED"}:
+            problems.append("sumbu insersi tidak jalan pada scan berderau")
+        if die.get(ops_ins.KEY_NOISE, 0.0) <= 0.06:
+            problems.append(f"perkiraan derau {die.get(ops_ins.KEY_NOISE)} tidak di atas 60 um")
+        if bpy.ops.dentalcad.block_out() != {"FINISHED"}:
+            problems.append("block-out tidak jalan pada scan berderau")
+        blocked = bpy.data.objects.get(ops_ins.blockout_name(die))
+        residual = blocked.get(ops_ins.KEY_BLOCKOUT_RESIDUAL) if blocked else None
+        if blocked is None or not blocked.get(ops_ins.KEY_BLOCKOUT_NOISY):
+            problems.append("block-out tidak ditandai sebagai hasil scan berderau")
+        if residual is None or residual < 0:
+            problems.append("sisa bayangan tidak terukur")
+        label = f"{1000 * residual:.0f} um" if residual is not None else "?"
+        self.check(f"sumbu insersi pada scan derau 90 um: jalan dengan peringatan, sisa bayangan {label}", problems)
 
     def registration(self) -> None:
         problems = []

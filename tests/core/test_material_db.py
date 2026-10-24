@@ -39,6 +39,7 @@ def test_bundled_zircad_prime_matches_ivoclar_chart():
         "connector_area_posterior_mm2": 9,
         "cement_gap_um": 60,
         "cement_gap_from_margin_mm": 1.0,
+        "cement_gap_transition_mm": 0.5,
         "radial_spacing_um": 10,
         "axial_spacing_um": 0,
         "margin_horizontal_mm": 0.2,
@@ -49,13 +50,14 @@ def test_bundled_zircad_prime_matches_ivoclar_chart():
     }
     assert {name: p.value for name, p in preset.params.items()} == expected
     ivo = [name for name, p in preset.params.items() if p.source.startswith("IVO")]
-    assert set(ivo) == set(expected) - {"axial_spacing_um", "blockout_free_zone_mm"}
+    assert set(ivo) == set(expected) - {"axial_spacing_um", "blockout_free_zone_mm", "cement_gap_transition_mm"}
     assert all(preset.get(name).source_date == "2024-02-07" for name in ivo)
     assert preset.get("axial_spacing_um").status == "perlu_kalibrasi"
     assert preset.get("blockout_free_zone_mm").status == "perlu_kalibrasi"
     assert "exocad Quick Guide" in preset.get("blockout_free_zone_mm").source
     assert preset.min_thickness_mm("premolar") == 1.0
-    assert len(preset.warnings()) == 2
+    assert preset.get("cement_gap_transition_mm").status == "perlu_kalibrasi"
+    assert len(preset.warnings()) == 3
 
 
 def test_all_bundled_presets_are_valid():

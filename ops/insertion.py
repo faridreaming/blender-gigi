@@ -39,6 +39,9 @@ KEY_HANDLE_LAST = "dentalcad_insertion_handle_last"
 KEY_BLOCKOUT_AXIS = "dentalcad_blockout_axis"
 KEY_BLOCKOUT_RESIDUAL = "dentalcad_blockout_residual_mm"
 KEY_BLOCKOUT_ZONE = "dentalcad_blockout_free_zone_mm"
+KEY_NOISE = "dentalcad_insertion_noise_mm"  # perkiraan derau scan (di die)
+KEY_BLOCKOUT_NOISY = "dentalcad_blockout_noisy"
+KEY_BLOCKOUT_VERSION = "dentalcad_blockout_version"
 UNDERCUT_COLOR = "DentalCAD Undercut"
 UNDERCUT_DEPTH = "dentalcad_undercut_mm"
 ARROW_LENGTH_MM = 6.0
@@ -201,7 +204,23 @@ def _doubt_message(reasons) -> str:
     return "; ".join(name for name, _ in reasons)
 
 
+def noisy_scan(die) -> tuple[bool, float]:
+    """(derau di atas ambang deteksi margin, perkiraan derau mm). Margin scan seperti ini dibuat lewat Draw Margin."""
+    sigma = context_for(die).noise_sigma_mm
+    return sigma > core_margin.MarginParams().max_noise_mm, sigma
+
+
+def _noise_warning(sigma: float) -> str:
+    return (f"Noisy scan (estimated noise {1000 * sigma:.0f} um > "
+            f"{1000 * core_margin.MarginParams().max_noise_mm:.0f} um): the undercut map is approximate and a "
+            "block-out on a noisy scan can leave shadows")
+
+
 def _report_axis(operator, die, doubtful, reasons, umap, what: str) -> None:
+    noisy, sigma = noisy_scan(die)
+    die[KEY_NOISE] = sigma
+    if noisy:
+        operator.report({"WARNING"}, _noise_warning(sigma) + "; check the residual shadow after Block Out")
     depth = 1000 * float(umap.vertex_depth.max())
     if doubtful:
         operator.report({"WARNING"}, f"{what}: insertion axis needs checking ({_doubt_message(reasons)}). "
@@ -333,6 +352,10 @@ class DENTALCAD_OT_block_out(bpy.types.Operator):
         obj[KEY_BLOCKOUT_RESIDUAL] = residual
         obj[KEY_BLOCKOUT_ZONE] = float(param.value)
         obj["dentalcad_blockout_stale"] = False
+        obj[KEY_BLOCKOUT_VERSION] = int(die.get(KEY_BLOCKOUT_VERSION, 0)) + 1
+        die[KEY_BLOCKOUT_VERSION] = obj[KEY_BLOCKOUT_VERSION]
+        noisy, sigma = noisy_scan(die)
+        obj[KEY_BLOCKOUT_NOISY] = noisy
         moved = int(result.moved.sum())
         message = (f"Block-out: {moved} vertices moved, up to {1000 * float(result.displacement.max()):.0f} um; "
                    f"no block-out within {param.value} mm of the margin")
@@ -341,7 +364,12 @@ class DENTALCAD_OT_block_out(bpy.types.Operator):
                                                "(exocad generic default)")
         else:
             self.report({"INFO"}, message)
-        if residual > 0:
+        if noisy:
+            # Pada scan berderau sisa bayangan selalu dilaporkan, juga bila 0 (resolusi uji 20 um).
+            self.report({"WARNING"}, _noise_warning(sigma) + f". Measured residual shadow after block-out: "
+                                     f"{1000 * residual:.0f} um outside the free zone (test step "
+                                     f"{1000 * ctx.params.depth_step_mm:.0f} um)")
+        elif residual > 0:
             self.report({"WARNING"}, f"Block-out left a shadow of {1000 * residual:.0f} um outside the free zone")
         return {"FINISHED"}
 

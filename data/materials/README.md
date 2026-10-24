@@ -21,6 +21,7 @@ Parameter wajib (lihat `REQUIRED_PARAMS` di `core/material_db.py`):
 | `connector_area_anterior_mm2`, `connector_area_posterior_mm2` | mm2 | Luas konektor minimum bridge. |
 | `cement_gap_um` | um | Gap semen. |
 | `cement_gap_from_margin_mm` | mm | Jarak dari margin line tempat cement gap mulai ("From margin" di exocad). |
+| `cement_gap_transition_mm` | mm | Lebar transisi linear dari 0 ke cement gap penuh setelah "from margin". |
 | `radial_spacing_um`, `axial_spacing_um` | um | Additional spacing radial (tegak lurus sumbu insersi) dan axial; berlaku juga di zona tanpa cement gap. |
 | `margin_horizontal_mm`, `margin_angled_length_mm`, `margin_angle_deg` | mm, mm, deg | Border crown di margin: lebar horizontal, panjang bagian bersudut, dan sudutnya. |
 | `milling_tool_diameter_mm` | mm | Diameter alat untuk antisipasi milling. |
@@ -34,6 +35,7 @@ Parameter wajib (lihat `REQUIRED_PARAMS` di `core/material_db.py`):
 
 Catatan `zircad_prime.json`:
 - `axial_spacing_um = 0` berstatus `perlu_kalibrasi`, karena IVO hanya mencantumkan spacing x/y (radial).
+- `cement_gap_transition_mm = 0.5` berstatus `perlu_kalibrasi`: tidak ada sumber untuk lebar maupun bentuk transisi (docs/PHASE2.md §5.3).
 - `blockout_free_zone_mm = 0.1` berstatus `perlu_kalibrasi`: tidak tercantum di IVO; 0,1 mm adalah default generik exocad menurut exocad Quick Guide: Crown Bottoms (docs/PHASE2.md §5.2), dan nilai yang tepat bergantung pada mesin milling.
 - Angka sebelumnya (`cement_gap_um = 50` dari literatur RESEARCH.md §2) diganti angka Ivoclar sesuai keputusan K4 Fase 2.
 - Semua nilai `default_pabrikan` adalah setelan pabrikan untuk exocad; nilai klinis final tetap perlu dikalibrasi dengan milling.

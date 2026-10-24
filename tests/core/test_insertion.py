@@ -123,3 +123,15 @@ def test_negative_free_zone_is_rejected():
     die, ctx = _context(synthetic.DieSpec(), seed=0)
     with pytest.raises(insertion.InsertionError):
         insertion.block_out(ctx, die.insertion_axis, free_zone_mm=-0.1)
+
+
+def test_block_out_on_a_noisy_scan_reports_a_small_residual_shadow():
+    """Scan derau 90 um (margin dari Draw Margin): block-out tetap jalan; sisa bayangan diukur, bukan diasumsikan 0."""
+    spec = synthetic.DieSpec(undercut_deg=8.0, undercut_center_deg=90.0)
+    die, ctx = _context(spec, noise=0.09, seed=2)
+    assert ctx.noise_sigma_mm > 0.06
+    result = insertion.default_axis(ctx)
+    blocked = insertion.block_out(ctx, result.axis, free_zone_mm=0.1)
+    residual = insertion.residual_shadow(ctx, blocked)
+    assert blocked.moved.any()
+    assert 0.0 <= residual <= 0.05  # benchmark set tuning dan uji: <= 30 um pada derau 90 um
