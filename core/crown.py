@@ -36,7 +36,8 @@ class CrownParams:
 
     occlusal_distance_mm: float = 0.0  # literatur, perlu kalibrasi (Nagata 2025)
     approximal_distance_mm: float = -0.02  # literatur, perlu kalibrasi (Nagata 2025); negatif = overlap
-    min_occlusal_thickness_mm: float = 1.0  # default pabrikan IVO (molar/premolar 1,00; anterior 0,80)
+    min_thickness_posterior_mm: float = 1.0  # default pabrikan IVO "Minimal thickness" premolar/molar
+    min_thickness_anterior_mm: float = 0.8  # default pabrikan IVO "Minimal thickness" anterior
     cement_gap_mm: float = 0.06  # default pabrikan IVO, untuk tinggi minimum
     contour_bulge_mm: float = 0.5  # perlu kalibrasi, tanpa sumber
     blend_fraction: float = 0.5  # bagian dinding di bawah height of contour tempat margin dicampur (algoritma)
@@ -197,7 +198,9 @@ def minimum_height(template: TemplateParams, prep_top_mm: float, params: CrownPa
     Perkiraan kasar; cek ketebalan lengkap di §5.6."""
     s = template.shape
     floor = s.relief_mm * (1.0 - relief_floor_fraction(s))
-    return prep_top_mm + params.cement_gap_mm + params.min_occlusal_thickness_mm + floor
+    thickness = (params.min_thickness_anterior_mm if template.kind in ("incisor", "canine")
+                 else params.min_thickness_posterior_mm)
+    return prep_top_mm + params.cement_gap_mm + thickness + floor
 
 
 def _min_distance(surface: CrownSurface, mesh: MeshData, projector: MeshProjector) -> float:

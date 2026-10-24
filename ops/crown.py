@@ -51,6 +51,8 @@ def crown_params() -> core_crown.CrownParams:
         occlusal_distance_mm=preset.value("occlusal_distance_mm"),
         approximal_distance_mm=preset.value("approximal_distance_mm"),
         cement_gap_mm=preset.value("cement_gap_um") / 1000.0,
+        min_thickness_anterior_mm=preset.min_thickness_mm("anterior"),
+        min_thickness_posterior_mm=min(preset.min_thickness_mm("premolar"), preset.min_thickness_mm("molar")),
     )
 
 
