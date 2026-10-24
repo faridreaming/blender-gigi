@@ -114,6 +114,20 @@
       "status": "praktik_lab",
       "source": "isi dari mesin lab (3, 4, atau 5). Nilai 5 hanya isian sementara: Fase 2 belum punya mesin milling. 3/4 axis: block-out kedua sejajar sumbu setelah cement gap (exocad Quick Guide: Crown Bottoms, transkrip Wayback 2024-02-25: \"For 3- or 4-axis production, material configurations typically define an additional block-out being applied after generating the cement gap\"); 5 axis: undercut permukaan dalam hanya ditampilkan (docs/PHASE2.md §5.3)",
       "source_date": "2026-10-24"
+    },
+    "occlusal_distance_mm": {
+      "value": 0.0,
+      "unit": "mm",
+      "status": "literatur",
+      "source": "literatur: Nagata K dkk., \"Verification of the accuracy and design time of crowns designed with artificial intelligence\", J Adv Prosthodont 2025;17(1):1-10, doi:10.4047/jap.2025.17.1.1 (PMC11886404; teks lengkap dibaca lewat Europe PMC 2026-10-25): \"The design parameters were set as follows: ... occlusal distance, 0 µm; approximal distance, −20 µm\". Setelan desain studi in vitro (3Shape Dental System dan Dentbird), berdasarkan Cho dkk.; bukan rekomendasi klinis. Isi dengan praktik lab (docs/PHASE2.md §5.4)",
+      "source_date": "2025"
+    },
+    "approximal_distance_mm": {
+      "value": -0.02,
+      "unit": "mm",
+      "status": "literatur",
+      "source": "literatur: Nagata K dkk., \"Verification of the accuracy and design time of crowns designed with artificial intelligence\", J Adv Prosthodont 2025;17(1):1-10, doi:10.4047/jap.2025.17.1.1 (PMC11886404; teks lengkap dibaca lewat Europe PMC 2026-10-25): \"The design parameters were set as follows: ... occlusal distance, 0 µm; approximal distance, −20 µm\". Setelan desain studi in vitro (3Shape Dental System dan Dentbird), berdasarkan Cho dkk.; bukan rekomendasi klinis. Isi dengan praktik lab (docs/PHASE2.md §5.4)",
+      "source_date": "2025"
     }
   }
 }

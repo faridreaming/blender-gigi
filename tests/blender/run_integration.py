@@ -669,6 +669,91 @@ class Runner:
         self.check(f"spacer milling: 5 axis undercut {five_axis:.0f} um ditampilkan, 3 axis sisa {three_axis:.0f} um, "
                    "block-out kedua bisa dimatikan", problems)
 
+    def crown(self, package: str) -> None:
+        """§5.4 langkah 1 sampai 3: gerbang spacer, proposal dengan tetangga dan antagonis sintetis, kedaluwarsa,
+        dan arah mesial dari panah tanpa tetangga (K9)."""
+        import numpy as np
+        from mathutils import Matrix, Vector
+
+        ops_margin = importlib.import_module(f"{package}.ops.margin")
+        ops_crown = importlib.import_module(f"{package}.ops.crown")
+        case = importlib.import_module(f"{package}.ops.synthetic_case")
+        problems = []
+        clear_scene()
+        bpy.ops.dentalcad.load_synthetic_case(finish="chamfer", scallop_mm=1.0, noise_um=10.0, seed=3,
+                                              with_context=True)
+        die = bpy.data.objects[case.DIE_NAME]
+        scene_case = bpy.context.scene.dentalcad_case
+        truth = np.array(die[case.KEY_TRUTH], dtype=float).reshape(-1, 3)
+        bpy.ops.dentalcad.margin_detect(use_seed=True, seed_point=tuple(truth[128] + 0.05))
+        bpy.context.view_layer.objects.active = ops_margin.margin_controls(die)
+        bpy.ops.dentalcad.margin_confirm()
+        bpy.context.view_layer.objects.active = die
+        bpy.ops.dentalcad.insertion_detect()
+        bpy.ops.dentalcad.block_out()
+        try:
+            bpy.ops.dentalcad.crown_propose()
+            problems.append("Propose Crown jalan tanpa spacer")
+        except RuntimeError as exc:
+            if "no cement spacer" not in str(exc):
+                problems.append(f"pesan gerbang spacer tidak sesuai: {exc}")
+        bpy.ops.dentalcad.spacer()
+        start = time.perf_counter()
+        result = bpy.ops.dentalcad.crown_propose()
+        seconds = time.perf_counter() - start
+        obj = bpy.data.objects.get(ops_crown.proposal_name(die))
+        if result != {"FINISHED"} or obj is None:
+            self.check("crown: proposal", [f"operator {result}, objek {obj}"])
+            return
+        distances = dict(obj[ops_crown.KEY_DISTANCES])
+        for name, target in (("mesial", -0.02), ("distal", -0.02), ("antagonist", 0.0)):
+            if abs(distances.get(name, 99) - target) > 0.002:
+                problems.append(f"jarak {name} {distances.get(name)} mm, target {target} mm")
+        if die.get(ops_crown.KEY_MESIAL_SOURCE) != "neighbors":
+            problems.append(f"arah mesial dari {die.get(ops_crown.KEY_MESIAL_SOURCE)}, seharusnya dari tetangga")
+        mesial = np.array(die[ops_crown.KEY_MESIAL])
+        if np.degrees(np.arccos(np.clip(mesial @ np.array([1.0, 0.0, 0.0]), -1, 1))) > 1.0:
+            problems.append(f"arah mesial {mesial} jauh dari +x die")
+        if not ops_crown.crown_status(bpy.context, die)[0]:
+            problems.append("proposal baru tidak berlaku")
+        self.check(f"crown: proposal dengan tetangga dan antagonis ({seconds:.1f} s, "
+                   + ", ".join(f"{k} {1000 * v:+.1f} um" for k, v in distances.items()) + ")", problems)
+
+        problems = []
+        antagonist = scene_case.antagonist
+        antagonist.location.z += 0.2
+        bpy.context.view_layer.update()
+        if ops_crown.crown_status(bpy.context, die)[0]:
+            problems.append("proposal tetap berlaku setelah antagonis digeser")
+        antagonist.location.z -= 0.2
+        bpy.context.view_layer.update()
+        scene_case.fdi = 47
+        if ops_crown.crown_status(bpy.context, die)[0]:
+            problems.append("proposal tetap berlaku setelah FDI berubah")
+        scene_case.fdi = 46
+        self.check("crown: kedaluwarsa bila antagonis atau FDI berubah", problems)
+
+        # Tanpa tetangga (K9): arah mesial dari panah, ditandai perlu dicek; menyeret bola membuat kedaluwarsa.
+        problems = []
+        scene_case.mesial_neighbor = None
+        scene_case.distal_neighbor = None
+        bpy.ops.dentalcad.crown_propose()
+        obj = bpy.data.objects[ops_crown.proposal_name(die)]
+        if die.get(ops_crown.KEY_MESIAL_SOURCE) != "arrow" or "mesial direction" not in obj.get(ops_crown.KEY_HINTS, ""):
+            problems.append(f"tanpa tetangga: sumber {die.get(ops_crown.KEY_MESIAL_SOURCE)}, "
+                            f"catatan '{obj.get(ops_crown.KEY_HINTS, '')}'")
+        handle = bpy.data.objects[ops_crown.mesial_handle_name(die)]
+        base = die.matrix_world @ Vector(die[ops_crown.KEY_MESIAL_BASE])
+        handle.location = base + Matrix.Rotation(0.5, 3, "Z") @ (handle.location - base)
+        bpy.context.view_layer.update()
+        if ops_crown.crown_status(bpy.context, die)[0]:
+            problems.append("proposal tetap berlaku setelah bola mesial diseret")
+        bpy.ops.dentalcad.crown_propose()
+        new = np.array(die[ops_crown.KEY_MESIAL])
+        if np.degrees(np.arccos(np.clip(new @ mesial, -1, 1))) < 20:
+            problems.append(f"arah mesial baru {new} tidak mengikuti bola (lama {mesial})")
+        self.check("crown: tanpa tetangga, arah mesial dari panah dan perlu dicek", problems)
+
     def registration(self) -> None:
         problems = []
         for name in ("DENTALCAD_PT_main", "DENTALCAD_OT_import_stl", "DENTALCAD_OT_import_ply",
@@ -676,7 +761,8 @@ class Runner:
                      "DENTALCAD_OT_load_synthetic_case", "DENTALCAD_OT_margin_draw",
                      "DENTALCAD_OT_margin_confirm", "DENTALCAD_OT_insertion_detect",
                      "DENTALCAD_OT_insertion_from_view", "DENTALCAD_OT_insertion_view", "DENTALCAD_OT_block_out",
-                     "DENTALCAD_OT_spacer", "DENTALCAD_OT_spacer_show_undercuts"):
+                     "DENTALCAD_OT_spacer", "DENTALCAD_OT_spacer_show_undercuts",
+                     "DENTALCAD_OT_crown_propose"):
             if not hasattr(bpy.types, name):
                 problems.append(f"{name} tidak teregistrasi")
         if not hasattr(bpy.types.Scene, "dentalcad_case"):
@@ -737,6 +823,7 @@ def main() -> int:
     runner.synthetic_case(package)
     runner.insertion(package)
     runner.spacer(package)
+    runner.crown(package)
 
     print(f"\n{len(runner.failures)} kegagalan" if runner.failures else "\nSemua uji integrasi lulus")
     return 1 if runner.failures else 0

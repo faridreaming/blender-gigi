@@ -14,7 +14,8 @@ from pathlib import Path
 
 from .model_presets import Param, PresetError, parse_param
 
-# Parameter wajib dan satuannya. Nilai harus angka >= 0; yang ditandai True wajib > 0.
+# Parameter wajib dan satuannya. Nilai harus angka >= 0; yang ditandai True wajib > 0. Parameter di SIGNED_PARAMS
+# boleh negatif (jarak bertanda: negatif = overlap).
 REQUIRED_PARAMS: dict[str, tuple[str, bool]] = {
     "min_thickness_anterior_mm": ("mm", True),
     "min_thickness_premolar_mm": ("mm", True),
@@ -32,7 +33,11 @@ REQUIRED_PARAMS: dict[str, tuple[str, bool]] = {
     "milling_tool_diameter_mm": ("mm", True),
     "blockout_free_zone_mm": ("mm", False),
     "milling_axes": ("axis", True),
+    "occlusal_distance_mm": ("mm", False),
+    "approximal_distance_mm": ("mm", False),
 }
+SIGNED_PARAMS = {"occlusal_distance_mm", "approximal_distance_mm"}
+CALIBRATION_STATUSES = ("perlu_kalibrasi", "literatur")  # ditampilkan sebagai peringatan "belum dikalibrasi"
 MILLING_AXES = (3, 4, 5)
 
 
@@ -64,7 +69,7 @@ class MaterialPreset:
 
     def warnings(self) -> list[str]:
         return [f"{p.name} = {p.value} {p.unit} belum dikalibrasi ({p.source})"
-                for p in self.params.values() if p.status == "perlu_kalibrasi"]
+                for p in self.params.values() if p.status in CALIBRATION_STATUSES]
 
 
 def _text(data: dict, key: str, where: str) -> str:
@@ -91,7 +96,7 @@ def parse_material_preset(data: dict, where: str = "preset") -> MaterialPreset:
             raise MaterialPresetError(str(exc)) from None
         if isinstance(param.value, str):
             raise MaterialPresetError(f"{where}.{name}: wajib angka, didapat {param.value!r}")
-        if param.value < 0 or (positive and param.value == 0):
+        if (param.value < 0 and name not in SIGNED_PARAMS) or (positive and param.value == 0):
             raise MaterialPresetError(f"{where}.{name}: wajib {'> 0' if positive else '>= 0'}, didapat {param.value}")
         if param.unit != unit:
             raise MaterialPresetError(f"{where}.{name}: satuan wajib '{unit}', didapat '{param.unit}'")

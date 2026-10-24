@@ -2,7 +2,7 @@
 """N-panel "Dental" di 3D Viewport: kalibrasi printer, impor scan, dan placeholder langkah kasus."""
 
 import bpy
-from bpy.props import EnumProperty, PointerProperty
+from bpy.props import EnumProperty, IntProperty, PointerProperty
 
 from ..ops.coupons import load_presets, preset_items
 
@@ -14,12 +14,17 @@ CASE_STEPS = (
     ("MARGIN", "Margin", "Detect and edit the preparation margin"),
     ("AXIS", "Axis", "Insertion axis, undercuts, and block-out"),
     ("SPACER", "Spacer", "Cement gap and spacing on the blocked-out die"),
+    ("CROWN", "Crown", "Crown proposal from the parametric template"),
 )
 
 
 class DENTALCAD_PG_case(bpy.types.PropertyGroup):
     step: EnumProperty(name="Step", items=CASE_STEPS, default="SCAN")
     preset: EnumProperty(name="Printer + Resin", items=preset_items)
+    fdi: IntProperty(name="FDI Tooth", default=46, min=11, max=48, description="FDI number of the prepared tooth")
+    mesial_neighbor: PointerProperty(name="Mesial Neighbour", type=bpy.types.Object)
+    distal_neighbor: PointerProperty(name="Distal Neighbour", type=bpy.types.Object)
+    antagonist: PointerProperty(name="Antagonist", type=bpy.types.Object)
 
 
 class DENTALCAD_PT_main(bpy.types.Panel):
@@ -44,6 +49,8 @@ class DENTALCAD_PT_main(bpy.types.Panel):
             self.draw_axis(layout, context)
         elif case.step == "SPACER":
             self.draw_spacer(layout, context)
+        elif case.step == "CROWN":
+            self.draw_crown(layout, context, case)
         else:
             self.draw_scan(layout, context)
 
@@ -162,6 +169,39 @@ class DENTALCAD_PT_main(bpy.types.Panel):
             second = "with second block-out" if obj.get(spacer.KEY_SECOND) else "no second block-out"
             box.label(text=f"{obj.get(spacer.KEY_AXES, 0)}-axis milling, {second}")
             box.label(text=f"Remaining undercut in crown bottom: {1000 * obj.get(spacer.KEY_INNER_UNDERCUT, 0.0):.0f} um")
+
+    def draw_crown(self, layout, context, case):
+        from ..ops import crown, spacer
+
+        die = context.active_object
+        if die is None or die.type != "MESH":
+            layout.label(text="Select the die", icon="INFO")
+            return
+        ok, message = spacer.require_current_spacer(die)
+        if not ok:
+            layout.label(text=message, icon="ERROR")
+            return
+        col = layout.column(align=True)
+        col.prop(case, "fdi")
+        col.prop(case, "mesial_neighbor")
+        col.prop(case, "distal_neighbor")
+        col.prop(case, "antagonist")
+        layout.operator("dentalcad.crown_propose", icon="MESH_UVSPHERE")
+        layout.label(text="Parametric template (synthetic), not anatomy", icon="INFO")
+        obj = bpy.data.objects.get(crown.proposal_name(die))
+        box = layout.box()
+        if obj is None:
+            box.label(text="No crown proposal yet")
+            return
+        current, status = crown.crown_status(context, die)
+        box.label(text=status, icon="CHECKMARK" if current else "ERROR")
+        for name, value in dict(obj.get(crown.KEY_DISTANCES, {})).items():
+            box.label(text=f"{name}: {1000 * value:+.0f} um")
+        hints = obj.get(crown.KEY_HINTS, "")
+        if hints:
+            box.label(text="Needs checking:", icon="ERROR")
+            for hint in hints.split("; "):
+                box.label(text=hint)
 
     def draw_scan(self, layout, context):
         col = layout.column(align=True)

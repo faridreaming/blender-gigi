@@ -4,6 +4,7 @@
 import bpy
 
 from .coupons import DENTALCAD_OT_export_coupons
+from .crown import DENTALCAD_OT_crown_propose
 from .import_mesh import DENTALCAD_OT_import_ply, DENTALCAD_OT_import_stl
 from .insertion import (
     DENTALCAD_OT_block_out,
@@ -39,6 +40,7 @@ classes = (
     DENTALCAD_OT_block_out,
     DENTALCAD_OT_spacer,
     DENTALCAD_OT_spacer_show_undercuts,
+    DENTALCAD_OT_crown_propose,
 )
 
 _register_classes, _unregister_classes = bpy.utils.register_classes_factory(classes)

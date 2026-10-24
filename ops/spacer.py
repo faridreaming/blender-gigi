@@ -31,7 +31,8 @@ KEY_NEW_UNDERCUT = "dentalcad_spacer_new_undercut_mm"
 KEY_NOISY = "dentalcad_spacer_noisy"
 KEY_AXES = "dentalcad_spacer_milling_axes"
 KEY_SECOND = "dentalcad_spacer_second_block_out"
-KEY_INNER_UNDERCUT = "dentalcad_spacer_inner_undercut_mm"  # undercut tersisa di permukaan dalam akhir
+KEY_INNER_UNDERCUT = "dentalcad_spacer_inner_undercut_mm"
+KEY_VERSION = "dentalcad_spacer_version"  # di die dan spacer: naik setiap spacer dibuat ulang  # undercut tersisa di permukaan dalam akhir
 UNDERCUT_COLOR = "DentalCAD Undercut"
 SPACER_COLOR = (0.35, 0.65, 0.95, 1.0)
 
@@ -139,6 +140,8 @@ class DENTALCAD_OT_spacer(bpy.types.Operator):
         obj[KEY_MARGIN] = list(margin_controls(die)[KEY_CONTROLS])
         obj[KEY_AXIS] = axis.tolist()
         obj[KEY_BLOCKOUT_VERSION] = int(blocked_obj.get(ops_insertion.KEY_BLOCKOUT_VERSION, 0))
+        die[KEY_VERSION] = int(die.get(KEY_VERSION, 0)) + 1
+        obj[KEY_VERSION] = die[KEY_VERSION]
         obj[KEY_FOLDED] = result.folded_faces - result.folded_slivers
         obj[KEY_SLIVERS] = result.folded_slivers
         obj[KEY_NEW_UNDERCUT] = new_undercut

@@ -17,6 +17,7 @@ from pathlib import Path
 STATUSES = {
     "default_pabrikan": "default pabrikan (printer lain), perlu kalibrasi",
     "perlu_kalibrasi": "perlu kalibrasi",
+    "literatur": "literatur, perlu kalibrasi",
     "praktik_lab": "praktik lab",
     "dikalibrasi": "dikalibrasi",
 }

@@ -317,3 +317,148 @@ def undercut_depth_truth(spec: DieSpec, theta: np.ndarray, t: np.ndarray, n_thet
                         max_depth=3.0)
     t = np.minimum(np.asarray(t, float), 3.999)
     return field.depth(surface_points(spec, theta, t))
+
+
+# Gigi tetangga dan antagonis sintetis (docs/PHASE2.md §5.4 langkah 3) ------------------------------------------
+
+def _grid_mesh(points: np.ndarray, wrap_u: bool, caps: tuple = ()) -> MeshData:
+    """Mesh segitiga dari grid titik (n_u, n_v, 3); wrap_u menyambung u terakhir ke u pertama."""
+    n_u, n_v = points.shape[:2]
+    vertices = [points.reshape(-1, 3)]
+    faces = []
+    for i in range(n_u if wrap_u else n_u - 1):
+        for j in range(n_v - 1):
+            a = i * n_v + j
+            b = ((i + 1) % n_u) * n_v + j
+            faces += [(a, b, b + 1), (a, b + 1, a + 1)]
+    offset = n_u * n_v
+    for cap_point, column in caps:  # tutup kutub: (titik, indeks kolom v)
+        vertices.append(np.asarray(cap_point, float)[None])
+        pole = offset
+        offset += 1
+        for i in range(n_u):
+            a, b = i * n_v + column, ((i + 1) % n_u) * n_v + column
+            faces.append((a, pole, b) if column == 0 else (b, pole, a))
+    return MeshData(np.vstack(vertices), np.array(faces, dtype=np.int64))
+
+
+@dataclass(frozen=True)
+class Ellipsoid:
+    """Elipsoid di frame die: pusat, setengah sumbu, dan rotasi (kolom = sumbu elipsoid di frame die)."""
+
+    center: np.ndarray
+    semi_axes: np.ndarray
+    rotation: np.ndarray
+
+    def mesh(self, n_u: int = 96, n_v: int = 48, jitter: float = 0.3, noise_sigma_mm: float = 0.0,
+             seed: int = 0) -> MeshData:
+        rng = np.random.default_rng(seed)
+        u = np.arange(n_u) * 2 * np.pi / n_u
+        v = np.linspace(0.0, np.pi, n_v + 2)[1:-1]
+        uu, vv = np.meshgrid(u, v, indexing="ij")
+        if jitter:
+            uu = uu + rng.uniform(-jitter, jitter, uu.shape) * (2 * np.pi / n_u)
+            vv = vv + rng.uniform(-jitter, jitter, vv.shape) * (np.pi / (n_v + 1))
+        a, b, c = self.semi_axes
+        local = np.stack([a * np.sin(vv) * np.cos(uu), b * np.sin(vv) * np.sin(uu), c * np.cos(vv)], axis=-1)
+        if noise_sigma_mm:
+            normal = local / np.asarray(self.semi_axes) ** 2
+            normal /= np.linalg.norm(normal, axis=-1, keepdims=True)
+            local = local + normal * rng.normal(0.0, noise_sigma_mm, local.shape[:2] + (1,))
+        mesh = _grid_mesh(local, True, ((np.array([0.0, 0.0, c]), 0), (np.array([0.0, 0.0, -c]), n_v - 1)))
+        v, f = mesh.vertices, mesh.faces.copy()
+        fn = np.cross(v[f[:, 1]] - v[f[:, 0]], v[f[:, 2]] - v[f[:, 0]])
+        inward = np.einsum("ij,ij->i", fn, v[f].mean(axis=1)) < 0  # elipsoid cembung: normal menjauhi pusat
+        f[inward] = f[inward][:, ::-1]
+        return MeshData(v @ self.rotation.T + self.center, np.ascontiguousarray(f))
+
+    def signed_distance(self, points: np.ndarray) -> np.ndarray:
+        """Jarak bertanda eksak titik (frame die) ke elipsoid: positif di luar. Bisection Eberly pada parameter t
+        dari F(t) = sum (e_i y_i / (t + e_i^2))^2 - 1, 200 iterasi (presisi float64)."""
+        y = np.abs((np.asarray(points, float) - self.center) @ self.rotation)
+        e = np.asarray(self.semi_axes, float)
+        y = np.maximum(y, 1e-12)  # titik tepat di bidang simetri: hindari pembagian nol
+        outside = np.sum((y / e) ** 2, axis=1) > 1.0
+        e_min2 = float(np.min(e)) ** 2
+        lo = np.full(len(y), -e_min2 + 1e-15)
+        hi = np.where(outside, np.max(e) * np.linalg.norm(y, axis=1), 0.0)
+        for _ in range(200):
+            t = 0.5 * (lo + hi)
+            f = np.sum((e * y / (t[:, None] + e ** 2)) ** 2, axis=1) - 1.0
+            lo = np.where(f > 0, t, lo)
+            hi = np.where(f > 0, hi, t)
+        t = 0.5 * (lo + hi)
+        closest = e ** 2 * y / (t[:, None] + e ** 2)
+        return np.where(outside, 1.0, -1.0) * np.linalg.norm(y - closest, axis=1)
+
+
+@dataclass(frozen=True)
+class AntagonistPlane:
+    """Bidang (frame die) dengan normal menghadap crown: jarak bertanda = (p - titik) . normal."""
+
+    point: np.ndarray
+    normal: np.ndarray  # satuan, menghadap ke crown (ke -sumbu insersi untuk antagonis di atas)
+    size_mm: float = 24.0
+
+    def mesh(self, n: int = 49, noise_sigma_mm: float = 0.0, seed: int = 0) -> MeshData:
+        rng = np.random.default_rng(seed)
+        nrm = np.asarray(self.normal, float)
+        helper = np.array([1.0, 0.0, 0.0]) if abs(nrm[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+        u = np.cross(nrm, helper)
+        u /= np.linalg.norm(u)
+        w = np.cross(nrm, u)
+        g = np.linspace(-0.5, 0.5, n) * self.size_mm
+        gu, gw = np.meshgrid(g, g, indexing="ij")
+        pts = self.point + gu[..., None] * u + gw[..., None] * w
+        if noise_sigma_mm:
+            pts = pts + nrm * rng.normal(0.0, noise_sigma_mm, pts.shape[:2] + (1,))
+        mesh = _grid_mesh(pts, False)
+        # Orientasi: normal face searah normal bidang.
+        f = mesh.faces
+        fn = np.cross(mesh.vertices[f[:, 1]] - mesh.vertices[f[:, 0]], mesh.vertices[f[:, 2]] - mesh.vertices[f[:, 0]])
+        if np.mean(fn @ nrm) < 0:
+            f = f[:, ::-1]
+        return MeshData(mesh.vertices, np.ascontiguousarray(f))
+
+    def signed_distance(self, points: np.ndarray) -> np.ndarray:
+        return (np.asarray(points, float) - self.point) @ np.asarray(self.normal, float)
+
+
+@dataclass(frozen=True)
+class AntagonistCylinder:
+    """Permukaan silinder cembung ke arah crown (frame die): sumbu silinder lewat axis_point sepanjang axis_dir,
+    jari-jari radius; crown berada di luar silinder."""
+
+    axis_point: np.ndarray
+    axis_dir: np.ndarray
+    radius: float
+    length_mm: float = 24.0
+    span_deg: float = 70.0
+    down: np.ndarray = None  # arah dari sumbu silinder ke crown
+
+    def mesh(self, n_u: int = 72, n_v: int = 49, noise_sigma_mm: float = 0.0, seed: int = 0) -> MeshData:
+        rng = np.random.default_rng(seed)
+        d = np.asarray(self.axis_dir, float)
+        down = np.asarray(self.down, float)
+        side = np.cross(d, down)
+        ang = np.radians(np.linspace(-0.5, 0.5, n_u) * self.span_deg)
+        s = np.linspace(-0.5, 0.5, n_v) * self.length_mm
+        aa, ss = np.meshgrid(ang, s, indexing="ij")
+        radial = np.cos(aa)[..., None] * down + np.sin(aa)[..., None] * side
+        r = self.radius + (rng.normal(0.0, noise_sigma_mm, aa.shape) if noise_sigma_mm else np.zeros(aa.shape))
+        pts = self.axis_point + ss[..., None] * d + r[..., None] * radial
+        mesh = _grid_mesh(pts, False)
+        f = mesh.faces
+        v = mesh.vertices
+        fn = np.cross(v[f[:, 1]] - v[f[:, 0]], v[f[:, 2]] - v[f[:, 0]])
+        centers = v[f].mean(axis=1)
+        rel = centers - self.axis_point
+        outward = rel - (rel @ d)[:, None] * d
+        if np.mean(np.einsum("ij,ij->i", fn, outward)) < 0:
+            f = f[:, ::-1]
+        return MeshData(v, np.ascontiguousarray(f))
+
+    def signed_distance(self, points: np.ndarray) -> np.ndarray:
+        rel = np.asarray(points, float) - self.axis_point
+        d = np.asarray(self.axis_dir, float)
+        return np.linalg.norm(rel - (rel @ d)[:, None] * d, axis=1) - self.radius

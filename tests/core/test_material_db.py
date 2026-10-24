@@ -49,10 +49,13 @@ def test_bundled_zircad_prime_matches_ivoclar_chart():
         "milling_tool_diameter_mm": 1.2,
         "blockout_free_zone_mm": 0.1,
         "milling_axes": 5,
+        "occlusal_distance_mm": 0.0,
+        "approximal_distance_mm": -0.02,
     }
     assert {name: p.value for name, p in preset.params.items()} == expected
     ivo = [name for name, p in preset.params.items() if p.source.startswith("IVO")]
-    assert set(ivo) == set(expected) - {"axial_spacing_um", "blockout_free_zone_mm", "cement_gap_transition_mm", "milling_axes"}
+    assert set(ivo) == set(expected) - {"axial_spacing_um", "blockout_free_zone_mm", "cement_gap_transition_mm", "milling_axes",
+                              "occlusal_distance_mm", "approximal_distance_mm"}
     assert all(preset.get(name).source_date == "2024-02-07" for name in ivo)
     assert preset.get("axial_spacing_um").status == "perlu_kalibrasi"
     assert preset.get("blockout_free_zone_mm").status == "perlu_kalibrasi"
@@ -60,7 +63,9 @@ def test_bundled_zircad_prime_matches_ivoclar_chart():
     assert preset.min_thickness_mm("premolar") == 1.0
     assert preset.get("cement_gap_transition_mm").status == "perlu_kalibrasi"
     assert preset.get("milling_axes").status == "praktik_lab"
-    assert len(preset.warnings()) == 3
+    assert preset.get("occlusal_distance_mm").status == "literatur"
+    assert "PMC11886404" in preset.get("approximal_distance_mm").source
+    assert len(preset.warnings()) == 5
 
 
 def test_all_bundled_presets_are_valid():
@@ -141,4 +146,13 @@ def test_milling_axes_must_be_3_4_or_5(axes):
     data = copy.deepcopy(VALID)
     data["params"]["milling_axes"] = _param(axes, "axis")
     with pytest.raises(MaterialPresetError, match="milling_axes"):
+        parse_material_preset(data)
+
+
+def test_only_signed_distances_may_be_negative():
+    data = copy.deepcopy(VALID)
+    data["params"]["approximal_distance_mm"] = _param(-0.02, "mm", "literatur")
+    parse_material_preset(data)
+    data["params"]["cement_gap_um"] = _param(-1.0, "um")
+    with pytest.raises(MaterialPresetError, match="cement_gap_um"):
         parse_material_preset(data)
