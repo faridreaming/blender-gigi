@@ -544,13 +544,86 @@ class Runner:
         label = f"{1000 * residual:.0f} um" if residual is not None else "?"
         self.check(f"sumbu insersi pada scan derau 90 um: jalan dengan peringatan, sisa bayangan {label}", problems)
 
+    def spacer(self, package: str) -> None:
+        """§5.3: gerbang block-out, spacer dari preset Ivoclar, dan kedaluwarsa bila sumbu/block-out/margin berubah."""
+        import numpy as np
+
+        ops_margin = importlib.import_module(f"{package}.ops.margin")
+        ops_ins = importlib.import_module(f"{package}.ops.insertion")
+        ops_sp = importlib.import_module(f"{package}.ops.spacer")
+        case = importlib.import_module(f"{package}.ops.synthetic_case")
+        problems = []
+        clear_scene()
+        bpy.ops.dentalcad.load_synthetic_case(finish="chamfer", scallop_mm=1.0, noise_um=10.0, seed=3)
+        die = bpy.data.objects[case.DIE_NAME]
+        truth = np.array(die[case.KEY_TRUTH], dtype=float).reshape(-1, 3)
+        bpy.ops.dentalcad.margin_detect(use_seed=True, seed_point=tuple(truth[128] + 0.05))
+        bpy.context.view_layer.objects.active = ops_margin.margin_controls(die)
+        bpy.ops.dentalcad.margin_confirm()
+        bpy.context.view_layer.objects.active = die
+        bpy.ops.dentalcad.insertion_detect()
+        try:
+            bpy.ops.dentalcad.spacer()
+            problems.append("spacer jalan tanpa block-out")
+        except RuntimeError as exc:
+            if "no block-out" not in str(exc):
+                problems.append(f"pesan gerbang block-out tidak sesuai: {exc}")
+        bpy.ops.dentalcad.block_out()
+        start = time.perf_counter()
+        result = bpy.ops.dentalcad.spacer()
+        seconds = time.perf_counter() - start
+        obj = bpy.data.objects.get(ops_sp.spacer_name(die))
+        if result != {"FINISHED"} or obj is None:
+            self.check("spacer: dibuat", [f"operator {result}, objek {obj}"])
+            return
+        current, message = ops_sp.spacer_status(die)
+        if not current:
+            problems.append(f"spacer baru tidak berlaku: {message}")
+        inner = ops_margin.from_blender_mesh(obj.data).vertices.astype(float)
+        blocked = ops_margin.from_blender_mesh(bpy.data.objects[ops_ins.blockout_name(die)].data).vertices.astype(float)
+        from scipy.spatial import cKDTree
+
+        gap = cKDTree(blocked).query(inner)[0]
+        if gap.max() > 0.08 or gap.max() < 0.05:
+            problems.append(f"offset terbesar permukaan dalam {1000 * gap.max():.0f} um, cement gap + radial 70 um")
+        self.check(f"spacer: dibuat dari preset ({len(inner)} vertex, offset maks {1000 * gap.max():.0f} um, "
+                   f"{seconds:.2f} s)", problems)
+
+        problems = []
+        axis = np.array(die[ops_ins.KEY_AXIS])
+        bpy.ops.dentalcad.insertion_from_view(use_direction=True, direction=tuple(axis + np.array([0.03, 0.0, 0.0])))
+        if ops_sp.spacer_status(die)[0]:
+            problems.append("spacer tetap berlaku setelah sumbu berubah")
+        try:
+            bpy.ops.dentalcad.spacer()
+            problems.append("spacer jalan dengan block-out kedaluwarsa")
+        except RuntimeError as exc:
+            if "changed after the block-out" not in str(exc):
+                problems.append(f"pesan block-out kedaluwarsa tidak sesuai: {exc}")
+        bpy.ops.dentalcad.block_out()
+        current, message = ops_sp.spacer_status(die)
+        if current or "changed" not in message:
+            problems.append(f"spacer tetap berlaku setelah block-out dijalankan ulang: {message}")
+        bpy.ops.dentalcad.spacer()
+        if not ops_sp.spacer_status(die)[0]:
+            problems.append("spacer tidak berlaku setelah dibuat ulang")
+        controls = ops_margin.margin_controls(die)
+        bpy.context.view_layer.objects.active = controls
+        bpy.ops.dentalcad.margin_update()
+        bpy.context.view_layer.objects.active = die
+        current, message = ops_sp.spacer_status(die)
+        if current or "margin" not in message.lower():
+            problems.append(f"spacer tetap berlaku setelah margin diubah: {message}")
+        self.check("spacer: kedaluwarsa bila sumbu, block-out, atau margin berubah", problems)
+
     def registration(self) -> None:
         problems = []
         for name in ("DENTALCAD_PT_main", "DENTALCAD_OT_import_stl", "DENTALCAD_OT_import_ply",
                      "DENTALCAD_OT_export_coupons", "DENTALCAD_OT_margin_detect", "DENTALCAD_OT_margin_update",
                      "DENTALCAD_OT_load_synthetic_case", "DENTALCAD_OT_margin_draw",
                      "DENTALCAD_OT_margin_confirm", "DENTALCAD_OT_insertion_detect",
-                     "DENTALCAD_OT_insertion_from_view", "DENTALCAD_OT_insertion_view", "DENTALCAD_OT_block_out"):
+                     "DENTALCAD_OT_insertion_from_view", "DENTALCAD_OT_insertion_view", "DENTALCAD_OT_block_out",
+                     "DENTALCAD_OT_spacer"):
             if not hasattr(bpy.types, name):
                 problems.append(f"{name} tidak teregistrasi")
         if not hasattr(bpy.types.Scene, "dentalcad_case"):
@@ -610,6 +683,7 @@ def main() -> int:
     runner.margin(package)
     runner.synthetic_case(package)
     runner.insertion(package)
+    runner.spacer(package)
 
     print(f"\n{len(runner.failures)} kegagalan" if runner.failures else "\nSemua uji integrasi lulus")
     return 1 if runner.failures else 0

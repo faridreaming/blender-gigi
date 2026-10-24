@@ -56,6 +56,8 @@ dentalcad/                          # root repo == root isi .zip extension
 │  ├─ geometry.py                   # normal, edge unik, titik terdekat di permukaan (Fase 2)
 │  ├─ margin.py                     # margin semi-otomatis + kurva editable (Fase 2)
 │  ├─ insertion.py                  # sumbu insersi, peta undercut, block-out (Fase 2)
+│  ├─ geodesic.py                   # jarak geodesik ke kurva: fast marching + relaksasi (Fase 2)
+│  ├─ spacer.py                     # permukaan dalam crown: cement gap + spacing (Fase 2)
 │  └─ units.py                      # konversi mm, tabel penomoran FDI<->Universal/Palmer
 ├─ ops/                             # bpy.types.Operator, tipis, delegasi ke core/
 │  ├─ __init__.py
@@ -63,6 +65,7 @@ dentalcad/                          # root repo == root isi .zip extension
 │  ├─ coupons.py                    # OT_export_coupons (Fase 1)
 │  ├─ margin.py                     # OT_margin_detect / draw / update / confirm (Fase 2)
 │  ├─ insertion.py                  # OT_insertion_detect / from_view / view, OT_block_out (Fase 2)
+│  ├─ spacer.py                     # OT_spacer, gerbang dan status kedaluwarsa spacer (Fase 2)
 │  ├─ synthetic_case.py             # OT_load_synthetic_case: die sintetis + margin benar untuk uji manual (Fase 2)
 │  └─ import_mesh.py                # OT_import_stl / OT_import_ply
 ├─ ui/                              # panel, N-panel tab, state-machine kasus
@@ -85,6 +88,7 @@ dentalcad/                          # root repo == root isi .zip extension
 │  ├─ apply_calibration.py          # lembar ukur kupon -> preset (Fase 1)
 │  ├─ margin_benchmark.py           # akurasi margin vs margin analitis (Fase 2)
 │  ├─ insertion_benchmark.py        # sumbu, undercut, block-out vs jawaban analitis (Fase 2)
+│  ├─ spacer_benchmark.py           # spacer vs jawaban analitis die lingkaran (Fase 2)
 │  └─ make_synthetic_golden.py      # pembuat golden case sintetis sementara (§7)
 ├─ tests/
 │  ├─ pytest.ini                    # rootdir pytest = tests/ (root repo adalah paket yang butuh bpy)

@@ -51,7 +51,7 @@ class DENTALCAD_OT_load_synthetic_case(bpy.types.Operator):
     def execute(self, context):
         for name in (DIE_NAME, f"{DIE_NAME} Truth Margin", f"{DIE_NAME} Margin", f"{DIE_NAME} Margin Preview",
                      f"{DIE_NAME} Margin Review", f"{DIE_NAME} Margin Draft", f"{DIE_NAME} Insertion Axis",
-                     f"{DIE_NAME} Axis Handle", f"{DIE_NAME} Block-out"):
+                     f"{DIE_NAME} Axis Handle", f"{DIE_NAME} Block-out", f"{DIE_NAME} Spacer"):
             _remove(name)
         spec = synthetic.DieSpec(finish=self.finish, scallop_mm=self.scallop_mm,
                                  undercut_deg=self.undercut_deg if self.undercut else 0.0,

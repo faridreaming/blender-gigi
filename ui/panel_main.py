@@ -13,6 +13,7 @@ CASE_STEPS = (
     ("SCAN", "Scan", "Import the scan meshes"),
     ("MARGIN", "Margin", "Detect and edit the preparation margin"),
     ("AXIS", "Axis", "Insertion axis, undercuts, and block-out"),
+    ("SPACER", "Spacer", "Cement gap and spacing on the blocked-out die"),
 )
 
 
@@ -41,6 +42,8 @@ class DENTALCAD_PT_main(bpy.types.Panel):
             self.draw_margin(layout, context)
         elif case.step == "AXIS":
             self.draw_axis(layout, context)
+        elif case.step == "SPACER":
+            self.draw_spacer(layout, context)
         else:
             self.draw_scan(layout, context)
 
@@ -125,6 +128,36 @@ class DENTALCAD_PT_main(bpy.types.Panel):
             box.label(text="Block-out matches the current axis", icon="CHECKMARK")
         else:
             box.label(text="Block-out is outdated: run Block Out again", icon="ERROR")
+
+    def draw_spacer(self, layout, context):
+        from ..ops import insertion, spacer
+
+        die = context.active_object
+        if die is None or die.type != "MESH":
+            layout.label(text="Select the die", icon="INFO")
+            return
+        ok, message = insertion.require_current_block_out(die)
+        if not ok:
+            layout.label(text=message, icon="ERROR")
+            return
+        layout.operator("dentalcad.spacer", icon="MOD_SHRINKWRAP")
+        preset = insertion.material_preset()
+        box = layout.box()
+        box.label(text=preset.name, icon="MATERIAL")
+        for name in ("cement_gap_um", "cement_gap_from_margin_mm", "cement_gap_transition_mm", "radial_spacing_um",
+                     "axial_spacing_um"):
+            p = preset.get(name)
+            box.label(text=f"{name}: {p.value} {p.unit} ({p.status_label})",
+                      icon="ERROR" if p.status == "perlu_kalibrasi" else "NONE")
+        current, status = spacer.spacer_status(die)
+        obj = bpy.data.objects.get(spacer.spacer_name(die))
+        box = layout.box()
+        if obj is None:
+            box.label(text="No spacer yet")
+        else:
+            box.label(text=status, icon="CHECKMARK" if current else "ERROR")
+            box.label(text=f"Folded faces: {obj.get(spacer.KEY_FOLDED, 0)} (+{obj.get(spacer.KEY_SLIVERS, 0)} slivers)")
+            box.label(text=f"New undercut in crown bottom: {1000 * obj.get(spacer.KEY_NEW_UNDERCUT, 0.0):.0f} um")
 
     def draw_scan(self, layout, context):
         col = layout.column(align=True)
