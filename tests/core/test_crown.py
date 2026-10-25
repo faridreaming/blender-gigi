@@ -44,8 +44,9 @@ def _die_and_margin(**spec_kw):
 def test_cervical_edge_is_the_margin_by_construction():
     spec, die, margin, prep_top = _die_and_margin(scallop_mm=1.0)
     fit = crown.fit_crown(46, margin, die.insertion_axis, die.rotation[:, 0], prep_top)
-    bottom = fit.surface.frame.to_world(fit.surface.local[:, 0, :])
-    assert synthetic.distance_to_polyline(bottom, margin).max() < 1e-9
+    s = fit.surface
+    assert synthetic.distance_to_polyline(s.frame.to_world(s.border[0]), margin).max() < 1e-9
+    np.testing.assert_allclose(s.local[:, 0, :], s.border[2], atol=1e-12)  # permukaan luar mulai di ujung border
     assert crown.flipped_faces(fit.surface) == 0
     assert len(fit.hints) == 2  # tanpa tetangga dan tanpa antagonis: keduanya "perlu dicek"
 
@@ -174,3 +175,77 @@ def test_emergence_angle_of_a_cone(alpha):
     local = np.stack([r * np.cos(phi)[:, None], r * np.sin(phi)[:, None], z], axis=-1)
     surface = crown.CrownSurface(None, p, phi, v, local, None)
     np.testing.assert_allclose(crown.emergence_angles(surface), alpha, atol=1e-9)
+
+
+def test_border_matches_ivo_in_64_sections():
+    spec, die, margin, prep_top = _die_and_margin(radius_x_mm=2.8, radius_y_mm=3.0, prep_height_mm=5.0,
+                                                  finish_width_mm=0.7, scallop_mm=1.75)
+    fit = crown.fit_crown(41, margin, die.insertion_axis, die.rotation[:, 0], prep_top)
+    sections = crown.border_sections(fit.surface.border, 64)
+    p = crown.CrownParams()
+    assert np.abs(sections["horizontal_mm"] - p.border_horizontal_mm).max() < 0.001
+    assert sections["horizontal_rise_mm"].max() < 0.001
+    assert np.abs(sections["angled_mm"] - p.border_angled_mm).max() < 0.001
+    assert np.abs(sections["angle_deg"] - p.border_angle_deg).max() < 0.1
+
+
+def test_border_that_folds_over_itself_is_an_explicit_error():
+    phi = np.linspace(0, 2 * np.pi, crown.N_PHI, endpoint=False)
+    radius = 4.0 - 0.6 * (np.abs(np.sin(6 * phi)) ** 8)  # takik tajam: kelengkungan lebih rapat dari lebar border
+    ring = np.stack([radius * np.cos(phi), radius * np.sin(phi), 0.5 * np.cos(2 * phi)], axis=1)
+    with pytest.raises(crown.CrownError, match="folds over itself"):
+        crown.crown_border(ring, crown.CrownParams())
+
+
+def _spacer(die, margin):
+    from core import insertion, spacer
+
+    params = spacer.SpacerParams(cement_gap_mm=0.06, from_margin_mm=1.0, transition_mm=0.5, radial_mm=0.01,
+                                 axial_mm=0.0)
+    ctx = insertion.insertion_context(die.mesh, margin)
+    blocked = insertion.block_out(ctx, die.insertion_axis, 0.1)
+    faces = spacer.inner_faces(ctx.vertices, ctx.faces, ctx.region.faces, ctx.region.band_faces, ctx.margin)
+    return spacer.spacer_surface(blocked.mesh, faces, ctx.margin, die.insertion_axis, params, ctx.noise_sigma_mm)
+
+
+@pytest.mark.parametrize("fdi, spec_kw, noise, seed", [
+    (46, dict(scallop_mm=1.0), 0.0, 1),
+    (41, dict(radius_x_mm=2.8, radius_y_mm=3.0, prep_height_mm=5.0, finish_width_mm=0.7, scallop_mm=1.75), 0.01, 1),
+    (36, dict(finish="shoulder", prep_height_mm=5.5, scallop_mm=1.75), 0.03, 1),
+    # Regresi benchmark tuning 2026-10-26: vertex kurva potong menonjol ke margin di chamfer landai, zipper tanpa
+    # lookahead dan batas drift menjadi fan dari satu vertex ke seluruh margin (86 segitiga terlipat).
+    (46, dict(finish="chamfer"), 0.03, 2),
+])
+def test_crown_is_a_closed_solid_and_keeps_the_spacer(fdi, spec_kw, noise, seed):
+    spec = synthetic.DieSpec(**spec_kw)
+    die = synthetic.make_die(spec, noise_sigma_mm=noise, rotate=True, seed=seed)
+    margin = die.margin_curve(1024)
+    prep_top = crown.prep_top_height(die.mesh.vertices, margin, die.insertion_axis)
+    fit = crown.fit_crown(fdi, margin, die.insertion_axis, die.rotation[:, 0], prep_top)
+    inner = _spacer(die, margin).mesh
+    solid = crown.assemble_crown(fit.surface, inner)
+    assert (solid.components, solid.genus, solid.sealed_voids) == (1, 0, 0)
+    assert solid.volume_mm3 > 0
+    from core.solid import to_manifold
+    assert to_manifold(solid.mesh).genus() == 0
+    # Permukaan dalam: vertex spacer yang dipertahankan tidak bergeser, titik potong ada di permukaan spacer.
+    kept = solid.mesh.vertices[solid.inner_vertices]
+    from core.geometry import MeshProjector
+    _, _, dist = MeshProjector(inner).closest(kept)
+    assert dist.max() < 1e-9
+    assert solid.strip_delta_mm >= crown.CrownParams().strip_mm
+
+
+def test_inner_surface_with_a_large_hole_is_an_explicit_error():
+    spec = synthetic.DieSpec(scallop_mm=1.0)
+    die = synthetic.make_die(spec, rotate=True, seed=1)
+    margin = die.margin_curve(1024)
+    prep_top = crown.prep_top_height(die.mesh.vertices, margin, die.insertion_axis)
+    fit = crown.fit_crown(46, margin, die.insertion_axis, die.rotation[:, 0], prep_top)
+    inner = _spacer(die, margin).mesh
+    centroids = inner.vertices[inner.faces].mean(axis=1)
+    top = centroids @ die.insertion_axis
+    keep = top < np.percentile(top, 97)  # buang atap: lubang besar jauh dari margin
+    holed = synthetic.MeshData(inner.vertices, inner.faces[keep])
+    with pytest.raises(crown.CrownError, match="hole"):
+        crown.assemble_crown(fit.surface, holed)

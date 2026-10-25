@@ -6,10 +6,15 @@ error "timeout" lewat on_timeout, lalu pekerja baru dimulai untuk kasus berikutn
 diteruskan (benchmark berhenti dengan traceback, seperti sebelumnya).
 
 Fungsi kasus wajib fungsi tingkat modul (dikirim ke proses pekerja dengan pickle, metode spawn).
+
+Selama CaseRunner aktif, Windows ditahan agar tidak tidur karena idle (SetThreadExecutionState dengan
+ES_CONTINUOUS | ES_SYSTEM_REQUIRED, dilepas di akhir; no-op di OS lain). Ini tidak mencegah tidur karena laptop
+ditutup atau Sleep manual: dua run di §5.4 tercatat berjam-jam karena laptop tidur di tengah run.
 """
 
 from __future__ import annotations
 
+import ctypes
 import multiprocessing
 import sys
 import time
@@ -17,6 +22,17 @@ from typing import Callable
 
 DEFAULT_TIMEOUT_S = 300.0
 STARTUP_TIMEOUT_S = 300.0  # start proses pekerja (import numpy dan skrip), tidak dihitung ke batas waktu kasus
+ES_CONTINUOUS = 0x80000000
+ES_SYSTEM_REQUIRED = 0x00000001
+
+
+def keep_awake(active: bool) -> bool:
+    """Tahan (active=True) atau lepas tahanan Windows terhadap tidur karena idle. False bila bukan Windows atau
+    panggilan gagal."""
+    if sys.platform != "win32":
+        return False
+    flags = ES_CONTINUOUS | ES_SYSTEM_REQUIRED if active else ES_CONTINUOUS
+    return ctypes.windll.kernel32.SetThreadExecutionState(flags) != 0
 
 
 def _ready() -> bool:
@@ -40,10 +56,12 @@ class CaseRunner:
         self._pool = None
 
     def __enter__(self) -> "CaseRunner":
+        self.awake = keep_awake(True)
         return self
 
     def __exit__(self, *exc) -> None:
         self._stop()
+        keep_awake(False)
 
     def _stop(self) -> None:
         if self._pool is not None:

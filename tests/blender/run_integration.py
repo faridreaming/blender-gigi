@@ -670,8 +670,8 @@ class Runner:
                    "block-out kedua bisa dimatikan", problems)
 
     def crown(self, package: str) -> None:
-        """§5.4 langkah 1 sampai 3: gerbang spacer, proposal dengan tetangga dan antagonis sintetis, kedaluwarsa,
-        dan arah mesial dari panah tanpa tetangga (K9)."""
+        """§5.4 langkah 1 sampai 5: gerbang spacer, proposal solid dengan tetangga dan antagonis sintetis,
+        kedaluwarsa, dan arah mesial dari panah tanpa tetangga (K9)."""
         import numpy as np
         from mathutils import Matrix, Vector
 
@@ -716,7 +716,15 @@ class Runner:
             problems.append(f"arah mesial {mesial} jauh dari +x die")
         if not ops_crown.crown_status(bpy.context, die)[0]:
             problems.append("proposal baru tidak berlaku")
-        self.check(f"crown: proposal dengan tetangga dan antagonis ({seconds:.1f} s, "
+        mesh_bridge = importlib.import_module(f"{package}.ops.mesh_bridge")
+        core_solid = importlib.import_module(f"{package}.core.solid")
+        try:
+            solid = core_solid.to_manifold(mesh_bridge.from_blender_mesh(obj.data), "crown")
+            if solid.genus() != 0 or len(solid.decompose()) != 1 or solid.volume() <= 0:
+                problems.append(f"crown bukan solid genus 0 satu komponen: genus {solid.genus()}")
+        except core_solid.SolidError as exc:
+            problems.append(f"crown di Blender bukan solid tertutup: {exc}")
+        self.check(f"crown: proposal solid dengan tetangga dan antagonis ({seconds:.1f} s, "
                    + ", ".join(f"{k} {1000 * v:+.1f} um" for k, v in distances.items()) + ")", problems)
 
         problems = []

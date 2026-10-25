@@ -26,3 +26,10 @@ def test_slow_case_becomes_a_timeout_and_the_next_case_still_runs(capsys):
     assert runner.timeouts == 2
     log = capsys.readouterr().err.splitlines()
     assert log[0].startswith("[1/3] lambat: timeout") and log[1].startswith("[2/3] cepat: ok")
+
+
+def test_keep_awake_is_held_on_windows_and_released_after():
+    runner = bench_runner.CaseRunner(1.0, 0, str)
+    with runner:
+        assert runner.awake == (sys.platform == "win32")
+    assert bench_runner.keep_awake(False) == (sys.platform == "win32")

@@ -342,9 +342,11 @@ def _grid_mesh(points: np.ndarray, wrap_u: bool, caps: tuple = ()) -> MeshData:
     return MeshData(np.vstack(vertices), np.array(faces, dtype=np.int64))
 
 
-# Desain data uji: tonjolan kontur yang diperkirakan di atas margin saat menaruh gigi tetangga sintetis (dulu
-# CrownParams.contour_bulge_mm). Celah tetangga di benchmark dan Load Synthetic Case dihitung dari tepi margin + ini.
-NEIGHBOUR_CONTOUR_ALLOWANCE_MM = 0.5
+# Desain data uji: tonjolan kontur yang diperkirakan di atas margin saat menaruh gigi tetangga sintetis. Celah tetangga
+# di benchmark dan Load Synthetic Case dihitung dari tepi margin + ini. 0,5 mm (dulu CrownParams.contour_bulge_mm)
+# sampai langkah 3; sejak border IVO (langkah 4) 0,8 mm: crown mulai 0,29 mm di luar margin, dan dengan 0,5 mm
+# tetangga bercelah 0,4 mm menyentuh kerucut servikal yang lebarnya tidak ikut disetel (PHASE2.md §5.4).
+NEIGHBOUR_CONTOUR_ALLOWANCE_MM = 0.8
 
 
 @dataclass(frozen=True)

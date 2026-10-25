@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Operator proposal crown, langkah 1 sampai 3 (docs/PHASE2.md §5.4). Logika di core/template.py dan core/crown.py.
+"""Operator proposal crown, langkah 1 sampai 5 (docs/PHASE2.md §5.4). Logika di core/template.py dan core/crown.py.
 
 "Propose Crown" butuh margin terkonfirmasi dan spacer yang belum kedaluwarsa (require_current_spacer). Nomor FDI,
 gigi tetangga mesial/distal, dan antagonis dipilih di panel (langkah Crown); tetangga dan antagonis opsional.
 Arah mesial (K9): dari tetangga bila ada; tanpa tetangga, dari panah "<die> Mesial Direction" yang bolanya
 ("<die> Mesial Handle") diseret pengguna dengan G. FDI hanya memberi petunjuk awal, dan status "needs checking".
-Hasilnya "<die> Crown Proposal" (permukaan luar terbuka; border dan solid menyusul di langkah 4 dan 5). Proposal
+Hasilnya "<die> Crown Proposal": solid tertutup (border IVO, permukaan luar, strip, dan permukaan dalam dari
+"<die> Spacer"), divalidasi manifold3d; kegagalan menjadi pesan error, bukan solid yang rusak. Proposal
 kedaluwarsa bila margin, sumbu, block-out, spacer, FDI, arah mesial, tetangga, atau antagonis berubah.
 "Confirm Crown" (K7) letaknya sebelum ekspor §5.7 dan belum dibuat.
 """
@@ -29,6 +30,7 @@ KEY_MESIAL_SOURCE = "dentalcad_mesial_source"  # "neighbors", "arrow", "fdi_hint
 KEY_MESIAL_BASE = "dentalcad_mesial_base"
 KEY_HINTS = "dentalcad_crown_hints"
 KEY_DISTANCES = "dentalcad_crown_distances_mm"
+KEY_VOLUME = "dentalcad_crown_volume_mm3"
 ARROW_MM = 5.0
 HANDLE_MM = 0.6
 
@@ -52,6 +54,9 @@ def crown_params() -> core_crown.CrownParams:
         approximal_distance_mm=preset.value("approximal_distance_mm"),
         cement_gap_mm=preset.value("cement_gap_um") / 1000.0,
         emergence_angle_deg=preset.value("emergence_angle_deg"),
+        border_horizontal_mm=preset.value("margin_horizontal_mm"),
+        border_angled_mm=preset.value("margin_angled_length_mm"),
+        border_angle_deg=preset.value("margin_angle_deg"),
         min_thickness_anterior_mm=preset.min_thickness_mm("anterior"),
         min_thickness_posterior_mm=min(preset.min_thickness_mm("premolar"), preset.min_thickness_mm("molar")),
     )
@@ -192,9 +197,12 @@ class DENTALCAD_OT_crown_propose(bpy.types.Operator):
         die[KEY_MESIAL] = (mesial / np.linalg.norm(mesial)).tolist()
         die[KEY_MESIAL_SOURCE] = source
         _place_mesial_arrow(context, die, margin_local, axis, np.array(die[KEY_MESIAL]))
+        params = crown_params()
+        inner = _local_mesh(bpy.data.objects[ops_spacer.spacer_name(die)], die)
         try:
             fit = core_crown.fit_crown(fdi, margin_local, axis, np.array(die[KEY_MESIAL]), prep_top, *meshes,
-                                       params=crown_params())
+                                       params=params)
+            solid = core_crown.assemble_crown(fit.surface, inner, params)
         except core_crown.CrownError as exc:
             self.report({"ERROR"}, f"Crown not proposed: {exc}")
             return {"CANCELLED"}
@@ -205,7 +213,7 @@ class DENTALCAD_OT_crown_propose(bpy.types.Operator):
             bpy.data.objects.remove(old)
             if data is not None and data.users == 0:
                 bpy.data.meshes.remove(data)
-        obj = bpy.data.objects.new(name, to_blender_mesh(name, fit.surface.mesh))
+        obj = bpy.data.objects.new(name, to_blender_mesh(name, solid.mesh))
         context.collection.objects.link(obj)
         obj.matrix_world = die.matrix_world
         obj.hide_select = True
@@ -216,12 +224,14 @@ class DENTALCAD_OT_crown_propose(bpy.types.Operator):
                          + "; check it and drag the mesial handle (G)")
         obj[KEY_HINTS] = "; ".join(hints)
         obj[KEY_DISTANCES] = {k: float(v) for k, v in fit.distances.items()}
+        obj[KEY_VOLUME] = solid.volume_mm3
         obj["dentalcad_crown_fdi"] = fdi
         obj[KEY_FINGERPRINT] = _fingerprint(context, die)
         t = fit.surface.template
         distances = ", ".join(f"{k} {1000 * v:+.0f} um" for k, v in fit.distances.items()) or "no contacts"
         self.report({"INFO"}, f"Crown proposal ({kind}, FDI {fdi}): {t.width_md:.2f} x {t.width_bl:.2f} mm, "
-                              f"{fit.iterations} iterations; {distances}. Parametric template, not anatomy")
+                              f"{fit.iterations} iterations; {distances}; closed solid {solid.volume_mm3:.1f} mm3. "
+                              "Parametric template, not anatomy")
         if hints:
             self.report({"WARNING"}, "Needs checking: " + "; ".join(hints))
         return {"FINISHED"}
