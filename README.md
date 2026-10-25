@@ -8,7 +8,7 @@ Extension Blender open source untuk dental CAD (crown, bridge, model). Target: *
 
 - **Fase 0** (fondasi: impor STL/PLY, panel Dental, uji Blender headless): selesai.
 - **Fase 1** (model creator, kupon kalibrasi printer): diparkir. Lihat [docs/PHASE1.md](docs/PHASE1.md).
-- **Fase 2** (crown zirkonia single, validasi digital): margin semi-otomatis (§5.1), sumbu insersi dan undercut (§5.2), spacer cement gap (§5.3), dan proposal crown langkah 1 sampai 3 (§5.4: template parametrik sintetis, bukan anatomi) terimplementasi. Border, solid crown, kontak, ketebalan, dan ekspor belum. Lihat [docs/PHASE2.md](docs/PHASE2.md).
+- **Fase 2** (crown zirkonia single, validasi digital): margin semi-otomatis (§5.1), sumbu insersi dan undercut (§5.2), spacer cement gap (§5.3), dan proposal crown langkah 1 sampai 5 (§5.4: template parametrik sintetis, bukan anatomi; border IVO dan solid tertutup) terimplementasi, sejauh ini hanya teruji pada data sintetis. Kontak, ketebalan, dan ekspor belum. Lihat [docs/PHASE2.md](docs/PHASE2.md).
 
 Rancangan teknis ada di [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), riset dan roadmap di [docs/RESEARCH.md](docs/RESEARCH.md), dan aturan kerja di [CLAUDE.md](CLAUDE.md).
 

@@ -1,6 +1,6 @@
 # Fase 2: Crown zirkonia single (rancangan)
 
-Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis ditutup** (2026-10-24) dengan ringkasan status di akhir §5.1: terbukti pada data sintetis saja, dan **belum divalidasi dengan scan asli**. Hasil Detect dan Draw selalu berstatus **draf**, hanya margin yang sudah di-**Confirm** yang boleh dipakai langkah crown dan ekspor, dan segmen merah hanya petunjuk ringan. **§5.2 sumbu insersi dan undercut terimplementasi** (2026-10-24), juga hanya terbukti pada data sintetis (hasil di §5.2). **§5.3 spacer terimplementasi** (2026-10-24) dengan normal dihaluskan dan block-out kedua untuk milling 3/4 axis, sama-sama hanya terbukti pada data sintetis (hasil di §5.3). Catatan paten: EP2187833B1 (Institut Straumann AG) masih aktif di Eropa menurut Google Patents (perkiraan berakhir 2028-07-24). Versi AS US20100233659 ditinggalkan sejak 2014. Pengguna di Eropa sebaiknya mematikan block-out kedua (`use_second_block_out`) sampai paten berakhir. Ini bukan kesimpulan hukum. **§5.4 langkah 1 sampai 3 terimplementasi** (2026-10-25): template parametrik, penempatan, dan penyesuaian ke tetangga dan antagonis sintetis; lipatan pada scallop dalam dari set ukur pertama diperbaiki (dasar template mengikuti margin, zona campur dalam mm), dan set ukur kedua tanpa lipatan non-sliver. Sejak itu sepertiga servikal dibangun dari margin dengan sudut emergence 19° (Monaco 2026), dan set ukur ketiga lulus kriteria median ≤ 21° untuk anterior dan premolar (hasil di §5.4). Langkah 4 dan 5 (border, solid) serta §5.5 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
+Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis ditutup** (2026-10-24) dengan ringkasan status di akhir §5.1: terbukti pada data sintetis saja, dan **belum divalidasi dengan scan asli**. Hasil Detect dan Draw selalu berstatus **draf**, hanya margin yang sudah di-**Confirm** yang boleh dipakai langkah crown dan ekspor, dan segmen merah hanya petunjuk ringan. **§5.2 sumbu insersi dan undercut terimplementasi** (2026-10-24), juga hanya terbukti pada data sintetis (hasil di §5.2). **§5.3 spacer terimplementasi** (2026-10-24) dengan normal dihaluskan dan block-out kedua untuk milling 3/4 axis, sama-sama hanya terbukti pada data sintetis (hasil di §5.3). Catatan paten: EP2187833B1 (Institut Straumann AG) masih aktif di Eropa menurut Google Patents (perkiraan berakhir 2028-07-24). Versi AS US20100233659 ditinggalkan sejak 2014. Pengguna di Eropa sebaiknya mematikan block-out kedua (`use_second_block_out`) sampai paten berakhir. Ini bukan kesimpulan hukum. **§5.4 langkah 1 sampai 3 terimplementasi** (2026-10-25): template parametrik, penempatan, dan penyesuaian ke tetangga dan antagonis sintetis; lipatan pada scallop dalam dari set ukur pertama diperbaiki (dasar template mengikuti margin, zona campur dalam mm), dan set ukur kedua tanpa lipatan non-sliver. Sejak itu sepertiga servikal dibangun dari margin dengan sudut emergence 19° (Monaco 2026), dan set ukur ketiga lulus kriteria median ≤ 21° untuk anterior dan premolar (hasil di §5.4). **Langkah 4 dan 5 terimplementasi** (2026-10-26): border IVO dan solid tertutup yang lolos manifold3d, set ukur keempat lulus (90 dari 90 solid, border sesuai IVO di 64 potongan), juga hanya pada data sintetis (hasil di §5.4). §5.5 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
 
 Dasar dokumen ini:
 - RESEARCH.md Roadmap, Fase 2: deliverable *margin semi-auto, sumbu insersi/undercut, spacer, library CC0 + morphing, kontak, heatmap ketebalan, ekspor STL ke MillBox*; kriteria selesai *20 kasus: deviasi margin vs desain exocad ≤50 µm (median), lolos cek ketebalan, 5 crown dimilling dan dicoba di die*.
@@ -814,7 +814,7 @@ Kesimpulan:
 
 **Modul core/.** `core/geodesic.py` (`distance_from_curve`), `core/spacer.py` (`SpacerParams`, `gap_profile`, `inner_faces`, `smoothed_normals`, `spacer_surface`, `inner_undercut_depth`, `new_undercut_mm`, `second_block_out`), `core/insertion.py` (`block_out_mesh`).
 
-### 5.4 Proposal crown: template + konstruksi berlabuh margin (langkah 1 sampai 3 terimplementasi 2026-10-25)
+### 5.4 Proposal crown: template + konstruksi berlabuh margin (langkah 1 sampai 3 terimplementasi 2026-10-25, langkah 4 dan 5 2026-10-26)
 
 **Gerbang:** margin terkonfirmasi, block-out dan spacer yang belum kedaluwarsa (`require_current_spacer`), serta nomor gigi FDI yang dipilih di panel. Gigi tetangga dan antagonis opsional: tanpa objek itu, langkah 3 hanya memakai ukuran dari margin, dan panel menyebutnya.
 
@@ -907,6 +907,11 @@ Alasan memilih metode ini:
 | Tinggi zona campur margin ke template (`blend_height_mm`) | perlu kalibrasi | 1,0 mm | Tidak ada sumber; menggantikan `blend_fraction` (fraksi v) setelah lipatan di set ukur pertama |
 | Bentuk template (eksponen superelips, height of contour, posisi dan tinggi cusp, lebar fossa) | desain data uji | per jenis gigi | K2: bukan anatomi |
 | Resolusi u, v dan fungsi campuran w | ambang algoritma | 192 sudut × 64 baris v; w = smoothstep dalam tinggi di atas margin | |
+| Jarak kurva potong permukaan dalam ke margin (`strip_mm`, minimum δ) | ambang algoritma | 0,30 mm | Lebih lebar dari gerigi tepi mesh die (sampai 0,3 mm), terukur di set tuning |
+| Jangkauan tepi spacer (`EDGE_REACH_MM`) | ambang algoritma | 0,6 mm | Vertex tepi lebih jauh dari margin dianggap lubang, bukan tepi luar |
+| Lubang permukaan dalam yang ditutup (`HOLE_FILL_MAX_VERTICES`) | ambang algoritma | ≤ 12 vertex | Lebih besar menjadi error |
+| Batas drift perbaikan lokal strip (`STRIP_MAX_DRIFT`) | ambang algoritma | 0,02 keliling | Kegagalan benchmark tuning pertama 2026-10-26 |
+| Ruang kontur tetangga sintetis (`NEIGHBOUR_CONTOUR_ALLOWANCE_MM`) | desain data uji | 0,8 mm | Naik dari 0,5 mm karena border menambah lebar crown |
 
 **Modul core/** (rencana): `core/template.py` (template parametrik per FDI), `core/crown.py` (penempatan, border, permukaan luar, penyatuan, `assemble_crown`), `core/proximity.py` (jarak bertanda, dipakai juga §5.5), dan perluasan `core/synthetic.py` (tetangga elipsoid, antagonis bidang/silinder, jawaban benar). `core/morph.py` dan deformasi Laplacian **dihapus dari rencana**.
 
@@ -920,7 +925,7 @@ Alasan memilih metode ini:
 
 **Implementasi langkah 1 sampai 3** (`core/template.py`, `core/crown.py`, `ops/crown.py`, benchmark `scripts/crown_benchmark.py`).
 - **Template:** jenis dari FDI; penampang superelips dengan lebar maksimum tepat di height of contour; meja oklusal dengan cusp gaussian dinormalisasi supaya titik tertinggi tepat di tinggi yang diminta. Galat lebar dan tinggi < 1 µm (tes).
-- **Permukaan:** S(φ, v) = T(φ, v) + (1 − w(v))·(M(φ) − T(φ, 0)), M = margin terkonfirmasi yang di-resample pada sudut polar yang sama rata (192 sudut). Versi pertama: dasar template rata dan w = smoothstep dalam parameter v (`blend_fraction` 0,5). Sejak perbaikan lipatan: dasar template mengikuti tinggi margin per sudut dan w diukur dalam mm (lihat "Perbaikan lipatan" di bawah). Tepi bawah = margin menurut konstruksi; border (langkah 4) belum ada.
+- **Permukaan:** S(φ, v) = T(φ, v) + (1 − w(v))·(M(φ) − T(φ, 0)), M = margin terkonfirmasi yang di-resample pada sudut polar yang sama rata (192 sudut). Versi pertama: dasar template rata dan w = smoothstep dalam parameter v (`blend_fraction` 0,5). Sejak perbaikan lipatan: dasar template mengikuti tinggi margin per sudut dan w diukur dalam mm (lihat "Perbaikan lipatan" di bawah). Tepi bawah = margin menurut konstruksi. Sejak langkah 4 permukaan luar mulai di tepi atas border ("Langkah 4 dan 5" di bawah).
 - **Penyesuaian:** tepi mesial, tepi distal, dan tinggi digeser sejauh selisih jarak bertanda terhadap target, sampai semua selisih ≤ 1 µm.
   - Peredam dibagi dua setiap kali tanda selisih berbalik.
   - *Beda dari versi pertama:* langkah penuh berosilasi pada mesh berderau. Penyebab utamanya tanda jarak bertanda dari normal satu face: bila titik terdekat jatuh di edge atau vertex, tandanya bisa salah, dan jarak minimum melompat (lebar berubah 2 µm, jarak berubah dari +83 ke −244 µm). Tanda sekarang dari normal vertex face terdekat.
@@ -928,7 +933,7 @@ Alasan memilih metode ini:
 - **Gigi tetangga dan antagonis sintetis** (`core/synthetic.py`): `Ellipsoid` (jarak bertanda eksak, bisection Eberly), `AntagonistPlane`, `AntagonistCylinder`.
 - **Blender:**
   - langkah **Crown** di panel: nomor FDI, objek tetangga mesial/distal, antagonis, dan tombol **Propose Crown** (gerbang `require_current_spacer`);
-  - hasilnya `<die> Crown Proposal`, permukaan luar terbuka;
+  - hasilnya `<die> Crown Proposal`, permukaan luar terbuka (sejak langkah 5 solid tertutup);
   - `crown_status` dan `require_current_crown` (gerbang §5.5 sampai §5.7): proposal kedaluwarsa bila margin, sumbu, versi block-out, versi spacer, FDI, arah mesial (termasuk posisi bola mesial tanpa tetangga), atau transformasi/vertex tetangga dan antagonis berubah;
   - Load Synthetic Case punya opsi **Neighbours and Antagonist**.
 
@@ -1392,8 +1397,254 @@ Kesimpulan:
   - iterasi penyesuaian naik dari 3-10 menjadi 3-17, dan waktu per proposal sampai 25 s (ukur, insisif sentral atas). Sebelumnya ≤ 11 s;
   - dugaan: kontak tetangga jatuh di zona campur, tempat perubahan lebar template hanya berpengaruh sebagian, sehingga langkah iterasi kurang dari satu dan butuh lebih banyak putaran. Ini belum dibuktikan.
 
+**Langkah 4 dan 5: border IVO dan solid tertutup (2026-10-26).**
+- **Border** (`crown_border`, `border_sections` di `core/crown.py`):
+  - dari margin M per sudut: B1 = M + 0,20 mm · n_h (bagian horizontal), lalu B2 = B1 + 0,10 mm · (sin 65° · n_h + cos 65° · z) (bagian bersudut). n_h = normal mendatar kurva margin ke luar, z = sumbu insersi. Angka dari preset (`margin_horizontal_mm`, `margin_angled_length_mm`, `margin_angle_deg`, default pabrikan IVO);
+  - sudut 65° diukur terhadap sumbu insersi. **Acuan ini tetap interpretasi (S4)**, belum dikonfirmasi dari dokumentasi IVO;
+  - permukaan luar sekarang mulai di B2: sepertiga servikal C = B2 + h·(tan α·n + z), dan sudut emergence diukur dari tepi atas border, bukan dari margin;
+  - lebar awal template dan batas "mesiodistal space too narrow" memakai lebar margin plus border;
+  - **error eksplisit** "the crown border folds over itself" bila arah garis singgung cincin B1 atau B2 berbalik terhadap margin. Itu terjadi bila kelengkungan margin lebih rapat dari lebar border, misalnya takik tajam di puncak scallop. Di semua die sintetis (scallop sampai PL 3,6) hal itu tidak terjadi; tes Lapis 1 memakai takik buatan;
+  - metrik: 64 bidang potong di titik tengah segmen margin, masing-masing berisi z dan normal mendatar. Di tiap bidang diukur lebar horizontal (M ke B1), kenaikan bagian horizontal, panjang bagian bersudut (B1 ke B2), dan sudutnya terhadap z.
+- **Solid** (`assemble_crown`): permukaan dalam §5.3 (dibalik), strip penghubung, border, dan permukaan luar, divalidasi `core/solid.py` (manifold3d: status tanpa error, satu komponen, genus 0, tanpa rongga tertutup, volume > 0). Loop dicocokkan lewat parameter sepanjang margin, tanpa Boolean. Urutannya:
+  1. permukaan luar diperiksa dulu: lipatan non-sliver menjadi error;
+  2. permukaan dalam dipotong di kurva level jarak geodesik ke margin = δ (marching triangles di edge spacer). Jadi permukaan dalam tetap persis spacer untuk jarak ≥ δ (tes: vertex yang dipertahankan bergeser < 1e-9 mm). δ = max(0,30 mm, jarak terjauh vertex tepi spacer asal dalam 0,6 mm dari margin + 0,05 mm), satu nilai untuk seluruh keliling;
+  3. lubang kecil (≤ 12 vertex, face pita margin yang terlewat di §5.3) ditutup fan. Lubang yang lebih besar menjadi error;
+  4. strip zipper dari kurva potong ke margin, lalu border M → B1 → B2 dan permukaan luar.
+- **Iterasi strip** (yang dicoba dan alasannya ditinggalkan, terukur pada set tuning):
+  - strip langsung dari tepi mesh spacer ke margin: tepi itu edge die yang bergerigi, kadang beberapa µm dari margin, pada derau bisa melewati margin atau membentuk bow-tie. Zipper panjang busur dan triangulasi poligon (u, w) sama-sama terlipat. Pemangkasan tepi dan pass "untangle" hanya memindahkan masalah;
+  - karena itu permukaan dalam dipotong dulu di jarak δ dari margin. Jarak Euclid 3D membentuk kantong kecil (tidak monoton di mesh die), jadi dipakai jarak geodesik (`core/geodesic.py`). Arah kurva level di dalam face besar mengikuti galat jarak per vertex (kurva mundur sampai 0,24 mm), jadi nilai jarak diratakan 3 putaran. δ lokal per titik margin juga dicoba: medannya tidak kontinu, kurva potong berundak;
+  - parameter kurva potong = proyeksi ke margin (dibuat monoton), bukan panjang busurnya sendiri. Di lereng scallop margin 3D lebih panjang daripada kurva potong, dan kecocokan panjang busur bergeser sampai segitiga terbalik;
+  - acuan arah tiap segitiga strip = normal spacer berbobot luas dalam 0,4 mm, bukan normal vertex: di kurva potong normal vertex bisa didominasi satu sliver;
+  - perbaikan lokal zipper: langkah lain bila langkah menurut parameter terbalik, telinga di kurva potong untuk tekukan kecil, dan lookahead satu langkah;
+  - **kegagalan di benchmark tuning pertama (2026-10-26):** 359 dari 360 solid. Molar chamfer, derau 30 µm, seed 2: satu vertex kurva potong menonjol ke arah margin (chamfer landai). Langkah ke vertex itu hanya valid selagi margin belum maju, parameter memilih maju dulu, lalu fan dari vertex sebelumnya menghabiskan seluruh margin (86 segitiga terlipat). Perbaikannya lookahead satu langkah dan batas drift parameter `STRIP_MAX_DRIFT` 0,02 keliling: perbaikan lokal tidak boleh berkaskade, dan di luar batas itu kegagalan tetap lokal dan menjadi error eksplisit. Kasus itu masuk tes Lapis 1, lalu benchmark tuning dijalankan ulang (tabel di bawah);
+  - `NEIGHBOUR_CONTOUR_ALLOWANCE_MM` di data sintetis naik dari 0,5 ke 0,8 mm (desain data uji): dengan border, crown lebih lebar 2 × 0,22 mm, dan tetangga simetris di tes menyentuh sepertiga servikal.
+- **Metrik solid di benchmark:**
+  - spacer dibangun dari preset seperti di Blender: block-out dengan `blockout_free_zone_mm`, lalu cement gap, milling 5 axis;
+  - **penetrasi strip ke die** diukur terhadap permukaan die **analitis** (mesh rapat zona finish dari `DieSpec`, t 0,9 sampai 2,0), bukan mesh die berderau. Margin analitis bisa sampai 110 µm dari mesh die di lipatan finish, sehingga pembanding mesh die memberi angka yang hanya artefak mesh. Angka ini **termasuk derau**: spacer mengikuti mesh die berderau, jadi kurva potong bisa berada di dalam die analitis sejauh derau;
+  - δ, lebar strip, volume, lubang yang ditutup, dan waktu solid.
+- **Blender:** `<die> Crown Proposal` sekarang solid tertutup, dengan volume di properti `dentalcad_crown_volume_mm3` dan di pesan INFO. CrownError (border terlipat, strip terlipat, lubang besar, solid tidak valid) menjadi pesan error tanpa objek. Lapis 2 memeriksa objek di Blender dengan manifold3d (genus 0, satu komponen, volume > 0).
+- **Benchmark tidur:** keempat skrip benchmark menahan Windows agar tidak tidur karena idle selama run (`SetThreadExecutionState` dengan `ES_CONTINUOUS | ES_SYSTEM_REQUIRED`, dilepas di akhir, no-op di OS lain). Ini tidak mencegah tidur karena laptop ditutup atau Sleep manual (CLAUDE.md).
+- **Set tuning** = set tuning sebelumnya + set ukur ketiga (`76aed0e`).
+- **Set ukur keempat:**
+  - didefinisikan dan dikunci bersama kode di commit `ba52b07` sebelum dijalankan, lalu dijalankan sekali;
+  - kriteria: solid valid di semua kasus yang seharusnya bisa, border sesuai IVO di 64 potongan (< 1 µm dan < 0,1°), median emergence ≤ 21° untuk anterior dan premolar (ambang sementara), dan error eksplisit di kasus sempit;
+  - isi: insisif sentral atas PL 3,6 dengan hanya tetangga distal, lateral bawah PL 3,2 dengan tetangga dua sisi, kaninus atas PL 3,4 tanpa tetangga dengan antagonis silinder, premolar bawah PL 2,4 dengan antagonis miring 8°, molar bawah PL 2,8 dengan tetangga miring 12°, dan lateral PL 3,0 dengan tetangga terlalu dekat (error).
+
+**Set tuning (border dan solid, setelah perbaikan strip):**
+
+| Kasus | Finish | Derau | Hasil per seed | |galat| kontak mesial | |galat| kontak distal | |galat| jarak oklusal | Emergence median | Emergence maks | Median ≤ 21° | Border: galat horizontal / bersudut / sudut | Solid (genus, komponen, rongga) | Delta strip | Penetrasi strip ke die | Iterasi | Waktu proposal + solid |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| molar, tetangga simetris, antagonis datar | shoulder | 0 µm | solid 3 | 4,2 µm | 4,5 µm | 0,3 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 0,0 µm | 7 | 10,3 + 1,1 s |
+| molar, tetangga simetris, antagonis datar | shoulder | 10 µm | solid 3 | 3,1 µm | 10,6 µm | 5,8 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 20,2 µm | 7 | 10,0 + 1,1 s |
+| molar, tetangga simetris, antagonis datar | shoulder | 30 µm | solid 3 | 13,5 µm | 33,0 µm | 18,2 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 67,3 µm | 9 | 12,0 + 1,2 s |
+| molar, tetangga simetris, antagonis datar | chamfer | 0 µm | solid 3 | 4,2 µm | 4,5 µm | 0,3 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,33 mm | 0,0 µm | 7 | 10,1 + 1,1 s |
+| molar, tetangga simetris, antagonis datar | chamfer | 10 µm | solid 3 | 3,1 µm | 10,6 µm | 5,8 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,33 mm | 15,5 µm | 7 | 9,8 + 1,1 s |
+| molar, tetangga simetris, antagonis datar | chamfer | 30 µm | solid 3 | 13,5 µm | 33,0 µm | 18,2 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,34 mm | 50,7 µm | 9 | 12,0 + 1,2 s |
+| molar scallop PL 2, tetangga asimetris | shoulder | 0 µm | solid 3 | 2,3 µm | 1,3 µm | 0,3 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 3,4 µm | 9 | 12,8 + 1,2 s |
+| molar scallop PL 2, tetangga asimetris | shoulder | 10 µm | solid 3 | 7,7 µm | 12,5 µm | 2,6 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 18,9 µm | 8 | 11,6 + 1,1 s |
+| molar scallop PL 2, tetangga asimetris | shoulder | 30 µm | solid 3 | 16,0 µm | 37,1 µm | 7,5 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 66,1 µm | 12 | 17,0 + 1,2 s |
+| molar scallop PL 2, tetangga asimetris | chamfer | 0 µm | solid 3 | 2,3 µm | 1,3 µm | 0,3 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,33 mm | 1,0 µm | 9 | 12,9 + 1,1 s |
+| molar scallop PL 2, tetangga asimetris | chamfer | 10 µm | solid 3 | 7,7 µm | 12,5 µm | 2,6 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,33 mm | 16,8 µm | 8 | 11,4 + 1,1 s |
+| molar scallop PL 2, tetangga asimetris | chamfer | 30 µm | solid 3 | 16,0 µm | 37,1 µm | 7,5 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,34 mm | 50,9 µm | 12 | 16,9 + 1,1 s |
+| molar, antagonis terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,5 s |
+| molar, antagonis terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| molar, antagonis terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| molar, antagonis terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| molar, antagonis terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| molar, antagonis terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| molar, tetangga terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| molar, tetangga terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,5 s |
+| molar, tetangga terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| molar, tetangga terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,5 s |
+| molar, tetangga terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,6 s |
+| molar, tetangga terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,5 s |
+| premolar kecil, tetangga miring 15 | shoulder | 0 µm | solid 3 | 1,5 µm | 4,0 µm | 1,0 µm | 19,0° | 19,0° | ya | 0,042 µm / 0,017 µm / 0,005° | 0, 1, 0 | 0,30 mm | 1,7 µm | 7 | 9,7 + 1,1 s |
+| premolar kecil, tetangga miring 15 | shoulder | 10 µm | solid 3 | 11,7 µm | 2,3 µm | 9,4 µm | 19,0° | 19,0° | ya | 0,042 µm / 0,017 µm / 0,005° | 0, 1, 0 | 0,30 mm | 19,6 µm | 8 | 10,8 + 1,2 s |
+| premolar kecil, tetangga miring 15 | shoulder | 30 µm | solid 3 | 36,2 µm | 24,7 µm | 23,9 µm | 19,0° | 19,0° | ya | 0,042 µm / 0,017 µm / 0,005° | 0, 1, 0 | 0,30 mm | 66,5 µm | 9 | 12,4 + 1,1 s |
+| premolar kecil, tetangga miring 15 | chamfer | 0 µm | solid 3 | 1,5 µm | 4,0 µm | 1,0 µm | 19,0° | 19,0° | ya | 0,042 µm / 0,017 µm / 0,005° | 0, 1, 0 | 0,33 mm | 0,0 µm | 7 | 9,7 + 1,2 s |
+| premolar kecil, tetangga miring 15 | chamfer | 10 µm | solid 3 | 11,7 µm | 2,3 µm | 9,4 µm | 19,0° | 19,0° | ya | 0,042 µm / 0,017 µm / 0,005° | 0, 1, 0 | 0,33 mm | 16,0 µm | 8 | 10,8 + 1,2 s |
+| premolar kecil, tetangga miring 15 | chamfer | 30 µm | solid 3 | 36,2 µm | 24,7 µm | 23,9 µm | 19,0° | 19,0° | ya | 0,042 µm / 0,017 µm / 0,005° | 0, 1, 0 | 0,34 mm | 50,2 µm | 9 | 12,5 + 1,2 s |
+| molar besar, antagonis silinder | shoulder | 0 µm | solid 3 | 1,7 µm | 2,1 µm | 0,4 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 5,1 µm | 11 | 16,7 + 1,2 s |
+| molar besar, antagonis silinder | shoulder | 10 µm | solid 3 | 5,6 µm | 5,7 µm | 5,2 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 18,3 µm | 11 | 16,5 + 1,2 s |
+| molar besar, antagonis silinder | shoulder | 30 µm | solid 3 | 37,0 µm | 19,8 µm | 24,0 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 65,8 µm | 11 | 16,6 + 1,3 s |
+| molar besar, antagonis silinder | chamfer | 0 µm | solid 3 | 1,7 µm | 2,1 µm | 0,4 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,33 mm | 2,0 µm | 11 | 16,6 + 1,1 s |
+| molar besar, antagonis silinder | chamfer | 10 µm | solid 3 | 5,6 µm | 5,7 µm | 5,2 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,33 mm | 17,6 µm | 11 | 15,9 + 1,2 s |
+| molar besar, antagonis silinder | chamfer | 30 µm | solid 3 | 37,0 µm | 19,8 µm | 24,0 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,34 mm | 51,5 µm | 11 | 15,9 + 1,2 s |
+| insisif sentral, hanya tetangga mesial | shoulder | 0 µm | solid 3 | 3,7 µm | - | 0,3 µm | 19,0° | 19,0° | ya | 0,043 µm / 0,021 µm / 0,007° | 0, 1, 0 | 0,30 mm | 4,9 µm | 14 | 13,2 + 1,1 s |
+| insisif sentral, hanya tetangga mesial | shoulder | 10 µm | solid 3 | 6,4 µm | - | 8,6 µm | 19,0° | 19,0° | ya | 0,043 µm / 0,021 µm / 0,007° | 0, 1, 0 | 0,30 mm | 19,2 µm | 14 | 13,3 + 1,1 s |
+| insisif sentral, hanya tetangga mesial | shoulder | 30 µm | solid 3 | 21,8 µm | - | 28,2 µm | 19,0° | 19,0° | ya | 0,043 µm / 0,021 µm / 0,007° | 0, 1, 0 | 0,30 mm | 64,8 µm | 15 | 14,4 + 1,2 s |
+| insisif sentral, hanya tetangga mesial | chamfer | 0 µm | solid 3 | 3,7 µm | - | 0,3 µm | 19,0° | 19,0° | ya | 0,043 µm / 0,021 µm / 0,007° | 0, 1, 0 | 0,30 mm | 4,2 µm | 14 | 13,3 + 1,2 s |
+| insisif sentral, hanya tetangga mesial | chamfer | 10 µm | solid 3 | 6,4 µm | - | 8,6 µm | 19,0° | 19,0° | ya | 0,043 µm / 0,021 µm / 0,007° | 0, 1, 0 | 0,30 mm | 17,8 µm | 14 | 13,2 + 1,2 s |
+| insisif sentral, hanya tetangga mesial | chamfer | 30 µm | solid 3 | 21,8 µm | - | 28,2 µm | 19,0° | 19,0° | ya | 0,043 µm / 0,021 µm / 0,007° | 0, 1, 0 | 0,30 mm | 60,0 µm | 15 | 14,3 + 1,2 s |
+| kaninus, tanpa tetangga dan antagonis | shoulder | 0 µm | solid 3 | - | - | - | 19,0° | 19,0° | ya | 0,051 µm / 0,021 µm / 0,012° | 0, 1, 0 | 0,30 mm | 4,1 µm | 1 | 0,1 + 1,1 s |
+| kaninus, tanpa tetangga dan antagonis | shoulder | 10 µm | solid 3 | - | - | - | 19,0° | 19,0° | ya | 0,051 µm / 0,021 µm / 0,012° | 0, 1, 0 | 0,30 mm | 17,5 µm | 1 | 0,0 + 1,1 s |
+| kaninus, tanpa tetangga dan antagonis | shoulder | 30 µm | solid 3 | - | - | - | 19,0° | 19,0° | ya | 0,051 µm / 0,021 µm / 0,012° | 0, 1, 0 | 0,30 mm | 64,3 µm | 1 | 0,0 + 1,1 s |
+| kaninus, tanpa tetangga dan antagonis | chamfer | 0 µm | solid 3 | - | - | - | 19,0° | 19,0° | ya | 0,051 µm / 0,021 µm / 0,012° | 0, 1, 0 | 0,33 mm | 0,9 µm | 1 | 0,1 + 1,2 s |
+| kaninus, tanpa tetangga dan antagonis | chamfer | 10 µm | solid 3 | - | - | - | 19,0° | 19,0° | ya | 0,051 µm / 0,021 µm / 0,012° | 0, 1, 0 | 0,33 mm | 16,9 µm | 1 | 0,0 + 1,1 s |
+| kaninus, tanpa tetangga dan antagonis | chamfer | 30 µm | solid 3 | - | - | - | 19,0° | 19,0° | ya | 0,051 µm / 0,021 µm / 0,012° | 0, 1, 0 | 0,34 mm | 51,0 µm | 1 | 0,0 + 1,1 s |
+| premolar, antagonis miring terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| premolar, antagonis miring terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,3 s |
+| premolar, antagonis miring terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| premolar, antagonis miring terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| premolar, antagonis miring terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| premolar, antagonis miring terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,3 s |
+| lateral atas PL 2,5, tetangga dua sisi | shoulder | 0 µm | solid 3 | 3,4 µm | 4,0 µm | 0,1 µm | 19,0° | 19,0° | ya | 0,040 µm / 0,019 µm / 0,005° | 0, 1, 0 | 0,30 mm | 4,1 µm | 13 | 17,7 + 1,2 s |
+| lateral atas PL 2,5, tetangga dua sisi | shoulder | 10 µm | solid 3 | 9,9 µm | 6,1 µm | 7,6 µm | 19,0° | 19,0° | ya | 0,040 µm / 0,019 µm / 0,005° | 0, 1, 0 | 0,30 mm | 21,0 µm | 13 | 17,4 + 1,1 s |
+| lateral atas PL 2,5, tetangga dua sisi | shoulder | 30 µm | solid 3 | 7,4 µm | 31,3 µm | 23,1 µm | 19,0° | 19,0° | ya | 0,040 µm / 0,019 µm / 0,005° | 0, 1, 0 | 0,30 mm | 55,3 µm | 14 | 18,2 + 1,3 s |
+| lateral atas PL 2,5, tetangga dua sisi | chamfer | 0 µm | solid 3 | 3,4 µm | 4,0 µm | 0,1 µm | 19,0° | 19,0° | ya | 0,040 µm / 0,019 µm / 0,005° | 0, 1, 0 | 0,30 mm | 2,1 µm | 13 | 17,7 + 1,1 s |
+| lateral atas PL 2,5, tetangga dua sisi | chamfer | 10 µm | solid 3 | 9,9 µm | 6,1 µm | 7,6 µm | 19,0° | 19,0° | ya | 0,040 µm / 0,019 µm / 0,005° | 0, 1, 0 | 0,30 mm | 20,4 µm | 13 | 17,3 + 1,1 s |
+| lateral atas PL 2,5, tetangga dua sisi | chamfer | 30 µm | solid 3 | 7,4 µm | 31,3 µm | 23,1 µm | 19,0° | 19,0° | ya | 0,040 µm / 0,019 µm / 0,005° | 0, 1, 0 | 0,30 mm | 77,6 µm | 14 | 18,2 + 1,1 s |
+| insisif bawah PL 3,5, antagonis miring | shoulder | 0 µm | solid 3 | 3,1 µm | 3,6 µm | 0,0 µm | 19,0° | 19,0° | ya | 0,035 µm / 0,015 µm / 0,011° | 0, 1, 0 | 0,30 mm | 5,2 µm | 13 | 17,6 + 1,1 s |
+| insisif bawah PL 3,5, antagonis miring | shoulder | 10 µm | solid 3 | 2,8 µm | 3,7 µm | 8,3 µm | 19,0° | 19,0° | ya | 0,035 µm / 0,015 µm / 0,011° | 0, 1, 0 | 0,30 mm | 19,1 µm | 13 | 17,5 + 1,3 s |
+| insisif bawah PL 3,5, antagonis miring | shoulder | 30 µm | solid 3 | 28,4 µm | 17,0 µm | 27,7 µm | 19,0° | 19,0° | ya | 0,035 µm / 0,015 µm / 0,011° | 0, 1, 0 | 0,30 mm | 55,6 µm | 13 | 17,1 + 1,1 s |
+| insisif bawah PL 3,5, antagonis miring | chamfer | 0 µm | solid 3 | 3,1 µm | 3,6 µm | 0,0 µm | 19,0° | 19,0° | ya | 0,035 µm / 0,015 µm / 0,011° | 0, 1, 0 | 0,30 mm | 3,5 µm | 13 | 17,5 + 1,2 s |
+| insisif bawah PL 3,5, antagonis miring | chamfer | 10 µm | solid 3 | 2,8 µm | 3,7 µm | 8,3 µm | 19,0° | 19,0° | ya | 0,035 µm / 0,015 µm / 0,011° | 0, 1, 0 | 0,30 mm | 18,3 µm | 13 | 17,5 + 1,1 s |
+| insisif bawah PL 3,5, antagonis miring | chamfer | 30 µm | solid 3 | 28,4 µm | 17,0 µm | 27,7 µm | 19,0° | 19,0° | ya | 0,035 µm / 0,015 µm / 0,011° | 0, 1, 0 | 0,30 mm | 74,7 µm | 13 | 17,2 + 1,1 s |
+| molar PL 3,5, antagonis datar | shoulder | 0 µm | solid 3 | 2,5 µm | 1,5 µm | 0,2 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,018 µm / 0,005° | 0, 1, 0 | 0,30 mm | 5,9 µm | 10 | 14,6 + 1,2 s |
+| molar PL 3,5, antagonis datar | shoulder | 10 µm | solid 3 | 4,8 µm | 6,7 µm | 5,7 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,018 µm / 0,005° | 0, 1, 0 | 0,30 mm | 17,3 µm | 11 | 15,5 + 1,1 s |
+| molar PL 3,5, antagonis datar | shoulder | 30 µm | solid 3 | 28,4 µm | 37,1 µm | 17,9 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,018 µm / 0,005° | 0, 1, 0 | 0,30 mm | 64,7 µm | 11 | 15,7 + 1,2 s |
+| molar PL 3,5, antagonis datar | chamfer | 0 µm | solid 3 | 2,5 µm | 1,5 µm | 0,2 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,018 µm / 0,005° | 0, 1, 0 | 0,33 mm | 1,8 µm | 10 | 14,5 + 1,2 s |
+| molar PL 3,5, antagonis datar | chamfer | 10 µm | solid 3 | 4,8 µm | 6,7 µm | 5,7 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,018 µm / 0,005° | 0, 1, 0 | 0,33 mm | 17,7 µm | 11 | 15,7 + 1,1 s |
+| molar PL 3,5, antagonis datar | chamfer | 30 µm | solid 3 | 28,4 µm | 37,1 µm | 17,9 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,041 µm / 0,018 µm / 0,005° | 0, 1, 0 | 0,34 mm | 51,6 µm | 11 | 15,7 + 1,1 s |
+| lateral atas PL 3,4, antagonis miring 15 | shoulder | 0 µm | solid 3 | 2,8 µm | 2,3 µm | 0,4 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,022 µm / 0,009° | 0, 1, 0 | 0,30 mm | 5,4 µm | 15 | 20,5 + 1,3 s |
+| lateral atas PL 3,4, antagonis miring 15 | shoulder | 10 µm | solid 3 | 12,3 µm | 6,2 µm | 3,1 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,022 µm / 0,009° | 0, 1, 0 | 0,30 mm | 18,9 µm | 15 | 20,1 + 1,2 s |
+| lateral atas PL 3,4, antagonis miring 15 | shoulder | 30 µm | solid 3 | 46,3 µm | 30,0 µm | 13,9 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,022 µm / 0,009° | 0, 1, 0 | 0,30 mm | 54,2 µm | 16 | 21,6 + 1,2 s |
+| lateral atas PL 3,4, antagonis miring 15 | chamfer | 0 µm | solid 3 | 2,8 µm | 2,3 µm | 0,4 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,022 µm / 0,009° | 0, 1, 0 | 0,30 mm | 3,3 µm | 15 | 20,6 + 1,2 s |
+| lateral atas PL 3,4, antagonis miring 15 | chamfer | 10 µm | solid 3 | 12,3 µm | 6,2 µm | 3,1 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,022 µm / 0,009° | 0, 1, 0 | 0,30 mm | 18,8 µm | 15 | 20,1 + 1,1 s |
+| lateral atas PL 3,4, antagonis miring 15 | chamfer | 30 µm | solid 3 | 46,3 µm | 30,0 µm | 13,9 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,022 µm / 0,009° | 0, 1, 0 | 0,35 mm | 75,5 µm | 16 | 21,6 + 1,1 s |
+| kaninus bawah PL 3,0, antagonis silinder | shoulder | 0 µm | solid 3 | 1,3 µm | 2,1 µm | 0,1 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,010° | 0, 1, 0 | 0,30 mm | 5,1 µm | 8 | 11,8 + 1,2 s |
+| kaninus bawah PL 3,0, antagonis silinder | shoulder | 10 µm | solid 3 | 8,1 µm | 10,2 µm | 22,2 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,010° | 0, 1, 0 | 0,30 mm | 16,8 µm | 8 | 11,3 + 1,1 s |
+| kaninus bawah PL 3,0, antagonis silinder | shoulder | 30 µm | solid 3 | 8,3 µm | 37,8 µm | 65,7 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,010° | 0, 1, 0 | 0,30 mm | 63,5 µm | 9 | 12,8 + 1,1 s |
+| kaninus bawah PL 3,0, antagonis silinder | chamfer | 0 µm | solid 3 | 1,3 µm | 2,1 µm | 0,1 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,010° | 0, 1, 0 | 0,33 mm | 1,2 µm | 8 | 12,1 + 1,1 s |
+| kaninus bawah PL 3,0, antagonis silinder | chamfer | 10 µm | solid 3 | 8,1 µm | 10,2 µm | 22,2 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,010° | 0, 1, 0 | 0,33 mm | 17,3 µm | 8 | 11,3 + 1,1 s |
+| kaninus bawah PL 3,0, antagonis silinder | chamfer | 30 µm | solid 3 | 8,3 µm | 37,8 µm | 65,7 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,010° | 0, 1, 0 | 0,34 mm | 51,2 µm | 9 | 12,7 + 1,1 s |
+| insisif sentral bawah PL 2,6, tanpa antagonis | shoulder | 0 µm | solid 3 | 2,0 µm | 2,4 µm | - | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,011° | 0, 1, 0 | 0,30 mm | 4,2 µm | 7 | 6,1 + 1,1 s |
+| insisif sentral bawah PL 2,6, tanpa antagonis | shoulder | 10 µm | solid 3 | 8,3 µm | 6,5 µm | - | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,011° | 0, 1, 0 | 0,30 mm | 24,3 µm | 8 | 7,1 + 1,2 s |
+| insisif sentral bawah PL 2,6, tanpa antagonis | shoulder | 30 µm | solid 3 | 12,0 µm | 30,9 µm | - | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,011° | 0, 1, 0 | 0,30 mm | 71,6 µm | 10 | 8,9 + 1,1 s |
+| insisif sentral bawah PL 2,6, tanpa antagonis | chamfer | 0 µm | solid 3 | 2,0 µm | 2,4 µm | - | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,011° | 0, 1, 0 | 0,30 mm | 0,4 µm | 7 | 6,3 + 1,2 s |
+| insisif sentral bawah PL 2,6, tanpa antagonis | chamfer | 10 µm | solid 3 | 8,3 µm | 6,5 µm | - | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,011° | 0, 1, 0 | 0,30 mm | 14,0 µm | 8 | 7,1 + 1,1 s |
+| insisif sentral bawah PL 2,6, tanpa antagonis | chamfer | 30 µm | solid 3 | 12,0 µm | 30,9 µm | - | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,011° | 0, 1, 0 | 0,33 mm | 62,2 µm | 10 | 9,1 + 1,1 s |
+| premolar PL 2,8, tetangga miring 10 | shoulder | 0 µm | solid 3 | 2,7 µm | 2,4 µm | 0,2 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,018 µm / 0,005° | 0, 1, 0 | 0,30 mm | 4,7 µm | 8 | 11,2 + 1,2 s |
+| premolar PL 2,8, tetangga miring 10 | shoulder | 10 µm | solid 3 | 11,0 µm | 8,5 µm | 9,7 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,018 µm / 0,005° | 0, 1, 0 | 0,30 mm | 17,4 µm | 9 | 12,3 + 1,2 s |
+| premolar PL 2,8, tetangga miring 10 | shoulder | 30 µm | solid 3 | 44,7 µm | 28,5 µm | 24,8 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,018 µm / 0,005° | 0, 1, 0 | 0,30 mm | 64,4 µm | 10 | 13,6 + 1,2 s |
+| premolar PL 2,8, tetangga miring 10 | chamfer | 0 µm | solid 3 | 2,7 µm | 2,4 µm | 0,2 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,018 µm / 0,005° | 0, 1, 0 | 0,33 mm | 1,1 µm | 8 | 10,9 + 1,2 s |
+| premolar PL 2,8, tetangga miring 10 | chamfer | 10 µm | solid 3 | 11,0 µm | 8,5 µm | 9,7 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,018 µm / 0,005° | 0, 1, 0 | 0,33 mm | 17,2 µm | 9 | 12,2 + 1,1 s |
+| premolar PL 2,8, tetangga miring 10 | chamfer | 30 µm | solid 3 | 44,7 µm | 28,5 µm | 24,8 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,018 µm / 0,005° | 0, 1, 0 | 0,34 mm | 51,1 µm | 10 | 13,9 + 1,1 s |
+| molar PL 3,8, hanya tetangga distal | shoulder | 0 µm | solid 3 | - | 2,4 µm | 0,1 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,043 µm / 0,020 µm / 0,006° | 0, 1, 0 | 0,30 mm | 6,4 µm | 10 | 10,4 + 1,1 s |
+| molar PL 3,8, hanya tetangga distal | shoulder | 10 µm | solid 3 | - | 10,3 µm | 20,0 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,043 µm / 0,020 µm / 0,006° | 0, 1, 0 | 0,30 mm | 17,4 µm | 10 | 9,5 + 1,2 s |
+| molar PL 3,8, hanya tetangga distal | shoulder | 30 µm | solid 3 | - | 27,6 µm | 68,7 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,043 µm / 0,020 µm / 0,006° | 0, 1, 0 | 0,30 mm | 64,8 µm | 11 | 11,1 + 1,2 s |
+| molar PL 3,8, hanya tetangga distal | chamfer | 0 µm | solid 3 | - | 2,4 µm | 0,1 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,043 µm / 0,020 µm / 0,006° | 0, 1, 0 | 0,33 mm | 2,1 µm | 10 | 10,2 + 1,2 s |
+| molar PL 3,8, hanya tetangga distal | chamfer | 10 µm | solid 3 | - | 10,3 µm | 20,0 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,043 µm / 0,020 µm / 0,006° | 0, 1, 0 | 0,33 mm | 18,0 µm | 10 | 9,4 + 1,2 s |
+| molar PL 3,8, hanya tetangga distal | chamfer | 30 µm | solid 3 | - | 27,6 µm | 68,7 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,043 µm / 0,020 µm / 0,006° | 0, 1, 0 | 0,35 mm | 51,9 µm | 11 | 11,8 + 1,2 s |
+| insisif PL 3,2, tetangga terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| insisif PL 3,2, tetangga terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| insisif PL 3,2, tetangga terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| insisif PL 3,2, tetangga terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| insisif PL 3,2, tetangga terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| insisif PL 3,2, tetangga terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,5 s |
+| kaninus atas PL 2,6, antagonis miring 10 | shoulder | 0 µm | solid 3 | 2,5 µm | 1,5 µm | 0,9 µm | 19,0° | 19,0° | ya | 0,050 µm / 0,020 µm / 0,012° | 0, 1, 0 | 0,30 mm | 4,4 µm | 7 | 10,1 + 1,1 s |
+| kaninus atas PL 2,6, antagonis miring 10 | shoulder | 10 µm | solid 3 | 16,1 µm | 6,3 µm | 7,8 µm | 19,0° | 19,0° | ya | 0,050 µm / 0,020 µm / 0,012° | 0, 1, 0 | 0,30 mm | 17,3 µm | 9 | 12,3 + 1,1 s |
+| kaninus atas PL 2,6, antagonis miring 10 | shoulder | 30 µm | solid 3 | 20,5 µm | 21,8 µm | 10,7 µm | 19,0° | 19,0° | ya | 0,050 µm / 0,020 µm / 0,012° | 0, 1, 0 | 0,30 mm | 64,2 µm | 11 | 15,0 + 1,1 s |
+| kaninus atas PL 2,6, antagonis miring 10 | chamfer | 0 µm | solid 3 | 2,5 µm | 1,5 µm | 0,9 µm | 19,0° | 19,0° | ya | 0,050 µm / 0,020 µm / 0,012° | 0, 1, 0 | 0,33 mm | 1,1 µm | 7 | 9,9 + 1,1 s |
+| kaninus atas PL 2,6, antagonis miring 10 | chamfer | 10 µm | solid 3 | 16,1 µm | 6,3 µm | 7,8 µm | 19,0° | 19,0° | ya | 0,050 µm / 0,020 µm / 0,012° | 0, 1, 0 | 0,33 mm | 17,1 µm | 9 | 12,3 + 1,2 s |
+| kaninus atas PL 2,6, antagonis miring 10 | chamfer | 30 µm | solid 3 | 20,5 µm | 21,8 µm | 10,7 µm | 19,0° | 19,0° | ya | 0,050 µm / 0,020 µm / 0,012° | 0, 1, 0 | 0,34 mm | 51,1 µm | 11 | 14,9 + 1,1 s |
+| lateral bawah PL 3,0, tanpa tetangga | shoulder | 0 µm | solid 3 | - | - | 0,0 µm | 19,0° | 19,0° | ya | 0,042 µm / 0,017 µm / 0,013° | 0, 1, 0 | 0,30 mm | 4,6 µm | 3 | 1,6 + 1,1 s |
+| lateral bawah PL 3,0, tanpa tetangga | shoulder | 10 µm | solid 3 | - | - | 13,8 µm | 19,0° | 19,0° | ya | 0,042 µm / 0,017 µm / 0,013° | 0, 1, 0 | 0,30 mm | 23,8 µm | 3 | 1,5 + 1,2 s |
+| lateral bawah PL 3,0, tanpa tetangga | shoulder | 30 µm | solid 3 | - | - | 41,3 µm | 19,0° | 19,0° | ya | 0,042 µm / 0,017 µm / 0,013° | 0, 1, 0 | 0,30 mm | 71,2 µm | 3 | 1,6 + 1,1 s |
+| lateral bawah PL 3,0, tanpa tetangga | chamfer | 0 µm | solid 3 | - | - | 0,0 µm | 19,0° | 19,0° | ya | 0,042 µm / 0,017 µm / 0,013° | 0, 1, 0 | 0,30 mm | 0,9 µm | 3 | 1,7 + 1,1 s |
+| lateral bawah PL 3,0, tanpa tetangga | chamfer | 10 µm | solid 3 | - | - | 13,8 µm | 19,0° | 19,0° | ya | 0,042 µm / 0,017 µm / 0,013° | 0, 1, 0 | 0,30 mm | 13,6 µm | 3 | 1,6 + 1,1 s |
+| lateral bawah PL 3,0, tanpa tetangga | chamfer | 30 µm | solid 3 | - | - | 41,3 µm | 19,0° | 19,0° | ya | 0,042 µm / 0,017 µm / 0,013° | 0, 1, 0 | 0,33 mm | 60,8 µm | 3 | 1,6 + 1,2 s |
+| insisif sentral atas PL 3,6, tetangga asimetris | shoulder | 0 µm | solid 3 | 3,1 µm | 2,5 µm | 0,6 µm | 19,0° | 19,0° | ya | 0,047 µm / 0,022 µm / 0,009° | 0, 1, 0 | 0,30 mm | 6,1 µm | 15 | 21,7 + 1,2 s |
+| insisif sentral atas PL 3,6, tetangga asimetris | shoulder | 10 µm | solid 3 | 10,7 µm | 6,2 µm | 5,0 µm | 19,0° | 19,0° | ya | 0,047 µm / 0,022 µm / 0,009° | 0, 1, 0 | 0,30 mm | 19,2 µm | 16 | 21,0 + 1,2 s |
+| insisif sentral atas PL 3,6, tetangga asimetris | shoulder | 30 µm | solid 3 | 43,9 µm | 38,1 µm | 19,0 µm | 19,0° | 19,0° | ya | 0,047 µm / 0,022 µm / 0,009° | 0, 1, 0 | 0,30 mm | 64,5 µm | 15 | 20,4 + 1,2 s |
+| insisif sentral atas PL 3,6, tetangga asimetris | chamfer | 0 µm | solid 3 | 3,1 µm | 2,5 µm | 0,6 µm | 19,0° | 19,0° | ya | 0,047 µm / 0,022 µm / 0,009° | 0, 1, 0 | 0,30 mm | 5,0 µm | 15 | 21,2 + 1,1 s |
+| insisif sentral atas PL 3,6, tetangga asimetris | chamfer | 10 µm | solid 3 | 10,7 µm | 6,2 µm | 5,0 µm | 19,0° | 19,0° | ya | 0,047 µm / 0,022 µm / 0,009° | 0, 1, 0 | 0,30 mm | 18,2 µm | 16 | 21,1 + 1,1 s |
+| insisif sentral atas PL 3,6, tetangga asimetris | chamfer | 30 µm | solid 3 | 43,9 µm | 38,1 µm | 19,0 µm | 19,0° | 19,0° | ya | 0,047 µm / 0,022 µm / 0,009° | 0, 1, 0 | 0,30 mm | 62,2 µm | 15 | 20,5 + 1,1 s |
+| premolar atas PL 2,2, antagonis silinder | shoulder | 0 µm | solid 3 | 2,1 µm | 2,7 µm | 0,5 µm | 19,0° | 19,0° | ya | 0,040 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 3,7 µm | 8 | 11,6 + 1,1 s |
+| premolar atas PL 2,2, antagonis silinder | shoulder | 10 µm | solid 3 | 10,8 µm | 7,8 µm | 7,5 µm | 19,0° | 19,0° | ya | 0,040 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 18,3 µm | 8 | 11,5 + 1,2 s |
+| premolar atas PL 2,2, antagonis silinder | shoulder | 30 µm | solid 3 | 6,4 µm | 33,0 µm | 24,6 µm | 19,0° | 19,0° | ya | 0,040 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 65,7 µm | 12 | 16,8 + 1,1 s |
+| premolar atas PL 2,2, antagonis silinder | chamfer | 0 µm | solid 3 | 2,1 µm | 2,7 µm | 0,5 µm | 19,0° | 19,0° | ya | 0,040 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,33 mm | 0,8 µm | 8 | 11,8 + 1,2 s |
+| premolar atas PL 2,2, antagonis silinder | chamfer | 10 µm | solid 3 | 10,8 µm | 7,8 µm | 7,5 µm | 19,0° | 19,0° | ya | 0,040 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,33 mm | 16,8 µm | 8 | 11,4 + 1,2 s |
+| premolar atas PL 2,2, antagonis silinder | chamfer | 30 µm | solid 3 | 6,4 µm | 33,0 µm | 24,6 µm | 19,0° | 19,0° | ya | 0,040 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,34 mm | 50,9 µm | 12 | 16,8 + 1,1 s |
+| premolar bawah PL 3,0, hanya tetangga mesial | shoulder | 0 µm | solid 3 | 2,6 µm | - | 0,9 µm | 19,0° | 19,0° | ya | 0,033 µm / 0,017 µm / 0,005° | 0, 1, 0 | 0,30 mm | 5,0 µm | 9 | 8,5 + 1,0 s |
+| premolar bawah PL 3,0, hanya tetangga mesial | shoulder | 10 µm | solid 3 | 11,0 µm | - | 12,2 µm | 19,0° | 19,0° | ya | 0,033 µm / 0,017 µm / 0,005° | 0, 1, 0 | 0,30 mm | 17,0 µm | 10 | 9,4 + 1,1 s |
+| premolar bawah PL 3,0, hanya tetangga mesial | shoulder | 30 µm | solid 3 | 31,0 µm | - | 42,0 µm | 19,0° | 19,0° | ya | 0,033 µm / 0,017 µm / 0,005° | 0, 1, 0 | 0,30 mm | 64,0 µm | 10 | 9,6 + 1,2 s |
+| premolar bawah PL 3,0, hanya tetangga mesial | chamfer | 0 µm | solid 3 | 2,6 µm | - | 0,9 µm | 19,0° | 19,0° | ya | 0,033 µm / 0,017 µm / 0,005° | 0, 1, 0 | 0,33 mm | 1,3 µm | 9 | 8,5 + 1,2 s |
+| premolar bawah PL 3,0, hanya tetangga mesial | chamfer | 10 µm | solid 3 | 11,0 µm | - | 12,2 µm | 19,0° | 19,0° | ya | 0,033 µm / 0,017 µm / 0,005° | 0, 1, 0 | 0,33 mm | 17,3 µm | 10 | 9,5 + 1,3 s |
+| premolar bawah PL 3,0, hanya tetangga mesial | chamfer | 30 µm | solid 3 | 31,0 µm | - | 42,0 µm | 19,0° | 19,0° | ya | 0,033 µm / 0,017 µm / 0,005° | 0, 1, 0 | 0,34 mm | 51,2 µm | 10 | 9,5 + 1,3 s |
+| molar atas PL 3,2, antagonis miring 6 | shoulder | 0 µm | solid 3 | 2,6 µm | 2,3 µm | 0,8 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,036 µm / 0,016 µm / 0,004° | 0, 1, 0 | 0,30 mm | 5,5 µm | 10 | 14,2 + 1,1 s |
+| molar atas PL 3,2, antagonis miring 6 | shoulder | 10 µm | solid 3 | 7,4 µm | 6,6 µm | 2,2 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,036 µm / 0,016 µm / 0,004° | 0, 1, 0 | 0,30 mm | 18,0 µm | 10 | 14,2 + 1,2 s |
+| molar atas PL 3,2, antagonis miring 6 | shoulder | 30 µm | solid 3 | 34,5 µm | 22,1 µm | 8,9 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,036 µm / 0,016 µm / 0,004° | 0, 1, 0 | 0,30 mm | 65,4 µm | 11 | 15,8 + 1,1 s |
+| molar atas PL 3,2, antagonis miring 6 | chamfer | 0 µm | solid 3 | 2,6 µm | 2,3 µm | 0,8 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,036 µm / 0,016 µm / 0,004° | 0, 1, 0 | 0,33 mm | 2,1 µm | 10 | 14,3 + 1,1 s |
+| molar atas PL 3,2, antagonis miring 6 | chamfer | 10 µm | solid 3 | 7,4 µm | 6,6 µm | 2,2 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,036 µm / 0,016 µm / 0,004° | 0, 1, 0 | 0,33 mm | 17,7 µm | 10 | 14,3 + 1,2 s |
+| molar atas PL 3,2, antagonis miring 6 | chamfer | 30 µm | solid 3 | 34,5 µm | 22,1 µm | 8,9 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,036 µm / 0,016 µm / 0,004° | 0, 1, 0 | 0,34 mm | 51,6 µm | 11 | 15,8 + 1,1 s |
+| premolar PL 2,4, antagonis terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| premolar PL 2,4, antagonis terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| premolar PL 2,4, antagonis terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| premolar PL 2,4, antagonis terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,3 s |
+| premolar PL 2,4, antagonis terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| premolar PL 2,4, antagonis terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,3 s |
+
+**Set ukur keempat (dijalankan sekali, `ba52b07`):**
+
+| Kasus | Finish | Derau | Hasil per seed | |galat| kontak mesial | |galat| kontak distal | |galat| jarak oklusal | Emergence median | Emergence maks | Median ≤ 21° | Border: galat horizontal / bersudut / sudut | Solid (genus, komponen, rongga) | Delta strip | Penetrasi strip ke die | Iterasi | Waktu proposal + solid |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| insisif sentral atas PL 3,6, hanya tetangga distal | shoulder | 0 µm | solid 3 | - | 3,1 µm | 0,0 µm | 19,0° | 19,0° | ya | 0,048 µm / 0,021 µm / 0,007° | 0, 1, 0 | 0,30 mm | 5,9 µm | 10 | 9,8 + 1,2 s |
+| insisif sentral atas PL 3,6, hanya tetangga distal | shoulder | 10 µm | solid 3 | - | 15,6 µm | 10,1 µm | 19,0° | 19,0° | ya | 0,048 µm / 0,021 µm / 0,007° | 0, 1, 0 | 0,30 mm | 19,0 µm | 10 | 9,9 + 1,3 s |
+| insisif sentral atas PL 3,6, hanya tetangga distal | shoulder | 30 µm | solid 3 | - | 47,1 µm | 29,9 µm | 19,0° | 19,0° | ya | 0,048 µm / 0,021 µm / 0,007° | 0, 1, 0 | 0,30 mm | 64,3 µm | 9 | 8,8 + 1,1 s |
+| insisif sentral atas PL 3,6, hanya tetangga distal | chamfer | 0 µm | solid 3 | - | 3,1 µm | 0,0 µm | 19,0° | 19,0° | ya | 0,048 µm / 0,021 µm / 0,007° | 0, 1, 0 | 0,30 mm | 5,0 µm | 10 | 9,7 + 1,3 s |
+| insisif sentral atas PL 3,6, hanya tetangga distal | chamfer | 10 µm | solid 3 | - | 15,6 µm | 10,1 µm | 19,0° | 19,0° | ya | 0,048 µm / 0,021 µm / 0,007° | 0, 1, 0 | 0,30 mm | 18,1 µm | 10 | 9,8 + 1,1 s |
+| insisif sentral atas PL 3,6, hanya tetangga distal | chamfer | 30 µm | solid 3 | - | 47,1 µm | 29,9 µm | 19,0° | 19,0° | ya | 0,048 µm / 0,021 µm / 0,007° | 0, 1, 0 | 0,30 mm | 62,2 µm | 9 | 8,7 + 1,1 s |
+| lateral bawah PL 3,2, tetangga dua sisi | shoulder | 0 µm | solid 3 | 3,1 µm | 2,3 µm | 0,2 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,013° | 0, 1, 0 | 0,30 mm | 5,1 µm | 12 | 16,0 + 1,2 s |
+| lateral bawah PL 3,2, tetangga dua sisi | shoulder | 10 µm | solid 3 | 11,2 µm | 6,0 µm | 10,7 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,013° | 0, 1, 0 | 0,30 mm | 23,8 µm | 13 | 17,2 + 1,1 s |
+| lateral bawah PL 3,2, tetangga dua sisi | shoulder | 30 µm | solid 3 | 39,1 µm | 26,9 µm | 35,6 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,013° | 0, 1, 0 | 0,30 mm | 70,7 µm | 14 | 18,6 + 1,1 s |
+| lateral bawah PL 3,2, tetangga dua sisi | chamfer | 0 µm | solid 3 | 3,1 µm | 2,3 µm | 0,2 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,013° | 0, 1, 0 | 0,30 mm | 1,1 µm | 12 | 16,0 + 1,2 s |
+| lateral bawah PL 3,2, tetangga dua sisi | chamfer | 10 µm | solid 3 | 11,2 µm | 6,0 µm | 10,7 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,013° | 0, 1, 0 | 0,30 mm | 13,5 µm | 13 | 16,9 + 1,1 s |
+| lateral bawah PL 3,2, tetangga dua sisi | chamfer | 30 µm | solid 3 | 39,1 µm | 26,9 µm | 35,6 µm | 19,0° | 19,0° | ya | 0,041 µm / 0,017 µm / 0,013° | 0, 1, 0 | 0,33 mm | 59,3 µm | 14 | 18,2 + 1,1 s |
+| kaninus atas PL 3,4, tanpa tetangga | shoulder | 0 µm | solid 3 | - | - | 0,5 µm | 19,0° | 19,0° | ya | 0,051 µm / 0,021 µm / 0,011° | 0, 1, 0 | 0,30 mm | 5,8 µm | 2 | 1,3 + 1,1 s |
+| kaninus atas PL 3,4, tanpa tetangga | shoulder | 10 µm | solid 3 | - | - | 16,4 µm | 19,0° | 19,0° | ya | 0,051 µm / 0,021 µm / 0,011° | 0, 1, 0 | 0,30 mm | 16,9 µm | 3 | 1,7 + 1,0 s |
+| kaninus atas PL 3,4, tanpa tetangga | shoulder | 30 µm | solid 3 | - | - | 48,5 µm | 19,0° | 19,0° | ya | 0,051 µm / 0,021 µm / 0,011° | 0, 1, 0 | 0,30 mm | 62,9 µm | 3 | 1,6 + 1,1 s |
+| kaninus atas PL 3,4, tanpa tetangga | chamfer | 0 µm | solid 3 | - | - | 0,5 µm | 19,0° | 19,0° | ya | 0,051 µm / 0,021 µm / 0,011° | 0, 1, 0 | 0,33 mm | 1,5 µm | 2 | 1,4 + 1,1 s |
+| kaninus atas PL 3,4, tanpa tetangga | chamfer | 10 µm | solid 3 | - | - | 16,4 µm | 19,0° | 19,0° | ya | 0,051 µm / 0,021 µm / 0,011° | 0, 1, 0 | 0,33 mm | 17,5 µm | 3 | 1,7 + 1,1 s |
+| kaninus atas PL 3,4, tanpa tetangga | chamfer | 30 µm | solid 3 | - | - | 48,5 µm | 19,0° | 19,0° | ya | 0,051 µm / 0,021 µm / 0,011° | 0, 1, 0 | 0,34 mm | 51,5 µm | 3 | 1,7 + 1,1 s |
+| premolar bawah PL 2,4, antagonis miring 8 | shoulder | 0 µm | solid 3 | 2,6 µm | 1,3 µm | 0,3 µm | 19,0° | 19,0° | ya | 0,037 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 4,0 µm | 8 | 11,0 + 1,1 s |
+| premolar bawah PL 2,4, antagonis miring 8 | shoulder | 10 µm | solid 3 | 6,8 µm | 13,2 µm | 10,3 µm | 19,0° | 19,0° | ya | 0,037 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 17,8 µm | 8 | 10,7 + 1,2 s |
+| premolar bawah PL 2,4, antagonis miring 8 | shoulder | 30 µm | solid 3 | 14,1 µm | 44,3 µm | 31,2 µm | 19,0° | 19,0° | ya | 0,037 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 64,9 µm | 9 | 12,4 + 1,2 s |
+| premolar bawah PL 2,4, antagonis miring 8 | chamfer | 0 µm | solid 3 | 2,6 µm | 1,3 µm | 0,3 µm | 19,0° | 19,0° | ya | 0,037 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,33 mm | 0,8 µm | 8 | 11,0 + 1,1 s |
+| premolar bawah PL 2,4, antagonis miring 8 | chamfer | 10 µm | solid 3 | 6,8 µm | 13,2 µm | 10,3 µm | 19,0° | 19,0° | ya | 0,037 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,33 mm | 16,9 µm | 8 | 10,8 + 1,2 s |
+| premolar bawah PL 2,4, antagonis miring 8 | chamfer | 30 µm | solid 3 | 14,1 µm | 44,3 µm | 31,2 µm | 19,0° | 19,0° | ya | 0,037 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,34 mm | 50,9 µm | 9 | 12,4 + 1,1 s |
+| molar bawah PL 2,8, tetangga miring 12 | shoulder | 0 µm | solid 3 | 4,0 µm | 2,9 µm | 0,5 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,039 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 4,8 µm | 9 | 12,5 + 1,2 s |
+| molar bawah PL 2,8, tetangga miring 12 | shoulder | 10 µm | solid 3 | 4,8 µm | 3,3 µm | 3,5 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,039 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 18,3 µm | 9 | 12,7 + 1,1 s |
+| molar bawah PL 2,8, tetangga miring 12 | shoulder | 30 µm | solid 3 | 37,9 µm | 19,7 µm | 13,9 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,039 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,30 mm | 65,8 µm | 10 | 14,0 + 1,3 s |
+| molar bawah PL 2,8, tetangga miring 12 | chamfer | 0 µm | solid 3 | 4,0 µm | 2,9 µm | 0,5 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,039 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,33 mm | 1,8 µm | 9 | 12,6 + 1,1 s |
+| molar bawah PL 2,8, tetangga miring 12 | chamfer | 10 µm | solid 3 | 4,8 µm | 3,3 µm | 3,5 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,039 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,33 mm | 17,4 µm | 9 | 12,7 + 1,1 s |
+| molar bawah PL 2,8, tetangga miring 12 | chamfer | 30 µm | solid 3 | 37,9 µm | 19,7 µm | 13,9 µm | 19,0° | 19,0° | - (molar, dilaporkan) | 0,039 µm / 0,017 µm / 0,004° | 0, 1, 0 | 0,34 mm | 51,4 µm | 10 | 13,9 + 1,2 s |
+| lateral PL 3,0, tetangga terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| lateral PL 3,0, tetangga terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| lateral PL 3,0, tetangga terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| lateral PL 3,0, tetangga terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,5 s |
+| lateral PL 3,0, tetangga terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+| lateral PL 3,0, tetangga terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | - | - | - | - | - | - | - | - | 1,4 s |
+
+Kesimpulan:
+- **Solid: lulus.** 90 dari 90 run (ukur) dan 360 dari 360 (tuning, setelah perbaikan strip) adalah solid manifold3d: watertight, satu komponen, genus 0, tanpa rongga, volume 312 sampai 926 mm³ (ukur). Lubang spacer yang perlu ditutup: 0. Benchmark tuning pertama sebelum perbaikan strip: 359 dari 360 (satu strip terlipat, di atas).
+- **Border: lulus.** Di 64 potongan semua run, galat lebar horizontal ≤ 0,051 µm, kenaikan bagian horizontal ≤ 0,056 µm, galat panjang bagian bersudut ≤ 0,022 µm, dan galat sudut ≤ 0,013° (target < 1 µm dan < 0,1°). Tidak ada border yang terlipat di die sintetis.
+- **Emergence: lulus.** 24 dari 24 baris anterior dan premolar (ukur) dan 84 dari 84 (tuning) dengan median ≤ 21° (ambang sementara). Semua sudut keliling tetap 19,0°, sekarang diukur dari tepi atas border.
+- **Error eksplisit:** 18 dari 18 (ukur) dan 90 dari 90 (tuning), tanpa error di kasus yang seharusnya bisa, tanpa timeout, dan 0 lipatan non-sliver permukaan luar.
+- **Strip:** δ 0,30 sampai 0,34 mm (ukur; tuning sampai 0,36 mm), edge strip terpanjang ≤ 0,56 mm (tuning ≤ 0,62 mm).
+- **Penetrasi strip ke die analitis:**
+  - tanpa derau ≤ 5,9 µm (ukur) dan ≤ 6,4 µm (tuning). Yang terbesar selalu shoulder dengan scallop dalam. Dugaan: faset mesh die (spacer mengikuti mesh, tali busur di dalam permukaan analitis yang cembung). Ini belum dibuktikan;
+  - derau 10 µm ≤ 24 µm, derau 30 µm ≤ 71 µm (ukur; tuning ≤ 78 µm). Angka ini mengikuti derau mesh die, karena spacer mengikuti mesh berderau. Pada scan asli, penetrasi terhadap die sebenarnya tidak bisa diukur dengan cara ini.
+- **Kontak** (galat jarak eksak): tanpa derau ≤ 4,0 µm ke tetangga dan ≤ 0,5 µm ke antagonis; derau 30 µm ≤ 47 µm dan ≤ 49 µm (ukur). Masih bias derau mesh tetangga atau antagonis, sama seperti sebelumnya.
+- **Waktu:** solid ≤ 1,3 s per run. Proposal + solid sampai 20 s (ukur, lateral bawah dengan tetangga dua sisi) dan 23 s (tuning). **Profil kecepatan proposal** (sampai sekitar 25 s) dicatat sebagai pekerjaan setelah solid, belum dikerjakan.
+- **Keterbatasan:**
+  - semuanya data sintetis. Belum ada scan asli, jadi kurva potong pada tepi mesh scan dan pita margin yang lebih kasar belum teruji;
+  - acuan sudut border 65° masih interpretasi (S4);
+  - sudut emergence seragam di semua sisi (YOT: fasial dan lingual berbeda), dan angka 21° belum terverifikasi dari sumber primer;
+  - ketebalan minimum (§5.6) belum dicek pada solid, dan solid belum bisa diekspor (§5.7).
+
 **Pengujian.**
-- Lapis 1 (`tests/core/test_crown.py`, 39 kasus tes):
+- Lapis 1 (`tests/core/test_crown.py`, 46 kasus tes):
   - jenis FDI dan FDI tidak sah ditolak;
   - lebar dan tinggi template tepat (4 jenis × 2 ukuran);
   - tepi servikal = margin dan tanpa lipatan;
@@ -1405,15 +1656,19 @@ Kesimpulan:
   - scallop dalam tanpa lipatan (insisif bawah PL 3,5, insisif sentral PL 3,2, kaninus PL 2,5, molar PL 3,5);
   - sepertiga servikal tepat kerucut dari margin dengan sudut emergence, dan permukaan = template murni di atas sepertiga servikal + `blend_height_mm`;
   - parameter sudut emergence (15° dan 19°) menentukan 1 mm pertama pada insisif bawah PL 3,5 dan premolar PL 2,5, tanpa lipatan;
-  - sudut emergence kerucut −5, 0, 12, dan 20° tepat.
+  - sudut emergence kerucut −5, 0, 12, dan 20° tepat;
+  - border sesuai IVO di 64 potongan (insisif bawah PL 3,5), dan border yang terlipat menjadi error eksplisit;
+  - solid tertutup (genus 0, satu komponen, tanpa rongga) yang mempertahankan vertex spacer, pada molar PL 2, insisif PL 3,5 derau 10 µm, molar shoulder PL 3,5 derau 30 µm, dan regresi molar chamfer derau 30 µm (strip terlipat di benchmark tuning pertama);
+  - permukaan dalam dengan lubang besar menjadi error eksplisit.
 - Lapis 1 (`tests/core/test_repo_rules.py`): set tuning crown berisi scallop PL 2,5 dan 3,5 mm serta die anterior.
-- Lapis 1 (`tests/core/test_bench_runner.py`): kasus lambat menjadi timeout, dan kasus berikutnya tetap jalan.
+- Lapis 1 (`tests/core/test_bench_runner.py`): kasus lambat menjadi timeout, dan kasus berikutnya tetap jalan; penahan tidur aktif di Windows dan no-op di OS lain.
 - Lapis 1 (`tests/core/test_material_db.py`): hanya jarak bertanda yang boleh negatif.
 - Lapis 2 (`run_integration.py`):
   - gerbang spacer;
   - proposal pada kasus sintetis dengan tetangga dan antagonis (kontak −20 µm, oklusal 0 µm, arah mesial dari tetangga);
   - kedaluwarsa bila antagonis digeser atau FDI berubah;
-  - tanpa tetangga: arah mesial dari panah dengan catatan "needs checking", bola yang diseret membuat proposal kedaluwarsa, dan proposal ulang mengikuti bola.
+  - tanpa tetangga: arah mesial dari panah dengan catatan "needs checking", bola yang diseret membuat proposal kedaluwarsa, dan proposal ulang mengikuti bola;
+  - proposal di Blender adalah solid manifold3d (genus 0, satu komponen, volume > 0).
 
 ### 5.5 Kontak proksimal dan jarak oklusal
 
