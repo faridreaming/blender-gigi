@@ -1,6 +1,6 @@
 # Fase 2: Crown zirkonia single (rancangan)
 
-Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis ditutup** (2026-10-24) dengan ringkasan status di akhir §5.1: terbukti pada data sintetis saja, dan **belum divalidasi dengan scan asli**. Hasil Detect dan Draw selalu berstatus **draf**, hanya margin yang sudah di-**Confirm** yang boleh dipakai langkah crown dan ekspor, dan segmen merah hanya petunjuk ringan. **§5.2 sumbu insersi dan undercut terimplementasi** (2026-10-24), juga hanya terbukti pada data sintetis (hasil di §5.2). **§5.3 spacer terimplementasi** (2026-10-24) dengan normal dihaluskan dan block-out kedua untuk milling 3/4 axis, sama-sama hanya terbukti pada data sintetis (hasil di §5.3). Catatan paten: EP2187833B1 (Institut Straumann AG) masih aktif di Eropa menurut Google Patents (perkiraan berakhir 2028-07-24). Versi AS US20100233659 ditinggalkan sejak 2014. Pengguna di Eropa sebaiknya mematikan block-out kedua (`use_second_block_out`) sampai paten berakhir. Ini bukan kesimpulan hukum. Fitur §5.4 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
+Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis ditutup** (2026-10-24) dengan ringkasan status di akhir §5.1: terbukti pada data sintetis saja, dan **belum divalidasi dengan scan asli**. Hasil Detect dan Draw selalu berstatus **draf**, hanya margin yang sudah di-**Confirm** yang boleh dipakai langkah crown dan ekspor, dan segmen merah hanya petunjuk ringan. **§5.2 sumbu insersi dan undercut terimplementasi** (2026-10-24), juga hanya terbukti pada data sintetis (hasil di §5.2). **§5.3 spacer terimplementasi** (2026-10-24) dengan normal dihaluskan dan block-out kedua untuk milling 3/4 axis, sama-sama hanya terbukti pada data sintetis (hasil di §5.3). Catatan paten: EP2187833B1 (Institut Straumann AG) masih aktif di Eropa menurut Google Patents (perkiraan berakhir 2028-07-24). Versi AS US20100233659 ditinggalkan sejak 2014. Pengguna di Eropa sebaiknya mematikan block-out kedua (`use_second_block_out`) sampai paten berakhir. Ini bukan kesimpulan hukum. **§5.4 langkah 1 sampai 3 terimplementasi** (2026-10-25): template parametrik, penempatan, dan penyesuaian ke tetangga dan antagonis sintetis; set ukur menemukan lipatan pada scallop dalam (hasil di §5.4). Langkah 4 dan 5 (border, solid) serta §5.5 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
 
 Dasar dokumen ini:
 - RESEARCH.md Roadmap, Fase 2: deliverable *margin semi-auto, sumbu insersi/undercut, spacer, library CC0 + morphing, kontak, heatmap ketebalan, ekspor STL ke MillBox*; kriteria selesai *20 kasus: deviasi margin vs desain exocad ≤50 µm (median), lolos cek ketebalan, 5 crown dimilling dan dicoba di die*.
@@ -49,8 +49,9 @@ Material: preset `data/materials/zircad_prime.json` dari Fase 0 dipakai, dengan 
 | **EXQ** | "exocad Quick Guide: Crown Bottoms", transkrip video di voicetube.com/videos/46150. Halaman aslinya hanya memuat "Loading..." saat dicek; yang dibaca adalah transkrip di arsip Wayback snapshot 2024-02-25. Video aslinya dari exocad; tanggal rilis video dan versi exocad yang ditunjukkan tidak tercantum di transkrip. | "A red arrow indicates that the insertion axis for this tooth might not be optimally defined"; "While rotating, undercuts are marked in red"; "Undercuts are always blocked out parallel to the insertion axis" kecuali sudut dipilih. "Don't block out zone near prepline" = "untouchable zone" di sekitar margin yang tidak pernah di-block-out; "The default value in our generic version is 0.1 mm"; 3-axis biasanya 0; 5-axis disarankan sama dengan jarak cement gap. Urutan: "In most material configurations for 5-axis milling, the cement gap is applied after doing the block-out", dan "for steep preparations, generating the cement gap itself may cause new undercuts" ("a 5-axis machine can produce these"). "Additional Spacing" ditambahkan "to the entire crown bottom, independent of the cement gap", cement gap "applied on top of the additional spacing"; "Radial" = offset "perpendicular to the occlusal direction". Bentuk atau lebar transisi zona tidak disebut. |
 | **PAT2** | Google Patents, DE102006044215A1 / DE102006044215B4 "Dental prosthesis part's (e.g. crown) insertion axial direction optimizing method", Sirona Dental Systems GmbH, penemu Frank Seibert (dicek 2026-10-24). | Prioritas dan pengajuan 2006-09-15, publikasi A1 2008-03-27, diberikan B4 2014-02-20. Status "Expired - Fee Related"; event R119 2024-04-03 "Application deemed withdrawn, or ip right lapsed, due to non-payment of renewal fee". Halaman yang sama masih menulis "Anticipated expiration" 2026-09-16, jadi status perlu dicek di register DPMA. Isi: daerah terbayang dari arah pandang ditandai, sumbu disesuaikan dengan arah pandang yang diubah pengguna, dan kandidat arah di bola dinilai dengan kriteria kualitas, dioptimalkan pengguna atau otomatis. Google: "The legal status is an assumption and is not a legal conclusion." |
 | **PAT3** | Google Patents, US20100233659A1 dan EP2187833B1 "Method for designing a tooth replacement part", Institut Straumann AG, penemu Stephan Holzner dan Gerhard Weber (dicek 2026-10-24). Klaim EP dibaca dari dokumen B1 di server publikasi EPO (data.epo.org); teks klaim bahasa Inggris terpotong, jadi yang dibaca teks Jerman. EP Register menolak akses (HTTP 403). | **US20100233659A1:** prioritas 2007-07-25, pengajuan 2008-07-24, publikasi 2010-09-16, status "Abandoned"; event "ABANDONED -- FAILURE TO RESPOND TO AN OFFICE ACTION" 2014-04-03 (dari ringkasan halaman, belum dicek di USPTO). **EP2187833B1:** diberikan 2019-05-22, status "Active", "2028-07-24 Anticipated expiration". Menurut ringkasan halaman (belum dicek di register), tidak ada oposisi, banyak negara gugur karena tidak membayar biaya atau tidak menyerahkan terjemahan, dan biaya tahunan 2025 dibayar untuk DE, ES, FR, GB, CH. Daftar keluarga di ringkasan halaman: US dan CA ditinggalkan, DE dan WO berhenti, ES aktif, JP tercantum "pending"; tidak ada anggota Indonesia. Daftar keluarga ini belum dicek di Espacenet. **Klaim 1 (EP, teks Jerman):** metode komputer: menyediakan spacing antara bagian prostesis dan sisa gigi, lalu memeriksa apakah ada undercut terhadap arah insersi. Spacing punya dua atau lebih zona tebal berbeda dengan zona transisi di antaranya, dan bentuk transisinya dibatasi supaya tidak melewati bidang yang sejajar arah insersi, "so dass ein Hinterschnitt vermieden wird". Klaim 4: undercut dihapus, atau spacing diubah otomatis sampai tidak ada undercut; klaim 9: pemeriksaan otomatis setelah setiap perubahan. Google: "The legal status is an assumption and is not a legal conclusion." |
-| **PAT4** | Keluarga Straumann Holding AG "Computer-implemented method for digitally designing a dental restoration" (penemu Manzer, Lawitschka, Meier, Welge; prioritas 2010-08-31), dicek 2026-10-25. Klaim EP dibaca dari dokumen B1 di server publikasi EPO, klaim US dari Google Patents. | **EP2422741B1** (diberikan 2013-01-23): "Active", "2030-08-31 Anticipated expiration". Klaim 1: "automatically deforming the tooth template (7) by means of Laplacian surface deformation" dengan garis "directed along the normal direction" lewat titik di permukaan; perpotongannya dengan template menjadi handle, dan dengan gigi menjadi target. **EP2422742B1** (diberikan 2013-05-22): "Active", "2031-03-18 Anticipated expiration". Klaim 1: Laplacian surface deformation; di daerah margin garis "orthogonally intersects the axis" (sumbu gigi atau sumbu template), di daerah lain garis normal, dengan handle/target dari perpotongan. **US9396291B2**: "Active, expires 2033-01-01"; klaim 1 sama dengan EP2422741 ditambah handle di dalam poligon mesh. **US9286417B2**: "Active, expires 2032-09-23"; klaim 1 sama dengan EP2422742. Klaim turunan: bobot handle iteratif, potong template di margin, gabungkan dengan permukaan gigi di dalam margin, tambah cement gap. Menurut ringkasan halaman (belum dicek di register): kedua EP gugur di FR dan IE, dan biaya tahunan 2025/2026 dibayar untuk DE, GB, CH. **Belum dibaca:** anggota keluarga EP2422740B1, EP2468212B1, US9330205B2. |
+| **PAT4** | Keluarga Straumann Holding AG "Computer-implemented method for digitally designing a dental restoration" (penemu Manzer, Lawitschka, Meier, Welge; prioritas 2010-08-31), dicek 2026-10-25. Klaim EP dibaca dari dokumen B1 di server publikasi EPO, klaim US dari Google Patents. | **EP2422741B1** (diberikan 2013-01-23): "Active", "2030-08-31 Anticipated expiration". Klaim 1: "automatically deforming the tooth template (7) by means of Laplacian surface deformation" dengan garis "directed along the normal direction" lewat titik di permukaan; perpotongannya dengan template menjadi handle, dan dengan gigi menjadi target. **EP2422742B1** (diberikan 2013-05-22): "Active", "2031-03-18 Anticipated expiration". Klaim 1: Laplacian surface deformation; di daerah margin garis "orthogonally intersects the axis" (sumbu gigi atau sumbu template), di daerah lain garis normal, dengan handle/target dari perpotongan. **US9396291B2**: "Active, expires 2033-01-01"; klaim 1 sama dengan EP2422741 ditambah handle di dalam poligon mesh. **US9286417B2**: "Active, expires 2032-09-23"; klaim 1 sama dengan EP2422742. Klaim turunan: bobot handle iteratif, potong template di margin, gabungkan dengan permukaan gigi di dalam margin, tambah cement gap. Menurut ringkasan halaman (belum dicek di register): kedua EP gugur di FR dan IE, dan biaya tahunan 2025/2026 dibayar untuk DE, GB, CH. **Dibaca 2026-10-25 (K6):** EP2422740B1 ("Active", "2030-08-31 Anticipated expiration"): klaim 1 = Laplacian surface deformation dengan "angle weighting function" untuk handle; EP2468212B1 ("Active", "2031-03-18 Anticipated expiration"): klaim 1 = Laplacian surface deformation dengan garis yang "orthogonally intersects the axis", handle/target dari perpotongan, untuk "full crown" (klaim turunan 8: penskalaan bukal dan mesiodistal menurut lebar permukaan preparasi, bergantung pada klaim 1); US9330205B2 ("Active, expires 2032-12-30"): klaim 1 dan 12 = Laplacian surface deformation dengan angle weighting function. Tidak ada klaim independen yang mencakup konstruksi berlabuh margin tanpa deformasi Laplacian. |
 | **PAT5** | Keluarga James R Glidewell Dental Ceramics "shape analysis, storage and retrieval of 3d models" (penemu Azernikov, Nikolskiy; prioritas 2013-03-15), dicek 2026-10-25 di Google Patents. | **WO2014144373A1**: "Ceased"; event 2016-04-06 "pct application non-entry in european phase" (tidak ada paten EP). **US10157330B2**: "Active, expires 2037-03-10". Klaim 1: margin line preparasi dikodekan sebagai "chain code", "measuring similarity" terhadap chain code kasus di "case repository", model 3D yang mirip diambil sebagai proposal, dan restorasi dibentuk dengan CAM. **US10248885B2**: "Active, expires 2037-01-01"; klaim 1: kurva karakteristik dikodekan sebagai string dan dicari kemiripannya di database kasus. **DE112014001417B4**: "Active", "2034-03-15 Anticipated expiration"; klaim 1 sama dengan klaim chain code WO. |
+| **NAG** | Nagata K, Inoue E, Nakashizu T, Seimiya K, Atsumi M, Kimoto K, Kuroda S, Hoshi N. "Verification of the accuracy and design time of crowns designed with artificial intelligence." J Adv Prosthodont 2025;17(1):1-10, doi:10.4047/jap.2025.17.1.1, PMID 40061025 (PMC11886404, CC BY-NC). Halaman PMC memakai reCAPTCHA; teks lengkap dibaca lewat API Europe PMC (2026-10-25). | Studi in vitro (5 teknisi, #15 dan #26, 3Shape Dental System dan Dentbird). Metode: "The design parameters were set as follows: margin width, 80 µm; margin angle, 50°; occlusal distance, 0 µm; approximal distance, −20 µm; cement gap, 40 µm; and adaptive extra gap, 50 µm based on the design of Cho et al." Ini setelan desain studi, bukan rekomendasi klinis. Dipakai untuk jarak oklusal dan approximal §5.4 (status literatur, perlu kalibrasi). |
 | **PAT** | Google Patents, US8359114B2 "Haptically enabled dental modeling system", DentsAble Inc (patents.google.com/patent/US8359114B2/en) | Diberikan 2013-01-22; status "Expired - Fee Related"; event "PATENT EXPIRED DUE TO NONPAYMENT OF MAINTENANCE FEES" (2017); expiration teradjust semula 2029-10-19. Google menulis: "The legal status is an assumption and is not a legal conclusion." |
 
 ## 3. Teeth3DS+: hasil pengecekan
@@ -810,7 +811,7 @@ Kesimpulan:
 
 **Modul core/.** `core/geodesic.py` (`distance_from_curve`), `core/spacer.py` (`SpacerParams`, `gap_profile`, `inner_faces`, `smoothed_normals`, `spacer_surface`, `inner_undercut_depth`, `new_undercut_mm`, `second_block_out`), `core/insertion.py` (`block_out_mesh`).
 
-### 5.4 Proposal crown: template + morphing (rancangan 2026-10-25, belum ada kode)
+### 5.4 Proposal crown: template + konstruksi berlabuh margin (langkah 1 sampai 3 terimplementasi 2026-10-25)
 
 **Gerbang:** margin terkonfirmasi, block-out dan spacer yang belum kedaluwarsa (`require_current_spacer`), serta nomor gigi FDI yang dipilih di panel. Gigi tetangga dan antagonis opsional: tanpa objek itu, langkah 3 hanya memakai ukuran dari margin, dan panel menyebutnya.
 
@@ -823,7 +824,7 @@ Kesimpulan:
 | Straumann: EP2422741B1, EP2422742B1, US9396291B2, US9286417B2 | EP aktif sampai perkiraan 2030-08-31 / 2031-03-18 (menurut ringkasan masih dibayar di DE, GB, CH; gugur di FR, IE). US aktif sampai 2033-01-01 / 2032-09-23. | Template gigi dideformasi dengan **Laplacian surface deformation**. Handle dan target adalah **titik potong garis** (garis normal, atau garis tegak lurus sumbu di daerah margin) dengan template dan dengan gigi. | Tidak ada deformasi Laplacian dan tidak ada handle/target dari perpotongan garis. Permukaan luar **dibangun** langsung dari kurva margin dan template parametrik dengan korespondensi parameter sudut. |
 | Glidewell: US10157330B2, US10248885B2, DE112014001417B4 (WO2014144373 berhenti, tanpa EP) | US aktif sampai 2037-03-10 / 2037-01-01; DE aktif sampai perkiraan 2034-03-15. | Margin line (atau kurva karakteristik) **dikodekan sebagai chain code/string**, lalu **dicari kemiripannya** di arsip kasus atau database restorasi sebelumnya, dan yang mirip diambil sebagai proposal. | Tidak ada arsip kasus dan tidak ada pencarian kemiripan margin. Template berasal dari parameter per jenis gigi FDI (K2), bukan dipilih dari kasus lain. |
 
-- Anggota keluarga Straumann EP2422740B1, EP2468212B1, dan US9330205B2 **belum dibaca**, dan wajib dibaca sebelum kode §5.4 ditulis (lihat K6).
+- Anggota keluarga Straumann EP2422740B1, EP2468212B1, dan US9330205B2 **sudah dibaca** (K6, PAT4): semua klaim independennya mensyaratkan deformasi Laplacian, jadi tidak bersinggungan dengan konstruksi berlabuh margin. Klaim turunan EP2468212 tentang penskalaan bukal/mesiodistal bergantung pada klaim 1 yang Laplacian.
 - Klaim turunan Straumann tentang "potong template di margin, gabungkan dengan permukaan gigi di dalam margin, tambah cement gap" mirip langkah 5 di bawah. Klaim turunan hanya relevan bila klaim independennya terpenuhi, dan itu yang dihindari.
 - Pencarian paten lain (misalnya untuk template parametrik yang dibangun dari margin) **tidak dilakukan**. Ini bukan analisis kebebasan beroperasi.
 
@@ -896,8 +897,8 @@ Alasan memilih metode ini:
 | Sudut bagian bersudut | default pabrikan | 65° | IVO "Crown margin angle" = slider Angle (DTX, EXW); acuan sudut masih interpretasi (S4) |
 | Panjang bagian bersudut | default pabrikan | 0,10 mm | IVO "Angled margin thickness" = slider Angled, "the length of the angled part of the border" (DTX, EXW) |
 | Ketebalan minimum (batas bawah tinggi) | default pabrikan | anterior 0,80 mm, premolar dan molar 1,00 mm | IVO "Minimal thickness" (`zircad_prime.json`) |
-| Overlap kontak proksimal (target) | perlu kalibrasi | 0,025 mm | RESEARCH.md §3, tanpa rujukan (sama dengan §5.5) |
-| Jarak oklusal ke antagonis (target) | tidak ada default | keputusan K8 | Tidak ada di IVO (K4); KUL 0,1 mm hanya pembanding |
+| Jarak approximal ke tetangga (target, `approximal_distance_mm`) | literatur, perlu kalibrasi | −0,020 mm (overlap 20 µm) | NAG "approximal distance, −20 µm" (setelan desain studi in vitro). Menggantikan 0,025 mm dari RESEARCH.md §3 yang tanpa rujukan. |
+| Jarak oklusal ke antagonis (target, `occlusal_distance_mm`) | literatur, perlu kalibrasi | 0 mm | K8: NAG "occlusal distance, 0 µm". Diisi praktik lab nanti. |
 | Tonjolan kontur di atas margin (`contour_bulge_mm`) | perlu kalibrasi | belum ditentukan | Tidak ada sumber |
 | Bentuk template (eksponen superelips, height of contour, posisi dan tinggi cusp, lebar fossa) | desain data uji | per jenis gigi | K2: bukan anatomi |
 | Resolusi u, v dan fungsi campuran w(v) | ambang algoritma | dipilih di spike S5 | |
@@ -906,11 +907,133 @@ Alasan memilih metode ini:
 
 **Pengujian** (rencana): semua metrik di atas sebagai benchmark `scripts/crown_benchmark.py` (set tuning dan set ukur yang dikunci, seperti §5.1 sampai §5.3), ditambah Lapis 1: identitas template, tepi servikal = margin terkonfirmasi, border sesuai IVO di potongan, lebar dan tinggi hasil penyesuaian terhadap jawaban analitis, solid lolos manifold3d, error eksplisit untuk ruang terlalu sempit. Lapis 2: gerbang (spacer kedaluwarsa menolak), kedaluwarsa bila tetangga, antagonis, atau FDI berubah.
 
-**Keputusan terbuka untuk maintainer.**
-- **K6:** baca dulu EP2422740B1, EP2468212B1, US9330205B2 (keluarga Straumann yang belum dibaca) sebelum kode §5.4?
-- **K7:** crown perlu "Confirm Crown" sebelum §5.6/§5.7, atau cukup status kedaluwarsa ditambah cek ketebalan §5.6 yang lolos?
-- **K8:** target jarak oklusal ke antagonis: input wajib dari pengguna tanpa default (sesuai K4), atau 0 (kontak) sebagai titik awal berlabel perlu kalibrasi?
-- **K9:** arah mesial tanpa tetangga: cukup dari kuadran FDI dengan tanda "perlu dicek", atau wajibkan tetangga untuk §5.4?
+**Keputusan maintainer (2026-10-25).**
+- **K6:** tiga anggota keluarga Straumann yang tersisa dibaca dulu. Hasilnya tidak ada yang bersinggungan (PAT4).
+- **K7:** "Confirm Crown" ada, letaknya sebelum ekspor §5.7, bukan sebelum §5.6. Peta ketebalan dan kontak §5.6 harus bisa dilihat sebelum konfirmasi. Belum diimplementasikan (bagian §5.7).
+- **K8:** jarak oklusal ke antagonis default 0 µm, status "literatur, perlu kalibrasi" (NAG). Jarak approximal −20 µm dari sumber yang sama dipakai dengan status yang sama.
+- **K9:** tanpa gigi tetangga, arah mesial ditentukan pengguna lewat panah ("<die> Mesial Direction", bola "<die> Mesial Handle" diseret dengan G). FDI hanya petunjuk awal (sumbu elips margin), dan statusnya "needs checking".
+
+**Implementasi langkah 1 sampai 3** (`core/template.py`, `core/crown.py`, `ops/crown.py`, benchmark `scripts/crown_benchmark.py`).
+- **Template:** jenis dari FDI; penampang superelips dengan lebar maksimum tepat di height of contour; meja oklusal dengan cusp gaussian dinormalisasi supaya titik tertinggi tepat di tinggi yang diminta. Galat lebar dan tinggi < 1 µm (tes).
+- **Permukaan:** S(φ, v) = T(φ, v) + (1 − w(v))·(M(φ) − T(φ, 0)), M = margin terkonfirmasi yang di-resample pada sudut polar yang sama rata (192 sudut). w = smoothstep yang mencapai 1 di setengah tinggi height of contour (`blend_fraction` 0,5). Tepi bawah = margin menurut konstruksi; border (langkah 4) belum ada.
+- **Penyesuaian:** tepi mesial, tepi distal, dan tinggi digeser sejauh selisih jarak bertanda terhadap target, sampai semua selisih ≤ 1 µm.
+  - Peredam dibagi dua setiap kali tanda selisih berbalik.
+  - *Beda dari versi pertama:* langkah penuh berosilasi pada mesh berderau. Penyebab utamanya tanda jarak bertanda dari normal satu face: bila titik terdekat jatuh di edge atau vertex, tandanya bisa salah, dan jarak minimum melompat (lebar berubah 2 µm, jarak berubah dari +83 ke −244 µm). Tanda sekarang dari normal vertex face terdekat.
+- **Error eksplisit:** ruang mesiodistal lebih sempit dari lebar margin, atau ruang oklusal di bawah tinggi minimum dari ketebalan IVO (anterior 0,80 mm, premolar/molar 1,00 mm, ditambah cement gap dan relief), berakhir dengan pesan ("mesiodistal space too narrow", "occlusal space too narrow"), bukan crown yang menembus.
+- **Gigi tetangga dan antagonis sintetis** (`core/synthetic.py`): `Ellipsoid` (jarak bertanda eksak, bisection Eberly), `AntagonistPlane`, `AntagonistCylinder`.
+- **Blender:**
+  - langkah **Crown** di panel: nomor FDI, objek tetangga mesial/distal, antagonis, dan tombol **Propose Crown** (gerbang `require_current_spacer`);
+  - hasilnya `<die> Crown Proposal`, permukaan luar terbuka;
+  - `crown_status` dan `require_current_crown` (gerbang §5.5 sampai §5.7): proposal kedaluwarsa bila margin, sumbu, versi block-out, versi spacer, FDI, arah mesial (termasuk posisi bola mesial tanpa tetangga), atau transformasi/vertex tetangga dan antagonis berubah;
+  - Load Synthetic Case punya opsi **Neighbours and Antagonist**.
+
+**Benchmark** (`python scripts/crown_benchmark.py --set <set> --seeds 3`, 2026-10-25).
+- Margin analitis dan sumbu sebenarnya. Mesh tetangga dan antagonis ber-jitter dan ber-derau sama dengan die.
+- **Jawaban benar:** jarak bertanda eksak dari vertex crown ke elipsoid, bidang, atau silinder analitis. "|galat| kontak" = |jarak eksak − target|.
+- Arah mesial dibandingkan dengan sumbu mesial die yang diketahui.
+- Lipatan = face yang berbalik dibanding template murni bertopologi sama.
+- Set ukur didefinisikan di commit `a9cd683` dan dikunci ulang di `931ae46` (perbaikan ketebalan minimum anterior IVO yang ditemukan sebelum run mana pun), lalu dijalankan sekali.
+
+**Set tuning:**
+
+| Kasus | Finish | Derau | Hasil per seed | |galat| kontak mesial | |galat| kontak distal | |galat| jarak oklusal | Galat arah mesial | Tepi servikal ke margin | Lipatan | Iterasi | Waktu |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| molar, tetangga simetris, antagonis datar | shoulder | 0 µm | kurva 3 | 3,9 µm | 3,6 µm | 0,4 µm | 0,00° | 0,000 µm | 0 | 3 | 2,9 s |
+| molar, tetangga simetris, antagonis datar | shoulder | 10 µm | kurva 3 | 9,7 µm | 4,3 µm | 10,5 µm | 0,00° | 0,000 µm | 0 | 4 | 3,7 s |
+| molar, tetangga simetris, antagonis datar | shoulder | 30 µm | kurva 3 | 32,0 µm | 20,2 µm | 18,0 µm | 0,00° | 0,000 µm | 0 | 4 | 4,0 s |
+| molar, tetangga simetris, antagonis datar | chamfer | 0 µm | kurva 3 | 3,9 µm | 3,6 µm | 0,4 µm | 0,00° | 0,000 µm | 0 | 3 | 3,3 s |
+| molar, tetangga simetris, antagonis datar | chamfer | 10 µm | kurva 3 | 9,7 µm | 4,3 µm | 10,5 µm | 0,00° | 0,000 µm | 0 | 4 | 3,9 s |
+| molar, tetangga simetris, antagonis datar | chamfer | 30 µm | kurva 3 | 32,0 µm | 20,2 µm | 18,0 µm | 0,00° | 0,000 µm | 0 | 4 | 4,5 s |
+| molar scallop PL 2, tetangga asimetris | shoulder | 0 µm | kurva 3 | 3,5 µm | 2,9 µm | 0,4 µm | 0,00° | 0,000 µm | 0 | 3 | 3,6 s |
+| molar scallop PL 2, tetangga asimetris | shoulder | 10 µm | kurva 3 | 10,9 µm | 5,8 µm | 6,8 µm | 0,00° | 0,000 µm | 0 | 6 | 6,6 s |
+| molar scallop PL 2, tetangga asimetris | shoulder | 30 µm | kurva 3 | 37,0 µm | 22,4 µm | 25,0 µm | 0,00° | 0,000 µm | 0 | 7 | 7,5 s |
+| molar scallop PL 2, tetangga asimetris | chamfer | 0 µm | kurva 3 | 3,5 µm | 2,9 µm | 0,4 µm | 0,00° | 0,000 µm | 0 | 3 | 3,7 s |
+| molar scallop PL 2, tetangga asimetris | chamfer | 10 µm | kurva 3 | 10,9 µm | 5,8 µm | 6,8 µm | 0,00° | 0,000 µm | 0 | 6 | 6,6 s |
+| molar scallop PL 2, tetangga asimetris | chamfer | 30 µm | kurva 3 | 37,0 µm | 22,4 µm | 25,0 µm | 0,00° | 0,000 µm | 0 | 7 | 7,6 s |
+| molar, antagonis terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | 0,00° | - | - | - | 1,0 s |
+| molar, antagonis terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | 0,00° | - | - | - | 1,0 s |
+| molar, antagonis terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | 0,00° | - | - | - | 1,1 s |
+| molar, antagonis terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | 0,00° | - | - | - | 1,2 s |
+| molar, antagonis terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | 0,00° | - | - | - | 1,1 s |
+| molar, antagonis terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | 0,00° | - | - | - | 1,1 s |
+| molar, tetangga terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | 0,01° | - | - | - | 1,1 s |
+| molar, tetangga terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | 0,01° | - | - | - | 1,1 s |
+| molar, tetangga terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | 0,01° | - | - | - | 1,2 s |
+| molar, tetangga terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | 0,01° | - | - | - | 1,2 s |
+| molar, tetangga terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | 0,01° | - | - | - | 1,1 s |
+| molar, tetangga terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | 0,01° | - | - | - | 1,2 s |
+
+**Set ukur (dijalankan sekali):**
+
+| Kasus | Finish | Derau | Hasil per seed | |galat| kontak mesial | |galat| kontak distal | |galat| jarak oklusal | Galat arah mesial | Tepi servikal ke margin | Lipatan | Iterasi | Waktu |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| premolar kecil, tetangga miring 15 | shoulder | 0 µm | kurva 3 | 5,9 µm | 1,6 µm | 0,0 µm | 0,01° | 0,000 µm | 0 | 4 | 4,4 s |
+| premolar kecil, tetangga miring 15 | shoulder | 10 µm | kurva 3 | 8,6 µm | 2,0 µm | 10,0 µm | 0,00° | 0,000 µm | 0 | 4 | 4,2 s |
+| premolar kecil, tetangga miring 15 | shoulder | 30 µm | kurva 3 | 22,6 µm | 33,5 µm | 20,6 µm | 0,00° | 0,000 µm | 0 | 5 | 5,1 s |
+| premolar kecil, tetangga miring 15 | chamfer | 0 µm | kurva 3 | 5,9 µm | 1,6 µm | 0,0 µm | 0,01° | 0,000 µm | 0 | 4 | 4,2 s |
+| premolar kecil, tetangga miring 15 | chamfer | 10 µm | kurva 3 | 8,6 µm | 2,0 µm | 10,0 µm | 0,00° | 0,000 µm | 0 | 4 | 4,4 s |
+| premolar kecil, tetangga miring 15 | chamfer | 30 µm | kurva 3 | 22,6 µm | 33,5 µm | 20,6 µm | 0,00° | 0,000 µm | 0 | 5 | 4,8 s |
+| molar besar, antagonis silinder | shoulder | 0 µm | kurva 3 | 4,1 µm | 4,1 µm | 0,3 µm | 0,00° | 0,000 µm | 41 | 4 | 4,7 s |
+| molar besar, antagonis silinder | shoulder | 10 µm | kurva 3 | 3,5 µm | 1,9 µm | 7,1 µm | 0,00° | 0,000 µm | 47 | 4 | 4,3 s |
+| molar besar, antagonis silinder | shoulder | 30 µm | kurva 3 | 25,3 µm | 25,7 µm | 28,3 µm | 0,00° | 0,000 µm | 48 | 4 | 4,3 s |
+| molar besar, antagonis silinder | chamfer | 0 µm | kurva 3 | 4,1 µm | 4,1 µm | 0,3 µm | 0,00° | 0,000 µm | 41 | 4 | 4,2 s |
+| molar besar, antagonis silinder | chamfer | 10 µm | kurva 3 | 3,5 µm | 1,9 µm | 7,1 µm | 0,00° | 0,000 µm | 47 | 4 | 4,3 s |
+| molar besar, antagonis silinder | chamfer | 30 µm | kurva 3 | 25,3 µm | 25,7 µm | 28,3 µm | 0,00° | 0,000 µm | 48 | 4 | 4,4 s |
+| insisif sentral, hanya tetangga mesial | shoulder | 0 µm | kurva 3 | 3,6 µm | - | 0,5 µm | 0,01° | 0,000 µm | 303 | 10 | 7,0 s |
+| insisif sentral, hanya tetangga mesial | shoulder | 10 µm | kurva 3 | 6,1 µm | - | 8,5 µm | 0,01° | 0,000 µm | 305 | 10 | 7,4 s |
+| insisif sentral, hanya tetangga mesial | shoulder | 30 µm | kurva 3 | 23,6 µm | - | 28,8 µm | 0,01° | 0,000 µm | 311 | 10 | 7,0 s |
+| insisif sentral, hanya tetangga mesial | chamfer | 0 µm | kurva 3 | 3,6 µm | - | 0,5 µm | 0,01° | 0,000 µm | 303 | 10 | 7,1 s |
+| insisif sentral, hanya tetangga mesial | chamfer | 10 µm | kurva 3 | 6,1 µm | - | 8,5 µm | 0,01° | 0,000 µm | 305 | 10 | 6,7 s |
+| insisif sentral, hanya tetangga mesial | chamfer | 30 µm | kurva 3 | 23,6 µm | - | 28,8 µm | 0,01° | 0,000 µm | 311 | 10 | 7,0 s |
+| kaninus, tanpa tetangga dan antagonis | shoulder | 0 µm | kurva 3 | - | - | - | - (dari pengguna) | 0,000 µm | 100 | 1 | 0,1 s |
+| kaninus, tanpa tetangga dan antagonis | shoulder | 10 µm | kurva 3 | - | - | - | - (dari pengguna) | 0,000 µm | 100 | 1 | 0,0 s |
+| kaninus, tanpa tetangga dan antagonis | shoulder | 30 µm | kurva 3 | - | - | - | - (dari pengguna) | 0,000 µm | 100 | 1 | 0,0 s |
+| kaninus, tanpa tetangga dan antagonis | chamfer | 0 µm | kurva 3 | - | - | - | - (dari pengguna) | 0,000 µm | 100 | 1 | 0,0 s |
+| kaninus, tanpa tetangga dan antagonis | chamfer | 10 µm | kurva 3 | - | - | - | - (dari pengguna) | 0,000 µm | 100 | 1 | 0,0 s |
+| kaninus, tanpa tetangga dan antagonis | chamfer | 30 µm | kurva 3 | - | - | - | - (dari pengguna) | 0,000 µm | 100 | 1 | 0,0 s |
+| premolar, antagonis miring terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | 0,01° | - | - | - | 1,0 s |
+| premolar, antagonis miring terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | 0,01° | - | - | - | 1,1 s |
+| premolar, antagonis miring terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | 0,00° | - | - | - | 1,1 s |
+| premolar, antagonis miring terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | 0,01° | - | - | - | 0,9 s |
+| premolar, antagonis miring terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | 0,01° | - | - | - | 0,9 s |
+| premolar, antagonis miring terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | 0,00° | - | - | - | 0,9 s |
+
+Kesimpulan:
+- **Kontak:**
+  - galat jarak eksak ke tetangga ≤ 6 µm tanpa derau, ≤ 11 µm pada derau 10 µm, dan ≤ 37 µm pada derau 30 µm (set tuning ≤ 37, set ukur ≤ 34);
+  - galat jarak oklusal ≤ 0,5 µm tanpa derau, ≤ 11 µm pada 10 µm, dan ≤ 29 µm pada 30 µm;
+  - galat pada derau tinggi adalah bias derau: jarak minimum diambil pada mesh tetangga yang berderau, sedangkan jawaban benar dari permukaan analitis.
+- **Arah mesial dari tetangga:** galat ≤ 0,012° (termasuk tetangga miring 15°).
+- **Tepi servikal = margin** (0 µm menurut konstruksi) di semua kasus.
+- **Error eksplisit:** semua kasus sempit berakhir dengan pesan, 36 dari 36 di set tuning dan 18 dari 18 di set ukur, dan tidak ada error di kasus yang seharusnya bisa.
+- **Gagal: lipatan pada scallop dalam (set ukur).** Molar besar PL 3 mm: 41-48 face; kaninus PL 2,4 mm: 100 face; insisif sentral PL 3,2 mm: 303-311 face. Set tuning (scallop ≤ PL 2 mm) tidak punya lipatan.
+  - Diagnosis setelah run (tanpa mengubah kode): lipatan ada di baris v 1-4 di dalam zona campur, pada sudut puncak scallop. Di sana margin 0,85-1,6 mm di atas dasar template (tinggi rata-rata margin), sedangkan zona campur hanya 9-12% dari parameter v. Permukaan dipaksa naik lebih cepat daripada template di atasnya, jadi terlipat.
+  - Perbaikan yang belum dicoba: dasar template mengikuti tinggi margin per sudut (base_z(φ) = z margin), atau zona campur dalam satuan tinggi, bukan parameter v. Set ini menjadi set tuning bila perbaikan dicoba.
+- **Waktu:** 3-8 s per proposal dengan tetangga dan antagonis, ≤ 0,1 s tanpa keduanya.
+
+**Keterbatasan dan yang perlu diuji ulang dengan scan asli:**
+- Template sintetis, bukan anatomi (K2).
+- Kontak hanya diatur lewat lebar mesiodistal global.
+- Antagonis sintetis tidak mewakili oklusi nyata (registrasi gigitan).
+- Arah mesial tanpa tetangga sepenuhnya dari pengguna.
+- Lipatan pada scallop dalam membuat proposal untuk gigi anterior belum layak.
+- Border (langkah 4) dan solid tertutup (langkah 5) belum ada, jadi proposal belum bisa dicek ketebalannya (§5.6) maupun diekspor.
+
+**Pengujian.**
+- Lapis 1 (`tests/core/test_crown.py`, 25 kasus tes):
+  - jenis FDI dan FDI tidak sah ditolak;
+  - lebar dan tinggi template tepat (4 jenis × 2 ukuran);
+  - tepi servikal = margin dan tanpa lipatan;
+  - kontak mencapai target pada permukaan eksak;
+  - ruang oklusal dan mesiodistal sempit menjadi error eksplisit;
+  - margin yang tidak melingkari sumbu ditolak;
+  - jarak elipsoid eksak di titik yang diketahui.
+- Lapis 1 (`tests/core/test_material_db.py`): hanya jarak bertanda yang boleh negatif.
+- Lapis 2 (`run_integration.py`):
+  - gerbang spacer;
+  - proposal pada kasus sintetis dengan tetangga dan antagonis (kontak −20 µm, oklusal 0 µm, arah mesial dari tetangga);
+  - kedaluwarsa bila antagonis digeser atau FDI berubah;
+  - tanpa tetangga: arah mesial dari panah dengan catatan "needs checking", bola yang diseret membuat proposal kedaluwarsa, dan proposal ulang mengikuti bola.
 
 ### 5.5 Kontak proksimal dan jarak oklusal
 
@@ -923,7 +1046,7 @@ Alasan memilih metode ini:
 
 | Parameter | Status | Nilai | Sumber |
 |---|---|---|---|
-| Overlap kontak proksimal | perlu kalibrasi | 0,025 mm (tengah rentang) + peringatan | RESEARCH.md §3 tabel indikasi: sekitar 0,0-0,05 mm overlap, tanpa rujukan. |
+| Jarak approximal | literatur, perlu kalibrasi | −0,020 mm | NAG (sama dengan §5.4); menggantikan 0,025 mm RESEARCH.md §3 yang tanpa rujukan. |
 | Jarak oklusal minimum ke antagonis | tidak ada default | dilaporkan tanpa ambang | Tidak ada di IVO maupun RESEARCH.md (K4). Pembanding: KUL "Distance to antagonist" 0,1 mm untuk resin cetak cor; **bukan default**. Panel menampilkan jarak terukur dan angka pembanding itu dengan labelnya. |
 | Jarak ke gigi tetangga | tidak ada default | dilaporkan | Tidak ada di IVO. Pembanding: KUL "Distance to neighbour" 0 mm untuk resin cetak cor. |
 
@@ -1023,7 +1146,7 @@ Ditambah:
 | R1 | Data sintetis terlalu "bersih" dibanding scan nyata (lubang, artefak, gingiva menutupi margin). | Tidak bisa dijawab tanpa scan nyata. | Dicatat sebagai keterbatasan validasi. Uji ketahanan pada scan nyata menunggu data (golden_private) atau keputusan K3. |
 | R2 | Paten metode deteksi margin (RESEARCH.md §4). | K5. | Pilih metode alternatif yang tidak tercakup, misalnya biaya berbasis sudut dihedral, bukan curvature. |
 
-## 9. Keputusan (maintainer, 2026-10-23)
+## 9. Keputusan (maintainer, 2026-10-23; K6 sampai K9 2026-10-25 di §5.4)
 
 - **K1:** scipy masuk, dan build memakai zip per platform (`--split-platforms`). CI dan pemeriksaan ukuran zip disesuaikan sebagai langkah implementasi pertama (§6).
 - **K2:** Template parametrik sintetis dulu. Library nyata diputuskan nanti.

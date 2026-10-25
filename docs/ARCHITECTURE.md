@@ -59,6 +59,8 @@ dentalcad/                          # root repo == root isi .zip extension
 │  ├─ insertion.py                  # sumbu insersi, peta undercut, block-out (Fase 2)
 │  ├─ geodesic.py                   # jarak geodesik ke kurva: fast marching + relaksasi (Fase 2)
 │  ├─ spacer.py                     # permukaan dalam crown: cement gap + spacing (Fase 2)
+│  ├─ template.py                   # template crown parametrik per jenis gigi FDI (Fase 2)
+│  ├─ crown.py                      # proposal crown berlabuh margin + penyesuaian kontak (Fase 2)
 │  └─ units.py                      # konversi mm, tabel penomoran FDI<->Universal/Palmer
 ├─ ops/                             # bpy.types.Operator, tipis, delegasi ke core/
 │  ├─ __init__.py
@@ -67,6 +69,7 @@ dentalcad/                          # root repo == root isi .zip extension
 │  ├─ margin.py                     # OT_margin_detect / draw / update / confirm (Fase 2)
 │  ├─ insertion.py                  # OT_insertion_detect / from_view / view, OT_block_out (Fase 2)
 │  ├─ spacer.py                     # OT_spacer, gerbang dan status kedaluwarsa spacer (Fase 2)
+│  ├─ crown.py                      # OT_crown_propose, panah mesial, status kedaluwarsa crown (Fase 2)
 │  ├─ synthetic_case.py             # OT_load_synthetic_case: die sintetis + margin benar untuk uji manual (Fase 2)
 │  └─ import_mesh.py                # OT_import_stl / OT_import_ply
 ├─ ui/                              # panel, N-panel tab, state-machine kasus
@@ -90,6 +93,7 @@ dentalcad/                          # root repo == root isi .zip extension
 │  ├─ margin_benchmark.py           # akurasi margin vs margin analitis (Fase 2)
 │  ├─ insertion_benchmark.py        # sumbu, undercut, block-out vs jawaban analitis (Fase 2)
 │  ├─ spacer_benchmark.py           # spacer vs jawaban analitis die lingkaran (Fase 2)
+│  ├─ crown_benchmark.py            # proposal crown vs tetangga/antagonis analitis (Fase 2)
 │  └─ make_synthetic_golden.py      # pembuat golden case sintetis sementara (§7)
 ├─ tests/
 │  ├─ pytest.ini                    # rootdir pytest = tests/ (root repo adalah paket yang butuh bpy)
