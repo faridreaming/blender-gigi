@@ -99,11 +99,9 @@ class DENTALCAD_OT_load_synthetic_case(bpy.types.Operator):
 
     def _add_context(self, context, spec, die, scene) -> None:
         """Tetangga elipsoid di sumbu x die (+x = mesial) dan bidang antagonis di atas preparasi (jarak diketahui)."""
-        from ..core.crown import CrownParams
-
         margin = synthetic.margin_points(spec, np.linspace(0, 2 * np.pi, 1024, endpoint=False))
         zc = float(margin[:, 2].mean())
-        bulge = CrownParams().contour_bulge_mm
+        bulge = synthetic.NEIGHBOUR_CONTOUR_ALLOWANCE_MM
         axes = np.array(NEIGHBOUR_SEMI_AXES)
         z_k = zc + 0.4 * spec.prep_height_mm
         noise = self.noise_um / 1000.0

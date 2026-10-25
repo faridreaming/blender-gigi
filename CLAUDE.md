@@ -45,6 +45,8 @@ python -m venv .venv && .venv/Scripts/python -m pip install -r requirements-dev.
 .venv/Scripts/python scripts/crown_benchmark.py --set tuning --seeds 3            # proposal crown (Fase 2); set: tuning, ukur
 ```
 
+Semua skrip benchmark menjalankan tiap kasus di proses pekerja dengan batas waktu `--timeout` (detik, default 300) dan menulis log progres per kasus ke stderr. Kasus yang melewati batas waktu dicatat sebagai error "timeout", tidak menggantung.
+
 `run_blender_tests.py` adalah gerbang Fase 0 lengkap: build `dist/dentalcad-<version>.zip`, validate, instal ke profil Blender sementara (`BLENDER_USER_RESOURCES`, profil pengguna tidak tersentuh), lalu Lapis 2.
 
 ## Testing

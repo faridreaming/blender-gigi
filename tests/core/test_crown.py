@@ -54,7 +54,7 @@ def _context(spec, die, prep_top, gaps=(0.6, 0.6), clearance=3.6):
     R = die.rotation
     margin_die = synthetic.margin_points(spec, np.linspace(0, 2 * np.pi, 1024, endpoint=False))
     zc = margin_die[:, 2].mean()
-    bulge = crown.CrownParams().contour_bulge_mm
+    bulge = synthetic.NEIGHBOUR_CONTOUR_ALLOWANCE_MM
     mes = synthetic.Ellipsoid(np.array([margin_die[:, 0].max() + bulge + gaps[0] + 4.0, 0, zc + 2.0]), ELLIPSOID,
                               np.eye(3))
     dis = synthetic.Ellipsoid(np.array([margin_die[:, 0].min() - bulge - gaps[1] - 4.0, 0, zc + 2.0]), ELLIPSOID,
@@ -131,17 +131,37 @@ def test_deep_scallop_does_not_fold(fdi, spec_kw):
     assert crown.flipped_faces(fit.surface) == 0
 
 
-def test_surface_is_the_template_above_the_blend_height():
+def test_cervical_third_rises_from_the_margin_at_the_emergence_angle_then_blends_into_the_template():
     spec, die, margin, prep_top = _die_and_margin(scallop_mm=1.5)
     p = crown.CrownParams()
     fit = crown.fit_crown(46, margin, die.insertion_axis, die.rotation[:, 0], prep_top, params=p)
     s = fit.surface
     base = s.local[:, 0, 2]
     tpl = template.template_points(s.template, s.phi[:, None], s.v[None, :], base_z=base[:, None])
-    above = (tpl[..., 2] - base[:, None]) >= p.blend_height_mm
+    h = tpl[..., 2] - base[:, None]
+    h_c = crown.cervical_height(s.template, s.local[:, 0, :], p)
+    np.testing.assert_allclose(s.local[..., 2], tpl[..., 2], atol=1e-12)  # campuran hanya menggeser mendatar
+    cervical = h <= h_c[:, None]
+    normal = crown.margin_normals(s.local[:, 0, :])
+    cone = s.local[:, :1, :2] + (h * np.tan(np.radians(p.emergence_angle_deg)))[..., None] * normal[:, None, :]
+    np.testing.assert_allclose(s.local[..., :2][cervical], cone[cervical], atol=1e-12)
+    above = h >= h_c[:, None] + p.blend_height_mm
     above[:, -1] = False  # titik tengah oklusal disatukan untuk semua sudut
     np.testing.assert_allclose(s.local[above], tpl[above], atol=1e-12)
-    np.testing.assert_allclose(s.local[:, 0, 2], tpl[:, 0, 2], atol=1e-12)  # tepi servikal: hanya geser mendatar
+
+
+@pytest.mark.parametrize("fdi, spec_kw", [
+    (41, dict(radius_x_mm=2.8, radius_y_mm=3.0, prep_height_mm=5.0, finish_width_mm=0.7, scallop_mm=1.75)),
+    (24, dict(radius_x_mm=4.0, radius_y_mm=3.6, prep_height_mm=4.5, taper_deg=7.0, scallop_mm=1.25)),
+])
+@pytest.mark.parametrize("angle", [15.0, 19.0])
+def test_emergence_angle_parameter_sets_the_first_millimetre(fdi, spec_kw, angle):
+    spec, die, margin, prep_top = _die_and_margin(**spec_kw)
+    fit = crown.fit_crown(fdi, margin, die.insertion_axis, die.rotation[:, 0], prep_top,
+                          params=crown.CrownParams(emergence_angle_deg=angle))
+    assert crown.cervical_height(fit.surface.template, fit.surface.local[:, 0, :], crown.CrownParams()).min() > 1.0
+    np.testing.assert_allclose(crown.emergence_angles(fit.surface), angle, atol=0.05)
+    assert crown.non_sliver_folds(fit.surface) == 0
 
 
 @pytest.mark.parametrize("alpha", [-5.0, 0.0, 12.0, 20.0])

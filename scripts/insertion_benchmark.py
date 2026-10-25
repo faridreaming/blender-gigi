@@ -30,6 +30,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from scripts import bench_runner  # noqa: E402
+
 from core import insertion, synthetic  # noqa: E402
 
 NOISE_UM = (0, 10, 30, 90)
@@ -115,15 +117,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--set", choices=sorted(SETS), default="tuning")
     parser.add_argument("--seeds", type=int, default=3)
     parser.add_argument("--json", type=Path)
+    bench_runner.add_arguments(parser)
     args = parser.parse_args(argv)
 
     rows = []
-    for name, overrides in SETS[args.set].items():
-        for finish in synthetic.FINISHES:
-            spec = synthetic.DieSpec(finish=finish, **overrides)
-            for noise in NOISE_UM:
-                runs = [run_case(spec, noise, seed) for seed in range(args.seeds)]
-                rows.append({"die": name, "finish": finish, "noise_um": noise, "runs": runs})
+    total = len(SETS[args.set]) * len(synthetic.FINISHES) * len(NOISE_UM) * args.seeds
+    status = lambda r: "timeout" if r.get("timeout") else "error" if "error" in r else "ok"  # noqa: E731
+    on_timeout = lambda message, seconds: {"error": message, "timeout": True}  # noqa: E731
+    with bench_runner.CaseRunner(args.timeout, total, status) as runner:
+        for name, overrides in SETS[args.set].items():
+            for finish in synthetic.FINISHES:
+                spec = synthetic.DieSpec(finish=finish, **overrides)
+                for noise in NOISE_UM:
+                    runs = [runner.run(f"{name} | {finish} | {noise} um | seed {seed}", run_case, (spec, noise, seed),
+                                       on_timeout) for seed in range(args.seeds)]
+                    rows.append({"die": name, "finish": finish, "noise_um": noise, "runs": runs})
 
     print(f"Set: {args.set}. Nilai = terburuk dari {args.seeds} seed (IoU: terendah; galat: tertinggi). "
           f"Margin analitis, zona tanpa block-out {FREE_ZONE_MM} mm.\n")
@@ -148,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
               f"{'ya' if ok[0]['margin_shadow_true'] else 'tidak'} ({worst('margin_shadow_true_um'):.0f} um) / "
               f"{sum(x['margin_flag_true_axis'] for x in ok)}/{len(ok)} | {worst('blockout_residual_um'):.0f} um | "
               f"{worst('seconds_map'):.2f} s |" + (f" error: {len(errors)}" if errors else ""))
+    print(f"\nKasus melewati batas waktu {args.timeout:g} s: {runner.timeouts}")
     if args.json:
         args.json.write_text(json.dumps(rows, indent=2, default=float), encoding="utf-8")
     return 0

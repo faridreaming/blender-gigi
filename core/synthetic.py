@@ -342,6 +342,11 @@ def _grid_mesh(points: np.ndarray, wrap_u: bool, caps: tuple = ()) -> MeshData:
     return MeshData(np.vstack(vertices), np.array(faces, dtype=np.int64))
 
 
+# Desain data uji: tonjolan kontur yang diperkirakan di atas margin saat menaruh gigi tetangga sintetis (dulu
+# CrownParams.contour_bulge_mm). Celah tetangga di benchmark dan Load Synthetic Case dihitung dari tepi margin + ini.
+NEIGHBOUR_CONTOUR_ALLOWANCE_MM = 0.5
+
+
 @dataclass(frozen=True)
 class Ellipsoid:
     """Elipsoid di frame die: pusat, setengah sumbu, dan rotasi (kolom = sumbu elipsoid di frame die)."""

@@ -35,6 +35,7 @@ REQUIRED_PARAMS: dict[str, tuple[str, bool]] = {
     "milling_axes": ("axis", True),
     "occlusal_distance_mm": ("mm", False),
     "approximal_distance_mm": ("mm", False),
+    "emergence_angle_deg": ("deg", True),
 }
 SIGNED_PARAMS = {"occlusal_distance_mm", "approximal_distance_mm"}
 CALIBRATION_STATUSES = ("perlu_kalibrasi", "literatur")  # ditampilkan sebagai peringatan "belum dikalibrasi"

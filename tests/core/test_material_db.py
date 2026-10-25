@@ -51,11 +51,12 @@ def test_bundled_zircad_prime_matches_ivoclar_chart():
         "milling_axes": 5,
         "occlusal_distance_mm": 0.0,
         "approximal_distance_mm": -0.02,
+        "emergence_angle_deg": 19,
     }
     assert {name: p.value for name, p in preset.params.items()} == expected
     ivo = [name for name, p in preset.params.items() if p.source.startswith("IVO")]
     assert set(ivo) == set(expected) - {"axial_spacing_um", "blockout_free_zone_mm", "cement_gap_transition_mm", "milling_axes",
-                              "occlusal_distance_mm", "approximal_distance_mm"}
+                              "occlusal_distance_mm", "approximal_distance_mm", "emergence_angle_deg"}
     assert all(preset.get(name).source_date == "2024-02-07" for name in ivo)
     assert preset.get("axial_spacing_um").status == "perlu_kalibrasi"
     assert preset.get("blockout_free_zone_mm").status == "perlu_kalibrasi"
@@ -65,7 +66,9 @@ def test_bundled_zircad_prime_matches_ivoclar_chart():
     assert preset.get("milling_axes").status == "praktik_lab"
     assert preset.get("occlusal_distance_mm").status == "literatur"
     assert "PMC11886404" in preset.get("approximal_distance_mm").source
-    assert len(preset.warnings()) == 5
+    assert preset.get("emergence_angle_deg").status == "literatur"
+    assert "40388572" in preset.get("emergence_angle_deg").source
+    assert len(preset.warnings()) == 6
 
 
 def test_all_bundled_presets_are_valid():

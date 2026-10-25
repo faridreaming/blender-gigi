@@ -32,6 +32,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from scripts import bench_runner  # noqa: E402
+
 from core import margin, synthetic  # noqa: E402
 
 NOISE_UM = (0, 10, 30, 90)
@@ -120,33 +122,43 @@ def _worst(runs, key):
     return 1000 * max(values) if values else float("nan")
 
 
+def _timeout_result(message: str, seconds: float) -> dict:
+    nan = float("nan")
+    return {"outcome": "timeout", "median": nan, "p95": nan, "max": nan, "coverage_p95": nan, "message": message,
+            "seconds": seconds, "ok": False, "silent_bad": False, "flagged_bad": False, "flagged_good": False}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--set", choices=sorted(SETS), default="tuning")
     parser.add_argument("--seeds", type=int, default=3)
     parser.add_argument("--json", type=Path)
+    bench_runner.add_arguments(parser)
     args = parser.parse_args(argv)
 
     rows = []
-    for name, overrides in SETS[args.set].items():
-        for finish in synthetic.FINISHES:
-            spec = synthetic.DieSpec(finish=finish, **overrides)
-            for noise in NOISE_UM:
-                runs = [run_case(spec, noise, seed) for seed in range(args.seeds)]
-                outcomes = {}
-                for r in runs:
-                    outcomes[r["outcome"]] = outcomes.get(r["outcome"], 0) + 1
-                rows.append({
-                    "die": name, "finish": finish, "noise_um": noise,
-                    "median_um": _worst(runs, "median"), "p95_um": _worst(runs, "p95"),
-                    "coverage_p95_um": _worst(runs, "coverage_p95"),
-                    "outcomes": ", ".join(f"{k} {v}" for k, v in sorted(outcomes.items())),
-                    "all_ok": all(r["ok"] for r in runs),
-                    "silent_bad": sum(r["silent_bad"] for r in runs),
-                    "flagged_bad": sum(r["flagged_bad"] for r in runs),
-                    "flagged_good": sum(r["flagged_good"] for r in runs),
-                    "runs": runs,
-                })
+    total = len(SETS[args.set]) * len(synthetic.FINISHES) * len(NOISE_UM) * args.seeds
+    with bench_runner.CaseRunner(args.timeout, total, lambda r: r["outcome"]) as runner:
+        for name, overrides in SETS[args.set].items():
+            for finish in synthetic.FINISHES:
+                spec = synthetic.DieSpec(finish=finish, **overrides)
+                for noise in NOISE_UM:
+                    runs = [runner.run(f"{name} | {finish} | {noise} um | seed {seed}", run_case,
+                                       (spec, noise, seed), _timeout_result) for seed in range(args.seeds)]
+                    outcomes = {}
+                    for r in runs:
+                        outcomes[r["outcome"]] = outcomes.get(r["outcome"], 0) + 1
+                    rows.append({
+                        "die": name, "finish": finish, "noise_um": noise,
+                        "median_um": _worst(runs, "median"), "p95_um": _worst(runs, "p95"),
+                        "coverage_p95_um": _worst(runs, "coverage_p95"),
+                        "outcomes": ", ".join(f"{k} {v}" for k, v in sorted(outcomes.items())),
+                        "all_ok": all(r["ok"] for r in runs),
+                        "silent_bad": sum(r["silent_bad"] for r in runs),
+                        "flagged_bad": sum(r["flagged_bad"] for r in runs),
+                        "flagged_good": sum(r["flagged_good"] for r in runs),
+                        "runs": runs,
+                    })
 
     print(f"Set: {args.set}. Nilai = terburuk dari {args.seeds} seed, hanya dari seed yang menghasilkan kurva. "
           "Kriteria: median <= 50 um dan cakupan p95 <= 150 um.\n")
@@ -162,6 +174,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\nTotal kurva buruk tanpa pesan dan tanpa segmen merah: {sum(r['silent_bad'] for r in rows)}")
     print(f"Kurva buruk bertanda merah: {sum(r['flagged_bad'] for r in rows)}; "
           f"kurva baik bertanda merah: {sum(r['flagged_good'] for r in rows)} dari {len(runs)} kurva")
+    print(f"Kasus melewati batas waktu {args.timeout:g} s: {runner.timeouts}")
     if args.json:
         args.json.write_text(json.dumps(rows, indent=2, default=float), encoding="utf-8")
     return 0

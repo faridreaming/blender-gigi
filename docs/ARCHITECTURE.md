@@ -94,6 +94,7 @@ dentalcad/                          # root repo == root isi .zip extension
 │  ├─ insertion_benchmark.py        # sumbu, undercut, block-out vs jawaban analitis (Fase 2)
 │  ├─ spacer_benchmark.py           # spacer vs jawaban analitis die lingkaran (Fase 2)
 │  ├─ crown_benchmark.py            # proposal crown vs tetangga/antagonis analitis (Fase 2)
+│  ├─ bench_runner.py               # batas waktu per kasus + log progres untuk semua benchmark
 │  └─ make_synthetic_golden.py      # pembuat golden case sintetis sementara (§7)
 ├─ tests/
 │  ├─ pytest.ini                    # rootdir pytest = tests/ (root repo adalah paket yang butuh bpy)

@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Proposal crown berlabuh margin (docs/PHASE2.md §5.4 langkah 1 sampai 3).
 
-Bukan morphing mesh: permukaan luar dibangun langsung sebagai S(phi, v) = T(phi, v) + (1 - w) (M(phi) - T(phi, 0)),
-dengan M(phi) titik margin terkonfirmasi pada sudut polar phi di sekitar sumbu insersi dan T template parametrik
-(core/template.py) yang dasarnya mengikuti tinggi margin per sudut (T(phi, 0) setinggi M(phi), jadi campuran hanya
-menggeser mendatar). w = smoothstep(h / blend_height_mm), h = tinggi titik template di atas margin pada sudut yang
-sama: zona campur dalam mm, tidak bergantung pada tinggi crown. Jadi S(phi, 0) = M(phi) menurut konstruksi, tanpa
-deformasi Laplacian dan tanpa handle/target dari perpotongan garis (paten PAT4), dan tanpa arsip kasus atau
-pencarian kemiripan margin (PAT5).
+Bukan morphing mesh: permukaan luar dibangun langsung sebagai S(phi, v) = T(phi, v) + (1 - w) (C(phi, v) - T(phi, v)),
+dengan T template parametrik (core/template.py) yang dasarnya mengikuti tinggi margin per sudut, dan C permukaan
+sepertiga servikal: dari titik margin terkonfirmasi M(phi) naik dengan sudut emergence terhadap sumbu insersi,
+C = M + h (tan(alpha) n + z), n = normal mendatar kurva margin ke luar, h = tinggi di atas margin pada sudut yang sama
+(C dan T sama tinggi, jadi campuran hanya menggeser mendatar). w = 0 di sepertiga servikal dinding, lalu
+smoothstep sampai 1 sejauh blend_height_mm di atasnya. Jadi S(phi, 0) = M(phi) menurut konstruksi, tanpa deformasi
+Laplacian dan tanpa handle/target dari perpotongan garis (paten PAT4), dan tanpa arsip kasus atau pencarian kemiripan
+margin (PAT5).
 
 Penyesuaian ke gigi tetangga dan antagonis mengubah parameter global template (tepi mesial, tepi distal, tinggi)
 dengan iterasi skalar per parameter: setiap tepi digeser sejauh selisih jarak bertanda terukur terhadap target.
@@ -42,7 +43,8 @@ class CrownParams:
     min_thickness_posterior_mm: float = 1.0  # default pabrikan IVO "Minimal thickness" premolar/molar
     min_thickness_anterior_mm: float = 0.8  # default pabrikan IVO "Minimal thickness" anterior
     cement_gap_mm: float = 0.06  # default pabrikan IVO, untuk tinggi minimum
-    contour_bulge_mm: float = 0.5  # perlu kalibrasi, tanpa sumber
+    emergence_angle_deg: float = 19.0  # literatur, perlu kalibrasi (Monaco 2026): sepertiga servikal
+    cervical_fraction: float = 1.0 / 3.0  # keputusan maintainer: bagian dinding yang dibangun dari margin
     blend_height_mm: float = 1.0  # perlu kalibrasi: tinggi zona campur margin ke template di atas margin
     tolerance_mm: float = 0.001  # konvergensi iterasi (ambang algoritma)
     max_iterations: int = 40
@@ -116,25 +118,57 @@ class CrownSurface:
     mesh: MeshData  # dunia; tepi bawah = margin, titik tengah oklusal ditutup
 
 
+def margin_normals(margin_local: np.ndarray) -> np.ndarray:
+    """Normal mendatar (xy) kurva margin ke luar, dari beda pusat titik tetangga (urutan sudut naik)."""
+    xy = margin_local[:, :2]
+    tangent = np.roll(xy, -1, axis=0) - np.roll(xy, 1, axis=0)
+    normal = np.stack([tangent[:, 1], -tangent[:, 0]], axis=1)
+    normal /= np.linalg.norm(normal, axis=1, keepdims=True)
+    if np.mean(np.einsum("ij,ij->i", normal, xy - xy.mean(axis=0))) < 0:
+        normal = -normal
+    return normal
+
+
+def cervical_height(template: TemplateParams, margin_local: np.ndarray, params: "CrownParams") -> np.ndarray:
+    """Tinggi sepertiga servikal per sudut: cervical_fraction x tinggi dinding (margin ke tepi meja oklusal)."""
+    return params.cervical_fraction * (template.wall_top_z - margin_local[:, 2])
+
+
+def cervical_bulge(template: TemplateParams, margin_local: np.ndarray, params: "CrownParams") -> float:
+    """Pelebaran mendatar rata-rata di puncak sepertiga servikal (tan(sudut emergence) x tingginya)."""
+    return float(np.mean(cervical_height(template, margin_local, params))
+                 * np.tan(np.radians(params.emergence_angle_deg)))
+
+
 def crown_surface(frame: CrownFrame, template: TemplateParams, margin_local: np.ndarray, phi: np.ndarray,
-                  blend_height_mm: float = 1.0, n_v: int = N_V) -> CrownSurface:
+                  params: "CrownParams" = None, n_v: int = N_V) -> CrownSurface:
     """S(phi, v) berlabuh margin. margin_local dari margin_by_angle (frame yang sama).
 
-    Dasar template = tinggi margin per sudut. Versi pertama memakai dasar rata (tinggi rata-rata margin) dan zona
-    campur sebagai fraksi v; pada scallop dalam margin di puncak proksimal 0,85-1,6 mm di atas dasar itu, zona campur
-    hanya 9-12% dari v, dan permukaan terlipat (set ukur pertama §5.4)."""
+    Riwayat (§5.4): versi pertama memakai dasar rata dan zona campur sebagai fraksi v, dan terlipat di scallop dalam;
+    versi kedua (dasar per sudut, zona campur dalam mm, template sampai ke margin) tanpa lipatan, tetapi sudut
+    emergence 1 mm pertama 16-43° (median), karena dinding template sendiri melebar cepat di atas servikal. Sekarang
+    sepertiga servikal dibangun dari margin dengan sudut emergence."""
+    params = params or CrownParams()
     base = margin_local[:, 2]
-    wall = template.wall_top_z - base.max()
-    if wall < blend_height_mm:
-        raise CrownError(f"the highest margin point is {wall:.2f} mm below the occlusal table, less than the blend "
-                         f"height {blend_height_mm:.2f} mm")
+    if np.any(base >= template.wall_top_z):
+        raise CrownError("the margin reaches the occlusal table")
+    h_c = cervical_height(template, margin_local, params)
+    room = (template.wall_top_z - base) - h_c
+    if np.any(room < params.blend_height_mm):
+        raise CrownError(f"the crown wall above the cervical third is {room.min():.2f} mm high at the highest margin "
+                         f"point, less than the blend height {params.blend_height_mm:.2f} mm")
     v = np.linspace(0.0, 1.0, n_v)
     tpl = template_points(template, phi[:, None], v[None, :], base_z=base[:, None])
     h = tpl[..., 2] - base[:, None]
-    w = _smoothstep(h / blend_height_mm) if blend_height_mm > 0 else np.ones_like(h)
+    blend = params.blend_height_mm
+    w = _smoothstep((h - h_c[:, None]) / blend) if blend > 0 else (h > h_c[:, None]).astype(float)
     w[:, v > template.v_wall] = 1.0  # meja oklusal: template murni (relief bisa turun di bawah tepi dinding)
-    offset = margin_local - tpl[:, 0, :]  # z = 0: dasar template setinggi margin
-    local = tpl + (1.0 - w)[..., None] * offset[:, None, :]
+    normal = margin_normals(margin_local)
+    cone = np.empty_like(tpl)
+    cone[..., :2] = margin_local[:, None, :2] + (h * np.tan(np.radians(params.emergence_angle_deg)))[..., None] \
+        * normal[:, None, :]
+    cone[..., 2] = tpl[..., 2]  # sama tinggi dengan template: campuran hanya menggeser mendatar
+    local = tpl + (1.0 - w)[..., None] * (cone - tpl)
     local[:, -1, :] = local[0, -1, :]  # titik tengah oklusal sama untuk semua sudut
     n_phi = len(phi)
     grid = local[:, :-1, :].reshape(-1, 3)
@@ -185,10 +219,12 @@ def non_sliver_folds(surface: CrownSurface) -> int:
 
 def emergence_angles(surface: CrownSurface, height_mm: float = 1.0) -> np.ndarray:
     """Sudut emergence per sudut keliling (derajat): sudut tali busur permukaan luar terhadap sumbu insersi dari tepi
-    servikal sampai height_mm di atasnya, positif bila crown melebar ke luar. Sampai border (langkah 4) ada, tepi
-    servikal adalah margin; sesudahnya diukur dari tepi atas border."""
+    servikal sampai height_mm di atasnya, diproyeksikan ke normal mendatar kurva tepi servikal (positif bila crown
+    melebar ke luar). Sampai border (langkah 4) ada, tepi servikal adalah margin; sesudahnya diukur dari tepi atas
+    border. Versi kedua §5.4 memakai arah radial dari sumbu, bukan normal kurva."""
     local = surface.local
     wall = surface.v <= surface.template.v_wall
+    normals = margin_normals(local[:, 0, :])
     out = np.empty(len(local))
     for i, column in enumerate(local):
         col = column[wall]
@@ -196,8 +232,7 @@ def emergence_angles(surface: CrownSurface, height_mm: float = 1.0) -> np.ndarra
         if h[-1] < height_mm:
             raise CrownError("crown wall lower than the emergence measuring height")
         top = np.array([np.interp(height_mm, h, col[:, k]) for k in range(2)])
-        outward = col[0, :2] / np.linalg.norm(col[0, :2])
-        out[i] = np.degrees(np.arctan2((top - col[0, :2]) @ outward, height_mm))
+        out[i] = np.degrees(np.arctan2((top - col[0, :2]) @ normals[i], height_mm))
     return out
 
 
@@ -231,13 +266,16 @@ class CrownFit:
 
 def initial_template(fdi: int, frame: CrownFrame, margin_local: np.ndarray, prep_top_mm: float,
                      params: CrownParams = CrownParams()) -> TemplateParams:
-    """Ukuran awal dari kasus: lebar = lebar margin + tonjolan kontur, tinggi = minimum dari ketebalan IVO."""
+    """Ukuran awal dari kasus: tinggi = minimum dari ketebalan IVO; lebar = lebar margin + 2 x pelebaran di puncak
+    sepertiga servikal (sudut emergence), supaya template di atasnya menyambung tanpa undakan."""
     kind = fdi_kind(fdi)
-    md = margin_local[:, 0].max() - margin_local[:, 0].min() + 2 * params.contour_bulge_mm
-    bl = margin_local[:, 1].max() - margin_local[:, 1].min() + 2 * params.contour_bulge_mm
+    md = margin_local[:, 0].max() - margin_local[:, 0].min()
+    bl = margin_local[:, 1].max() - margin_local[:, 1].min()
     base = float(margin_local[:, 2].mean())
     tpl = TemplateParams(kind, md, bl, height=base + 10.0, base_z=base)
-    return tpl.with_(height=minimum_height(tpl, prep_top_mm, params))
+    tpl = tpl.with_(height=minimum_height(tpl, prep_top_mm, params))
+    bulge = cervical_bulge(tpl, margin_local, params)
+    return tpl.with_(width_md=md + 2 * bulge, width_bl=bl + 2 * bulge)
 
 
 def minimum_height(template: TemplateParams, prep_top_mm: float, params: CrownParams) -> float:
@@ -273,8 +311,9 @@ def fit_crown(fdi: int, margin: np.ndarray, axis, mesial, prep_top_mm: float, me
         hints.append("no antagonist: height comes from the minimum occlusal thickness; check it")
     h_min = minimum_height(tpl, prep_top_mm, params)
     w_min = float(m_local[:, 0].max() - m_local[:, 0].min())
-    x_mesial = float(m_local[:, 0].max()) + params.contour_bulge_mm
-    x_distal = float(m_local[:, 0].min()) - params.contour_bulge_mm
+    bulge = 0.5 * (tpl.width_md - w_min)
+    x_mesial = float(m_local[:, 0].max()) + bulge
+    x_distal = float(m_local[:, 0].min()) - bulge
     height = tpl.height
     projectors = {name: MeshProjector(mesh) for name, mesh in
                   (("mesial", mesial_mesh), ("distal", distal_mesh), ("antagonist", antagonist)) if mesh is not None}
@@ -290,8 +329,7 @@ def fit_crown(fdi: int, margin: np.ndarray, axis, mesial, prep_top_mm: float, me
         width = x_mesial - x_distal
         local_frame = frame.shifted(center)
         tpl = tpl.with_(width_md=width, height=height)
-        surface = crown_surface(local_frame, tpl, m_local - np.array([center, 0.0, 0.0]), phi,
-                                params.blend_height_mm)
+        surface = crown_surface(local_frame, tpl, m_local - np.array([center, 0.0, 0.0]), phi, params)
         distances = {name: _min_distance(surface, meshes[name], proj) for name, proj in projectors.items()}
         errors = {name: d - targets[name] for name, d in distances.items()}
         if all(abs(e) <= params.tolerance_mm for e in errors.values()):

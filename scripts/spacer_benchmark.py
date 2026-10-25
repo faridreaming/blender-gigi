@@ -31,6 +31,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from scripts import bench_runner  # noqa: E402
+
 from core import insertion, material_db, spacer, synthetic  # noqa: E402
 
 NOISE_UM = (0, 10, 30, 90)
@@ -130,17 +132,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--set", choices=sorted(SETS), default="ukur")
     parser.add_argument("--seeds", type=int, default=3)
     parser.add_argument("--json", type=Path)
+    bench_runner.add_arguments(parser)
     args = parser.parse_args(argv)
     preset = material_db.load_material_preset(ROOT / "data" / "materials" / "zircad_prime.json")
     params = spacer.SpacerParams.from_preset(preset)
 
     rows = []
-    for name, overrides in SETS[args.set].items():
-        for finish in synthetic.FINISHES:
-            spec = synthetic.DieSpec(finish=finish, **overrides)
-            for noise in NOISE_UM:
-                runs = [run_case(spec, noise, seed, params) for seed in range(args.seeds)]
-                rows.append({"die": name, "finish": finish, "noise_um": noise, "runs": runs})
+    total = len(SETS[args.set]) * len(synthetic.FINISHES) * len(NOISE_UM) * args.seeds
+    status = lambda r: "timeout" if r.get("timeout") else "error" if "error" in r else "ok"  # noqa: E731
+    on_timeout = lambda message, seconds: {"error": message, "timeout": True}  # noqa: E731
+    with bench_runner.CaseRunner(args.timeout, total, status) as runner:
+        for name, overrides in SETS[args.set].items():
+            for finish in synthetic.FINISHES:
+                spec = synthetic.DieSpec(finish=finish, **overrides)
+                for noise in NOISE_UM:
+                    runs = [runner.run(f"{name} | {finish} | {noise} um | seed {seed}", run_case,
+                                       (spec, noise, seed, params), on_timeout)
+                            for seed in range(args.seeds)]
+                    rows.append({"die": name, "finish": finish, "noise_um": noise, "runs": runs})
 
     print(f"Set: {args.set}. Parameter: cement gap {1000 * params.cement_gap_mm:.0f} um, from margin "
           f"{params.from_margin_mm} mm, transisi {params.transition_mm} mm (linear), radial "
@@ -152,7 +161,11 @@ def main(argv: list[str] | None = None) -> int:
           "3/4 axis: block-out kedua (vertex, maks) | 3/4 axis: sisa undercut | Waktu spacer + block-out kedua |")
     print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in rows:
-        runs = r["runs"]
+        runs = [x for x in r["runs"] if "error" not in x]
+        errors = [x["error"] for x in r["runs"] if "error" in x]
+        if not runs:
+            print(f"| {r['die']} | {r['finish']} | {r['noise_um']} um | error: {errors[0]} |||||||||||")
+            continue
         worst = lambda k: max(x[k] for x in runs)
         if runs[0]["exact"]:
             cells = (f"{worst('d_err_median_um'):.0f} / {worst('d_err_p95_um'):.0f} / {worst('d_err_max_um'):.0f} um | "
@@ -165,12 +178,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"| {r['die']} | {r['finish']} | {r['noise_um']} um | {cells} | {worst('folded')} "
               f"(+{worst('slivers')} sliver) | "
               f"{worst('new_undercut_um'):.0f} um | {worst('second_moved')}, {worst('second_push_um'):.0f} um | "
-              f"{worst('residual_34_um'):.0f} um | {worst('seconds_spacer'):.2f} + {worst('seconds_second'):.2f} s |")
-    crit = [x for r in rows if r["noise_um"] <= 30 for x in r["runs"]]
+              f"{worst('residual_34_um'):.0f} um | {worst('seconds_spacer'):.2f} + {worst('seconds_second'):.2f} s |"
+              + (f" error: {len(errors)}" if errors else ""))
+    crit = [x for r in rows if r["noise_um"] <= 30 for x in r["runs"] if "error" not in x]
     print("")
     print(f"Kriteria 3/4 axis (derau 0-30 um, sisa undercut = 0): "
           f"{sum(x['residual_34_um'] == 0 for x in crit)} dari {len(crit)} run lolos; "
-          f"sisa terbesar {max(x['residual_34_um'] for x in crit):.0f} um")
+          f"sisa terbesar {max((x['residual_34_um'] for x in crit), default=float('nan')):.0f} um")
+    print(f"Kasus melewati batas waktu {args.timeout:g} s: {runner.timeouts}")
     if args.json:
         args.json.write_text(json.dumps(rows, indent=2, default=float), encoding="utf-8")
     return 0

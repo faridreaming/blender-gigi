@@ -14,7 +14,8 @@ generator die (jitter, derau, rotasi die); jawaban benar dari bentuk analitis:
 - lipatan: face yang berbalik dibanding template murni berdasar rata; "non-sliver" tanpa segitiga dengan tinggi
   < 0,01 mm (SLIVER_MM, sama dengan §5.3);
 - sudut emergence: sudut permukaan luar terhadap sumbu insersi pada 1 mm pertama di atas tepi servikal, per sudut
-  keliling (median dan maksimum per kasus, tanpa ambang lulus);
+  keliling. Kolom median = median per seed yang terburuk. Kriteria set ukur ketiga: median <= 21 derajat untuk
+  anterior dan premolar (rentang Monaco 2026); molar hanya dilaporkan;
 - kasus "sempit" harus berakhir dengan CrownError (error eksplisit), bukan crown yang menembus.
 """
 
@@ -31,9 +32,13 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from scripts import bench_runner  # noqa: E402
+
 from core import crown, synthetic  # noqa: E402
+from core.template import fdi_kind  # noqa: E402
 
 NOISE_UM = (0, 10, 30)
+EMERGENCE_MEDIAN_MAX_DEG = 21.0  # kriteria anterior dan premolar (PHASE2.md §5.4); molar hanya dilaporkan
 ELLIPSOID = np.array([4.0, 4.5, 3.5])
 
 
@@ -77,10 +82,7 @@ TUNING = {
                                                     fdi=41, gaps=(0.4, 0.4), ant=("plane", 2.6, 10.0)),
     "molar PL 3,5, antagonis datar": dict(die=dict(prep_height_mm=5.5, scallop_mm=1.75), fdi=36, gaps=(0.6, 0.6),
                                            ant=("plane", 3.6, 0.0)),
-}
-# Set ukur kedua: didefinisikan dan dikunci bersama kode SEBELUM dijalankan, lalu dijalankan sekali. Kriteria: nol
-# lipatan non-sliver. Ukuran, FDI, scallop, kemiringan, dan antagonis baru; anterior dengan scallop dalam.
-UKUR = {
+    # Set ukur kedua (commit f633091, dijalankan sekali) menjadi bagian set tuning sejak sudut emergence (Monaco).
     "lateral atas PL 3,4, antagonis miring 15": dict(die=dict(radius_x_mm=3.0, radius_y_mm=2.7, prep_height_mm=5.2,
                                                                taper_deg=7.0, finish_width_mm=0.7, scallop_mm=1.7),
                                                       fdi=22, gaps=(0.5, 0.7), ant=("plane", 2.8, 15.0)),
@@ -101,6 +103,35 @@ UKUR = {
                                                             fdi=21, gaps=(-1.4, -1.4), ant=("plane", 2.8, 10.0),
                                                             expect_error=True),
 }
+# Set ukur ketiga: didefinisikan dan dikunci bersama kode SEBELUM dijalankan, lalu dijalankan sekali. Kriteria: median
+# sudut emergence per kasus <= 21 derajat untuk anterior dan premolar (molar dilaporkan), dan tetap nol lipatan
+# non-sliver. Ukuran, FDI, scallop, kemiringan, dan antagonis baru.
+UKUR = {
+    "kaninus atas PL 2,6, antagonis miring 10": dict(die=dict(radius_x_mm=3.6, radius_y_mm=4.2, prep_height_mm=6.2,
+                                                               taper_deg=7.0, scallop_mm=1.3),
+                                                      fdi=23, gaps=(0.5, 0.5), ant=("plane", 3.0, 10.0)),
+    "lateral bawah PL 3,0, tanpa tetangga": dict(die=dict(radius_x_mm=2.5, radius_y_mm=2.8, prep_height_mm=4.8,
+                                                           taper_deg=6.0, finish_width_mm=0.6, scallop_mm=1.5),
+                                                  fdi=42, gaps=(None, None), ant=("plane", 2.4, 8.0)),
+    "insisif sentral atas PL 3,6, tetangga asimetris": dict(die=dict(radius_x_mm=3.8, radius_y_mm=3.3,
+                                                                      prep_height_mm=5.8, taper_deg=7.0,
+                                                                      finish_width_mm=0.8, scallop_mm=1.8),
+                                                             fdi=21, gaps=(0.9, 0.3), ant=("plane", 2.8, 14.0)),
+    "premolar atas PL 2,2, antagonis silinder": dict(die=dict(radius_x_mm=4.2, radius_y_mm=3.8, prep_height_mm=5.2,
+                                                               taper_deg=6.0, scallop_mm=1.1),
+                                                      fdi=14, gaps=(0.6, 0.6), ant=("cylinder", 3.3, 0.0)),
+    "premolar bawah PL 3,0, hanya tetangga mesial": dict(die=dict(radius_x_mm=3.9, radius_y_mm=3.7, prep_height_mm=4.6,
+                                                                   taper_deg=9.0, scallop_mm=1.5),
+                                                          fdi=45, gaps=(0.5, None), ant=("plane", 3.0, 4.0)),
+    "molar atas PL 3,2, antagonis miring 6": dict(die=dict(radius_x_mm=5.6, radius_y_mm=5.2, prep_height_mm=5.6,
+                                                            taper_deg=8.0, scallop_mm=1.6),
+                                                   fdi=16, gaps=(0.7, 0.5), ant=("plane", 3.8, 6.0)),
+    "premolar PL 2,4, antagonis terlalu dekat (error)": dict(die=dict(radius_x_mm=4.0, radius_y_mm=3.6,
+                                                                       prep_height_mm=4.5, taper_deg=7.0,
+                                                                       scallop_mm=1.2),
+                                                              fdi=35, gaps=(0.5, 0.5), ant=("plane", 1.9, 0.0),
+                                                              expect_error=True),
+}
 SETS = {"tuning": TUNING, "ukur": UKUR}
 
 
@@ -112,7 +143,7 @@ def build_case(case: dict, finish: str, noise_um: int, seed: int):
     center_z = float(margin_die[:, 2].mean())
     prep_top = spec.top_z + spec.roof_height_mm - center_z
     z_k = center_z + 0.4 * spec.prep_height_mm
-    bulge = crown.CrownParams().contour_bulge_mm
+    bulge = synthetic.NEIGHBOUR_CONTOUR_ALLOWANCE_MM
     x_max, x_min = float(margin_die[:, 0].max()), float(margin_die[:, 0].min())
     tilt = case.get("tilt", 0.0)
     neighbors = {}
@@ -172,6 +203,7 @@ def run_case(case: dict, finish: str, noise_um: int, seed: int) -> dict:
     out["flipped"] = crown.flipped_faces(fit.surface)
     out["folds"] = crown.non_sliver_folds(fit.surface)
     out["emergence_deg"] = [float(a) for a in crown.emergence_angles(fit.surface)]
+    out["emergence_median_deg"] = float(np.median(out["emergence_deg"]))
     return out
 
 
@@ -180,13 +212,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--set", choices=sorted(SETS), default="tuning")
     parser.add_argument("--seeds", type=int, default=3)
     parser.add_argument("--json", type=Path)
+    bench_runner.add_arguments(parser)
     args = parser.parse_args(argv)
     rows = []
-    for name, case in SETS[args.set].items():
-        for finish in synthetic.FINISHES:
-            for noise in NOISE_UM:
-                runs = [run_case(case, finish, noise, seed) for seed in range(args.seeds)]
-                rows.append({"case": name, "finish": finish, "noise_um": noise, "runs": runs})
+    total = len(SETS[args.set]) * len(synthetic.FINISHES) * len(NOISE_UM) * args.seeds
+    with bench_runner.CaseRunner(args.timeout, total, lambda r: r["status"]) as runner:
+        for name, case in SETS[args.set].items():
+            def on_timeout(message, seconds, case=case):
+                return {"status": "timeout", "message": message, "seconds": seconds, "mesial_error_deg": None,
+                        "expect_error": bool(case.get("expect_error", False))}
+
+            for finish in synthetic.FINISHES:
+                for noise in NOISE_UM:
+                    runs = [runner.run(f"{name} | {finish} | {noise} um | seed {seed}", run_case,
+                                       (case, finish, noise, seed), on_timeout) for seed in range(args.seeds)]
+                    rows.append({"case": name, "finish": finish, "noise_um": noise, "runs": runs})
 
     def worst_abs(runs, key):
         vals = [abs(r[key]) for r in runs if r.get(key) is not None]
@@ -196,8 +236,8 @@ def main(argv: list[str] | None = None) -> int:
           "(Nagata 2025, literatur, perlu kalibrasi).\n")
     print("| Kasus | Finish | Derau | Hasil per seed | |galat| kontak mesial | |galat| kontak distal | "
           "|galat| jarak oklusal | Galat arah mesial | Tepi servikal ke margin | Lipatan (non-sliver) | "
-          "Emergence median | Emergence maks | Iterasi | Waktu |")
-    print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+          f"Emergence median | Emergence maks | Median <= {EMERGENCE_MEDIAN_MAX_DEG:g} deg | Iterasi | Waktu |")
+    print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         runs = r["runs"]
         outcome = {}
@@ -205,26 +245,40 @@ def main(argv: list[str] | None = None) -> int:
             outcome[x["status"]] = outcome.get(x["status"], 0) + 1
         ok_runs = [x for x in runs if x["status"] == "kurva"]
         mes = [x["mesial_error_deg"] for x in runs if x["mesial_error_deg"] is not None]
+        medians = [x["emergence_median_deg"] for x in ok_runs]
+        molar = fdi_kind(SETS[args.set][r["case"]]["fdi"]) == "molar"
+        if not medians:
+            verdict = "-"
+        elif molar:
+            verdict = "- (molar, dilaporkan)"
+        else:
+            verdict = "ya" if max(medians) <= EMERGENCE_MEDIAN_MAX_DEG else "TIDAK"
+        r["emergence_ok"] = verdict
         cells = [", ".join(f"{k} {v}" for k, v in sorted(outcome.items())),
                  worst_abs(ok_runs, "mesial_err_um"), worst_abs(ok_runs, "distal_err_um"),
                  worst_abs(ok_runs, "antagonist_err_um"),
                  f"{max(mes):.2f} deg" if mes else "- (dari pengguna)",
                  f"{max(x['cervical_um'] for x in ok_runs):.3f} um" if ok_runs else "-",
                  (f"{max(x['flipped'] for x in ok_runs)} ({max(x['folds'] for x in ok_runs)})" if ok_runs else "-"),
-                 f"{np.median([a for x in ok_runs for a in x['emergence_deg']]):.1f} deg" if ok_runs else "-",
+                 f"{max(medians):.1f} deg" if ok_runs else "-",
                  f"{max(a for x in ok_runs for a in x['emergence_deg']):.1f} deg" if ok_runs else "-",
+                 verdict,
                  str(max(x["iterations"] for x in ok_runs)) if ok_runs else "-",
                  f"{max(x['seconds'] for x in runs):.1f} s"]
         print(f"| {r['case']} | {r['finish']} | {r['noise_um']} um | " + " | ".join(cells) + " |")
     all_runs = [x for r in rows for x in r["runs"]]
     expected = [x for x in all_runs if x["expect_error"]]
-    unexpected = [x for x in all_runs if not x["expect_error"] and x["status"] == "error"]
+    unexpected = [x for x in all_runs if not x["expect_error"] and x["status"] in ("error", "timeout")]
     print(f"\nKasus sempit yang berakhir dengan error eksplisit: {sum(x['status'] == 'error' for x in expected)} "
           f"dari {len(expected)}; error di kasus yang seharusnya bisa: {len(unexpected)}")
     for x in unexpected[:5]:
         print("  error tak terduga:", x["message"])
     curves = [x for x in all_runs if x["status"] == "kurva"]
     print(f"Kurva dengan lipatan non-sliver: {sum(x['folds'] > 0 for x in curves)} dari {len(curves)}")
+    judged = [r for r in rows if r["emergence_ok"] in ("ya", "TIDAK")]
+    print(f"Baris anterior/premolar dengan median emergence <= {EMERGENCE_MEDIAN_MAX_DEG:g} deg di semua seed: "
+          f"{sum(r['emergence_ok'] == 'ya' for r in judged)} dari {len(judged)}")
+    print(f"Kasus melewati batas waktu {args.timeout:g} s: {runner.timeouts}")
     if args.json:
         args.json.write_text(json.dumps(rows, indent=2, default=float), encoding="utf-8")
     return 0
