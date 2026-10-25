@@ -1,6 +1,6 @@
 # Fase 2: Crown zirkonia single (rancangan)
 
-Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis ditutup** (2026-10-24) dengan ringkasan status di akhir §5.1: terbukti pada data sintetis saja, dan **belum divalidasi dengan scan asli**. Hasil Detect dan Draw selalu berstatus **draf**, hanya margin yang sudah di-**Confirm** yang boleh dipakai langkah crown dan ekspor, dan segmen merah hanya petunjuk ringan. **§5.2 sumbu insersi dan undercut terimplementasi** (2026-10-24), juga hanya terbukti pada data sintetis (hasil di §5.2). **§5.3 spacer terimplementasi** (2026-10-24) dengan normal dihaluskan dan block-out kedua untuk milling 3/4 axis, sama-sama hanya terbukti pada data sintetis (hasil di §5.3). Catatan paten: EP2187833B1 (Institut Straumann AG) masih aktif di Eropa menurut Google Patents (perkiraan berakhir 2028-07-24). Versi AS US20100233659 ditinggalkan sejak 2014. Pengguna di Eropa sebaiknya mematikan block-out kedua (`use_second_block_out`) sampai paten berakhir. Ini bukan kesimpulan hukum. **§5.4 langkah 1 sampai 3 terimplementasi** (2026-10-25): template parametrik, penempatan, dan penyesuaian ke tetangga dan antagonis sintetis; set ukur menemukan lipatan pada scallop dalam (hasil di §5.4). Langkah 4 dan 5 (border, solid) serta §5.5 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
+Status: **langkah implementasi pertama selesai** (2026-10-23): scipy + zip per platform (§6), `zircad_prime.json` dengan angka IVO (§2), dan `core/synthetic.py` (§4). **§5.1 margin semi-otomatis ditutup** (2026-10-24) dengan ringkasan status di akhir §5.1: terbukti pada data sintetis saja, dan **belum divalidasi dengan scan asli**. Hasil Detect dan Draw selalu berstatus **draf**, hanya margin yang sudah di-**Confirm** yang boleh dipakai langkah crown dan ekspor, dan segmen merah hanya petunjuk ringan. **§5.2 sumbu insersi dan undercut terimplementasi** (2026-10-24), juga hanya terbukti pada data sintetis (hasil di §5.2). **§5.3 spacer terimplementasi** (2026-10-24) dengan normal dihaluskan dan block-out kedua untuk milling 3/4 axis, sama-sama hanya terbukti pada data sintetis (hasil di §5.3). Catatan paten: EP2187833B1 (Institut Straumann AG) masih aktif di Eropa menurut Google Patents (perkiraan berakhir 2028-07-24). Versi AS US20100233659 ditinggalkan sejak 2014. Pengguna di Eropa sebaiknya mematikan block-out kedua (`use_second_block_out`) sampai paten berakhir. Ini bukan kesimpulan hukum. **§5.4 langkah 1 sampai 3 terimplementasi** (2026-10-25): template parametrik, penempatan, dan penyesuaian ke tetangga dan antagonis sintetis; lipatan pada scallop dalam dari set ukur pertama diperbaiki (dasar template mengikuti margin, zona campur dalam mm), dan set ukur kedua tanpa lipatan non-sliver (hasil di §5.4). Sudut emergence proposal masih jauh di atas gigi alami. Langkah 4 dan 5 (border, solid) serta §5.5 sampai §5.7 belum dimulai. Keputusan K1 sampai K5 sudah diambil maintainer pada 2026-10-23 (§9). Fase 1 diparkir (docs/PHASE1.md), dan Fase 2 sengaja tidak bergantung pada bagian Fase 1 yang tertunda.
 
 Dasar dokumen ini:
 - RESEARCH.md Roadmap, Fase 2: deliverable *margin semi-auto, sumbu insersi/undercut, spacer, library CC0 + morphing, kontak, heatmap ketebalan, ekspor STL ke MillBox*; kriteria selesai *20 kasus: deviasi margin vs desain exocad ≤50 µm (median), lolos cek ketebalan, 5 crown dimilling dan dicoba di die*.
@@ -52,6 +52,8 @@ Material: preset `data/materials/zircad_prime.json` dari Fase 0 dipakai, dengan 
 | **PAT4** | Keluarga Straumann Holding AG "Computer-implemented method for digitally designing a dental restoration" (penemu Manzer, Lawitschka, Meier, Welge; prioritas 2010-08-31), dicek 2026-10-25. Klaim EP dibaca dari dokumen B1 di server publikasi EPO, klaim US dari Google Patents. | **EP2422741B1** (diberikan 2013-01-23): "Active", "2030-08-31 Anticipated expiration". Klaim 1: "automatically deforming the tooth template (7) by means of Laplacian surface deformation" dengan garis "directed along the normal direction" lewat titik di permukaan; perpotongannya dengan template menjadi handle, dan dengan gigi menjadi target. **EP2422742B1** (diberikan 2013-05-22): "Active", "2031-03-18 Anticipated expiration". Klaim 1: Laplacian surface deformation; di daerah margin garis "orthogonally intersects the axis" (sumbu gigi atau sumbu template), di daerah lain garis normal, dengan handle/target dari perpotongan. **US9396291B2**: "Active, expires 2033-01-01"; klaim 1 sama dengan EP2422741 ditambah handle di dalam poligon mesh. **US9286417B2**: "Active, expires 2032-09-23"; klaim 1 sama dengan EP2422742. Klaim turunan: bobot handle iteratif, potong template di margin, gabungkan dengan permukaan gigi di dalam margin, tambah cement gap. Menurut ringkasan halaman (belum dicek di register): kedua EP gugur di FR dan IE, dan biaya tahunan 2025/2026 dibayar untuk DE, GB, CH. **Dibaca 2026-10-25 (K6):** EP2422740B1 ("Active", "2030-08-31 Anticipated expiration"): klaim 1 = Laplacian surface deformation dengan "angle weighting function" untuk handle; EP2468212B1 ("Active", "2031-03-18 Anticipated expiration"): klaim 1 = Laplacian surface deformation dengan garis yang "orthogonally intersects the axis", handle/target dari perpotongan, untuk "full crown" (klaim turunan 8: penskalaan bukal dan mesiodistal menurut lebar permukaan preparasi, bergantung pada klaim 1); US9330205B2 ("Active, expires 2032-12-30"): klaim 1 dan 12 = Laplacian surface deformation dengan angle weighting function. Tidak ada klaim independen yang mencakup konstruksi berlabuh margin tanpa deformasi Laplacian. |
 | **PAT5** | Keluarga James R Glidewell Dental Ceramics "shape analysis, storage and retrieval of 3d models" (penemu Azernikov, Nikolskiy; prioritas 2013-03-15), dicek 2026-10-25 di Google Patents. | **WO2014144373A1**: "Ceased"; event 2016-04-06 "pct application non-entry in european phase" (tidak ada paten EP). **US10157330B2**: "Active, expires 2037-03-10". Klaim 1: margin line preparasi dikodekan sebagai "chain code", "measuring similarity" terhadap chain code kasus di "case repository", model 3D yang mirip diambil sebagai proposal, dan restorasi dibentuk dengan CAM. **US10248885B2**: "Active, expires 2037-01-01"; klaim 1: kurva karakteristik dikodekan sebagai string dan dicari kemiripannya di database kasus. **DE112014001417B4**: "Active", "2034-03-15 Anticipated expiration"; klaim 1 sama dengan klaim chain code WO. |
 | **NAG** | Nagata K, Inoue E, Nakashizu T, Seimiya K, Atsumi M, Kimoto K, Kuroda S, Hoshi N. "Verification of the accuracy and design time of crowns designed with artificial intelligence." J Adv Prosthodont 2025;17(1):1-10, doi:10.4047/jap.2025.17.1.1, PMID 40061025 (PMC11886404, CC BY-NC). Halaman PMC memakai reCAPTCHA; teks lengkap dibaca lewat API Europe PMC (2026-10-25). | Studi in vitro (5 teknisi, #15 dan #26, 3Shape Dental System dan Dentbird). Metode: "The design parameters were set as follows: margin width, 80 µm; margin angle, 50°; occlusal distance, 0 µm; approximal distance, −20 µm; cement gap, 40 µm; and adaptive extra gap, 50 µm based on the design of Cho et al." Ini setelan desain studi, bukan rekomendasi klinis. Dipakai untuk jarak oklusal dan approximal §5.4 (status literatur, perlu kalibrasi). |
+| **YOT** | Yotnuengnit B, Yotnuengnit P, Laohapand P, Athipanyakom S. "Emergence angles in natural anterior teeth: Influence on periodontal status." Quintessence Int 2008;39(3):e126-e133. Abstrak dibaca di repositori Mahidol University (https://repository.li.mahidol.ac.th/handle/123456789/19168, 2026-10-25). | 50 gigi anterior bercrown dan gigi kontralateral alami; potongan model dipindai. Rata-rata sudut emergence supragingiva gigi alami 11,13 ± 7,92° (fasial) dan 15,58 ± 9,16° (lingual); subgingiva 9,93 ± 5,68° dan 14,35 ± 8,44°. Pada gigi bercrown, sudut lingual subgingiva berkorelasi dengan kedalaman poket, dan sudut lingual supra- maupun subgingiva berkorelasi dengan attachment loss. Acuan sudut tidak disebut di abstrak. Pembanding metrik emergence §5.4. |
+| **DU** | Du JK, Li HY, Wu JH, Lee HE, Wang CH. "Emergence angles of the cementoenamel junction in natural maxillary anterior teeth." J Esthet Restor Dent 2011;23(6):362-369, doi:10.1111/j.1708-8240.2011.00471.x, PMID 22142293. Abstrak dibaca di PubMed (2026-10-25); tautan wicri-demo.istex.fr yang diberikan maintainer sedang dalam pemeliharaan saat dicek. | 148 gigi anterior rahang atas alami (74 insisif sentral, 59 lateral, 15 kaninus), dipindai 3D; sudut emergence di CEJ pada zenith labial, palatal, mesial, dan distal "within a narrow range from 11.30° to 15.26°", tanpa beda bermakna. Kesimpulan penulis: 15° "from the root surface". Pembanding metrik emergence §5.4. |
 | **PAT** | Google Patents, US8359114B2 "Haptically enabled dental modeling system", DentsAble Inc (patents.google.com/patent/US8359114B2/en) | Diberikan 2013-01-22; status "Expired - Fee Related"; event "PATENT EXPIRED DUE TO NONPAYMENT OF MAINTENANCE FEES" (2017); expiration teradjust semula 2029-10-19. Google menulis: "The legal status is an assumption and is not a legal conclusion." |
 
 ## 3. Teeth3DS+: hasil pengecekan
@@ -899,9 +901,10 @@ Alasan memilih metode ini:
 | Ketebalan minimum (batas bawah tinggi) | default pabrikan | anterior 0,80 mm, premolar dan molar 1,00 mm | IVO "Minimal thickness" (`zircad_prime.json`) |
 | Jarak approximal ke tetangga (target, `approximal_distance_mm`) | literatur, perlu kalibrasi | −0,020 mm (overlap 20 µm) | NAG "approximal distance, −20 µm" (setelan desain studi in vitro). Menggantikan 0,025 mm dari RESEARCH.md §3 yang tanpa rujukan. |
 | Jarak oklusal ke antagonis (target, `occlusal_distance_mm`) | literatur, perlu kalibrasi | 0 mm | K8: NAG "occlusal distance, 0 µm". Diisi praktik lab nanti. |
-| Tonjolan kontur di atas margin (`contour_bulge_mm`) | perlu kalibrasi | belum ditentukan | Tidak ada sumber |
+| Tonjolan kontur di atas margin (`contour_bulge_mm`) | perlu kalibrasi | 0,5 mm | Tidak ada sumber |
+| Tinggi zona campur margin ke template (`blend_height_mm`) | perlu kalibrasi | 1,0 mm | Tidak ada sumber; menggantikan `blend_fraction` (fraksi v) setelah lipatan di set ukur pertama |
 | Bentuk template (eksponen superelips, height of contour, posisi dan tinggi cusp, lebar fossa) | desain data uji | per jenis gigi | K2: bukan anatomi |
-| Resolusi u, v dan fungsi campuran w(v) | ambang algoritma | dipilih di spike S5 | |
+| Resolusi u, v dan fungsi campuran w | ambang algoritma | 192 sudut × 64 baris v; w = smoothstep dalam tinggi di atas margin | |
 
 **Modul core/** (rencana): `core/template.py` (template parametrik per FDI), `core/crown.py` (penempatan, border, permukaan luar, penyatuan, `assemble_crown`), `core/proximity.py` (jarak bertanda, dipakai juga §5.5), dan perluasan `core/synthetic.py` (tetangga elipsoid, antagonis bidang/silinder, jawaban benar). `core/morph.py` dan deformasi Laplacian **dihapus dari rencana**.
 
@@ -915,7 +918,7 @@ Alasan memilih metode ini:
 
 **Implementasi langkah 1 sampai 3** (`core/template.py`, `core/crown.py`, `ops/crown.py`, benchmark `scripts/crown_benchmark.py`).
 - **Template:** jenis dari FDI; penampang superelips dengan lebar maksimum tepat di height of contour; meja oklusal dengan cusp gaussian dinormalisasi supaya titik tertinggi tepat di tinggi yang diminta. Galat lebar dan tinggi < 1 µm (tes).
-- **Permukaan:** S(φ, v) = T(φ, v) + (1 − w(v))·(M(φ) − T(φ, 0)), M = margin terkonfirmasi yang di-resample pada sudut polar yang sama rata (192 sudut). w = smoothstep yang mencapai 1 di setengah tinggi height of contour (`blend_fraction` 0,5). Tepi bawah = margin menurut konstruksi; border (langkah 4) belum ada.
+- **Permukaan:** S(φ, v) = T(φ, v) + (1 − w(v))·(M(φ) − T(φ, 0)), M = margin terkonfirmasi yang di-resample pada sudut polar yang sama rata (192 sudut). Versi pertama: dasar template rata dan w = smoothstep dalam parameter v (`blend_fraction` 0,5). Sejak perbaikan lipatan: dasar template mengikuti tinggi margin per sudut dan w diukur dalam mm (lihat "Perbaikan lipatan" di bawah). Tepi bawah = margin menurut konstruksi; border (langkah 4) belum ada.
 - **Penyesuaian:** tepi mesial, tepi distal, dan tinggi digeser sejauh selisih jarak bertanda terhadap target, sampai semua selisih ≤ 1 µm.
   - Peredam dibagi dua setiap kali tanda selisih berbalik.
   - *Beda dari versi pertama:* langkah penuh berosilasi pada mesh berderau. Penyebab utamanya tanda jarak bertanda dari normal satu face: bila titik terdekat jatuh di edge atau vertex, tandanya bisa salah, dan jarak minimum melompat (lebar berubah 2 µm, jarak berubah dari +83 ke −244 µm). Tanda sekarang dari normal vertex face terdekat.
@@ -1008,7 +1011,7 @@ Kesimpulan:
 - **Error eksplisit:** semua kasus sempit berakhir dengan pesan, 36 dari 36 di set tuning dan 18 dari 18 di set ukur, dan tidak ada error di kasus yang seharusnya bisa.
 - **Gagal: lipatan pada scallop dalam (set ukur).** Molar besar PL 3 mm: 41-48 face; kaninus PL 2,4 mm: 100 face; insisif sentral PL 3,2 mm: 303-311 face. Set tuning (scallop ≤ PL 2 mm) tidak punya lipatan.
   - Diagnosis setelah run (tanpa mengubah kode): lipatan ada di baris v 1-4 di dalam zona campur, pada sudut puncak scallop. Di sana margin 0,85-1,6 mm di atas dasar template (tinggi rata-rata margin), sedangkan zona campur hanya 9-12% dari parameter v. Permukaan dipaksa naik lebih cepat daripada template di atasnya, jadi terlipat.
-  - Perbaikan yang belum dicoba: dasar template mengikuti tinggi margin per sudut (base_z(φ) = z margin), atau zona campur dalam satuan tinggi, bukan parameter v. Set ini menjadi set tuning bila perbaikan dicoba.
+  - Perbaikan: dasar template mengikuti tinggi margin per sudut, dan zona campur dalam mm. Set ini masuk set tuning. Hasilnya ada di "Perbaikan lipatan" di bawah.
 - **Waktu:** 3-8 s per proposal dengan tetangga dan antagonis, ≤ 0,1 s tanpa keduanya.
 
 **Keterbatasan dan yang perlu diuji ulang dengan scan asli:**
@@ -1016,18 +1019,186 @@ Kesimpulan:
 - Kontak hanya diatur lewat lebar mesiodistal global.
 - Antagonis sintetis tidak mewakili oklusi nyata (registrasi gigitan).
 - Arah mesial tanpa tetangga sepenuhnya dari pengguna.
-- Lipatan pada scallop dalam membuat proposal untuk gigi anterior belum layak.
+- Lipatan pada scallop dalam sudah diperbaiki (set ukur kedua tanpa lipatan non-sliver), tetapi sudut emergence 1 mm pertama masih 16-43° (median per kasus), jauh di atas gigi alami.
+- Sudut emergence diukur terhadap sumbu insersi, bukan terhadap permukaan akar seperti DU, dan diukur dari margin, bukan dari border.
 - Border (langkah 4) dan solid tertutup (langkah 5) belum ada, jadi proposal belum bisa dicek ketebalannya (§5.6) maupun diekspor.
 
+**Perbaikan lipatan pada scallop dalam (2026-10-25).**
+- **Perubahan** (`core/template.py`, `core/crown.py`):
+  - dasar template mengikuti tinggi margin per sudut: T(φ, 0) setinggi M(φ), jadi campuran margin hanya menggeser mendatar;
+  - zona campur diukur dalam mm: w = smoothstep(h / `blend_height_mm`), h = tinggi titik template di atas margin pada sudut yang sama. Default 1,0 mm, status **perlu kalibrasi** (tabel parameter di atas). Tidak lagi bergantung pada tinggi crown;
+  - error eksplisit bila titik margin tertinggi kurang dari `blend_height_mm` di bawah meja oklusal.
+- **Lipatan non-sliver:** face yang berbalik dibanding template murni berdasar rata, tanpa segitiga dengan tinggi < 0,01 mm (`SLIVER_MM`, sama dengan §5.3). Kolom "Lipatan" di tabel menulis semua face berbalik, lalu yang non-sliver dalam kurung.
+- **Metrik sudut emergence** (dilaporkan, belum ada ambang lulus):
+  - sudut tali busur permukaan luar terhadap sumbu insersi dari tepi servikal sampai 1 mm di atasnya, per sudut keliling (192 sudut), positif bila crown melebar ke luar;
+  - per kasus: median dan maksimum dari semua sudut keliling dan semua seed;
+  - sampai border (langkah 4) ada, tepi servikal adalah margin; sesudahnya diukur dari tepi atas border.
+- **Acuan pembanding** (YOT, DU di §2.1):
+  - YOT: rata-rata emergence supragingiva gigi anterior alami 11,13 ± 7,92° (fasial) dan 15,58 ± 9,16° (lingual); subgingiva 9,93° dan 14,35°;
+  - YOT, pada gigi bercrown: sudut emergence lingual subgingiva berkorelasi dengan kedalaman poket, dan sudut lingual supra- maupun subgingiva berkorelasi dengan attachment loss;
+  - DU: 148 gigi anterior rahang atas alami (74 insisif sentral, 59 lateral, 15 kaninus), sudut emergence di CEJ 11,30-15,26°, tanpa beda bermakna antar lokasi;
+  - **acuannya berbeda:** DU mengukur "from the root surface", dan abstrak YOT tidak menyebut acuannya. Metrik di sini diukur terhadap sumbu insersi. Jadi angka di bawah tidak bisa dibandingkan langsung.
+- **Aturan baru (CLAUDE.md):** setiap set tuning fitur crown dan margin wajib berisi scallop dalam (PL 2,5 dan 3,5 mm) dan die anterior. Untuk crown, aturan ini ditegakkan `test_crown_tuning_set_has_deep_scallops_and_anterior_dies`.
+- **Set tuning baru** = set tuning lama + set ukur pertama (`931ae46`) + tiga kasus: lateral atas PL 2,5, insisif bawah PL 3,5, molar PL 3,5.
+- **Set ukur kedua:**
+  - didefinisikan dan dikunci bersama kode di commit `f633091` sebelum dijalankan, lalu dijalankan sekali;
+  - kriteria: nol lipatan non-sliver;
+  - isi: lateral atas PL 3,4, kaninus bawah PL 3,0 dengan antagonis silinder, insisif sentral bawah PL 2,6 tanpa antagonis, premolar PL 2,8 dengan tetangga miring 10°, molar PL 3,8 dengan hanya tetangga distal, dan insisif PL 3,2 dengan tetangga terlalu dekat (error).
+- **Sensitivitas lebar zona campur** (set tuning saja, derau 0, 1 seed, chamfer):
+  - nol lipatan pada 0,5, 1,0, 1,5, dan 2,0 mm;
+  - median emergence molar 40,3 / 40,1 / 36,2 / 32,0°, dan maksimum seluruh set 59,4 / 59,4 / 53,8 / 47,2°;
+  - default tetap 1,0 mm, karena belum ada ambang emergence untuk memilih nilai lain.
+
+**Set tuning (setelah perbaikan):**
+
+| Kasus | Finish | Derau | Hasil per seed | |galat| kontak mesial | |galat| kontak distal | |galat| jarak oklusal | Galat arah mesial | Tepi servikal ke margin | Lipatan (non-sliver) | Emergence median | Emergence maks | Iterasi | Waktu |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| molar, tetangga simetris, antagonis datar | shoulder | 0 µm | kurva 3 | 3,9 µm | 3,6 µm | 0,4 µm | 0,00° | 0,000 µm | 0 (0) | 40,1° | 46,1° | 3 | 2,6 s |
+| molar, tetangga simetris, antagonis datar | shoulder | 10 µm | kurva 3 | 9,7 µm | 4,3 µm | 10,5 µm | 0,00° | 0,000 µm | 0 (0) | 40,0° | 46,1° | 4 | 3,4 s |
+| molar, tetangga simetris, antagonis datar | shoulder | 30 µm | kurva 3 | 32,0 µm | 20,2 µm | 18,0 µm | 0,00° | 0,000 µm | 0 (0) | 39,7° | 45,9° | 4 | 4,9 s |
+| molar, tetangga simetris, antagonis datar | chamfer | 0 µm | kurva 3 | 3,9 µm | 3,6 µm | 0,4 µm | 0,00° | 0,000 µm | 0 (0) | 40,1° | 46,1° | 3 | 2,6 s |
+| molar, tetangga simetris, antagonis datar | chamfer | 10 µm | kurva 3 | 9,7 µm | 4,3 µm | 10,5 µm | 0,00° | 0,000 µm | 0 (0) | 40,0° | 46,1° | 4 | 3,2 s |
+| molar, tetangga simetris, antagonis datar | chamfer | 30 µm | kurva 3 | 32,0 µm | 20,2 µm | 18,0 µm | 0,00° | 0,000 µm | 0 (0) | 39,7° | 45,9° | 4 | 3,4 s |
+| molar scallop PL 2, tetangga asimetris | shoulder | 0 µm | kurva 3 | 2,7 µm | 2,4 µm | 0,4 µm | 0,00° | 0,000 µm | 0 (0) | 36,8° | 59,4° | 4 | 3,5 s |
+| molar scallop PL 2, tetangga asimetris | shoulder | 10 µm | kurva 3 | 11,5 µm | 8,7 µm | 4,3 µm | 0,00° | 0,000 µm | 0 (0) | 36,8° | 59,5° | 6 | 4,8 s |
+| molar scallop PL 2, tetangga asimetris | shoulder | 30 µm | kurva 3 | 24,0 µm | 19,2 µm | 19,8 µm | 0,00° | 0,000 µm | 0 (0) | 36,7° | 59,2° | 6 | 5,0 s |
+| molar scallop PL 2, tetangga asimetris | chamfer | 0 µm | kurva 3 | 2,7 µm | 2,4 µm | 0,4 µm | 0,00° | 0,000 µm | 0 (0) | 36,8° | 59,4° | 4 | 3,5 s |
+| molar scallop PL 2, tetangga asimetris | chamfer | 10 µm | kurva 3 | 11,5 µm | 8,7 µm | 4,3 µm | 0,00° | 0,000 µm | 0 (0) | 36,8° | 59,5° | 6 | 5,2 s |
+| molar scallop PL 2, tetangga asimetris | chamfer | 30 µm | kurva 3 | 24,0 µm | 19,2 µm | 19,8 µm | 0,00° | 0,000 µm | 0 (0) | 36,7° | 59,2° | 6 | 5,2 s |
+| molar, antagonis terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | 0,00° | - | - | - | - | - | 0,8 s |
+| molar, antagonis terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | 0,00° | - | - | - | - | - | 0,9 s |
+| molar, antagonis terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | 0,00° | - | - | - | - | - | 0,8 s |
+| molar, antagonis terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | 0,00° | - | - | - | - | - | 0,9 s |
+| molar, antagonis terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | 0,00° | - | - | - | - | - | 0,9 s |
+| molar, antagonis terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | 0,00° | - | - | - | - | - | 0,8 s |
+| molar, tetangga terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 0,9 s |
+| molar, tetangga terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 0,9 s |
+| molar, tetangga terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 0,9 s |
+| molar, tetangga terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 0,9 s |
+| molar, tetangga terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 0,8 s |
+| molar, tetangga terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 0,9 s |
+| premolar kecil, tetangga miring 15 | shoulder | 0 µm | kurva 3 | 3,0 µm | 3,6 µm | 0,1 µm | 0,01° | 0,000 µm | 0 (0) | 35,1° | 50,0° | 4 | 3,4 s |
+| premolar kecil, tetangga miring 15 | shoulder | 10 µm | kurva 3 | 9,5 µm | 12,7 µm | 9,6 µm | 0,00° | 0,000 µm | 0 (0) | 35,1° | 50,1° | 4 | 3,2 s |
+| premolar kecil, tetangga miring 15 | shoulder | 30 µm | kurva 3 | 29,0 µm | 56,6 µm | 22,1 µm | 0,00° | 0,000 µm | 0 (0) | 34,8° | 49,6° | 4 | 3,2 s |
+| premolar kecil, tetangga miring 15 | chamfer | 0 µm | kurva 3 | 3,0 µm | 3,6 µm | 0,1 µm | 0,01° | 0,000 µm | 0 (0) | 35,1° | 50,0° | 4 | 3,3 s |
+| premolar kecil, tetangga miring 15 | chamfer | 10 µm | kurva 3 | 9,5 µm | 12,7 µm | 9,6 µm | 0,00° | 0,000 µm | 0 (0) | 35,1° | 50,1° | 4 | 3,3 s |
+| premolar kecil, tetangga miring 15 | chamfer | 30 µm | kurva 3 | 29,0 µm | 56,6 µm | 22,1 µm | 0,00° | 0,000 µm | 0 (0) | 34,8° | 49,6° | 4 | 3,2 s |
+| molar besar, antagonis silinder | shoulder | 0 µm | kurva 3 | 2,3 µm | 2,8 µm | 0,3 µm | 0,00° | 0,000 µm | 0 (0) | 40,3° | 46,8° | 4 | 3,7 s |
+| molar besar, antagonis silinder | shoulder | 10 µm | kurva 3 | 7,1 µm | 6,7 µm | 10,1 µm | 0,00° | 0,000 µm | 0 (0) | 40,3° | 46,9° | 5 | 4,3 s |
+| molar besar, antagonis silinder | shoulder | 30 µm | kurva 3 | 28,6 µm | 23,4 µm | 38,0 µm | 0,00° | 0,000 µm | 0 (0) | 39,7° | 47,0° | 5 | 4,6 s |
+| molar besar, antagonis silinder | chamfer | 0 µm | kurva 3 | 2,3 µm | 2,8 µm | 0,3 µm | 0,00° | 0,000 µm | 0 (0) | 40,3° | 46,8° | 4 | 5,1 s |
+| molar besar, antagonis silinder | chamfer | 10 µm | kurva 3 | 7,1 µm | 6,7 µm | 10,1 µm | 0,00° | 0,000 µm | 0 (0) | 40,3° | 46,9° | 5 | 4,2 s |
+| molar besar, antagonis silinder | chamfer | 30 µm | kurva 3 | 28,6 µm | 23,4 µm | 38,0 µm | 0,00° | 0,000 µm | 0 (0) | 39,7° | 47,0° | 5 | 4,5 s |
+| insisif sentral, hanya tetangga mesial | shoulder | 0 µm | kurva 3 | 3,0 µm | - | 0,6 µm | 0,01° | 0,000 µm | 0 (0) | 17,6° | 50,0° | 10 | 5,7 s |
+| insisif sentral, hanya tetangga mesial | shoulder | 10 µm | kurva 3 | 7,0 µm | - | 7,6 µm | 0,01° | 0,000 µm | 0 (0) | 17,6° | 50,1° | 10 | 5,7 s |
+| insisif sentral, hanya tetangga mesial | shoulder | 30 µm | kurva 3 | 24,3 µm | - | 26,1 µm | 0,01° | 0,000 µm | 0 (0) | 17,6° | 49,9° | 10 | 6,0 s |
+| insisif sentral, hanya tetangga mesial | chamfer | 0 µm | kurva 3 | 3,0 µm | - | 0,6 µm | 0,01° | 0,000 µm | 0 (0) | 17,6° | 50,0° | 10 | 5,8 s |
+| insisif sentral, hanya tetangga mesial | chamfer | 10 µm | kurva 3 | 7,0 µm | - | 7,6 µm | 0,01° | 0,000 µm | 0 (0) | 17,6° | 50,1° | 10 | 5,5 s |
+| insisif sentral, hanya tetangga mesial | chamfer | 30 µm | kurva 3 | 24,3 µm | - | 26,1 µm | 0,01° | 0,000 µm | 0 (0) | 17,6° | 49,9° | 10 | 6,0 s |
+| kaninus, tanpa tetangga dan antagonis | shoulder | 0 µm | kurva 3 | - | - | - | - (dari pengguna) | 0,000 µm | 0 (0) | 16,3° | 18,5° | 1 | 0,2 s |
+| kaninus, tanpa tetangga dan antagonis | shoulder | 10 µm | kurva 3 | - | - | - | - (dari pengguna) | 0,000 µm | 0 (0) | 16,3° | 18,5° | 1 | 0,0 s |
+| kaninus, tanpa tetangga dan antagonis | shoulder | 30 µm | kurva 3 | - | - | - | - (dari pengguna) | 0,000 µm | 0 (0) | 16,3° | 18,5° | 1 | 0,0 s |
+| kaninus, tanpa tetangga dan antagonis | chamfer | 0 µm | kurva 3 | - | - | - | - (dari pengguna) | 0,000 µm | 0 (0) | 16,3° | 18,5° | 1 | 0,0 s |
+| kaninus, tanpa tetangga dan antagonis | chamfer | 10 µm | kurva 3 | - | - | - | - (dari pengguna) | 0,000 µm | 0 (0) | 16,3° | 18,5° | 1 | 0,0 s |
+| kaninus, tanpa tetangga dan antagonis | chamfer | 30 µm | kurva 3 | - | - | - | - (dari pengguna) | 0,000 µm | 0 (0) | 16,3° | 18,5° | 1 | 0,0 s |
+| premolar, antagonis miring terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 1,2 s |
+| premolar, antagonis miring terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 1,1 s |
+| premolar, antagonis miring terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | 0,00° | - | - | - | - | - | 1,3 s |
+| premolar, antagonis miring terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 1,2 s |
+| premolar, antagonis miring terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 1,1 s |
+| premolar, antagonis miring terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | 0,00° | - | - | - | - | - | 1,1 s |
+| lateral atas PL 2,5, tetangga dua sisi | shoulder | 0 µm | kurva 3 | 3,0 µm | 4,5 µm | 0,6 µm | 0,01° | 0,000 µm | 0 (0) | 31,9° | 44,0° | 9 | 10,4 s |
+| lateral atas PL 2,5, tetangga dua sisi | shoulder | 10 µm | kurva 3 | 11,1 µm | 11,0 µm | 14,2 µm | 0,01° | 0,000 µm | 0 (0) | 32,0° | 44,2° | 9 | 10,2 s |
+| lateral atas PL 2,5, tetangga dua sisi | shoulder | 30 µm | kurva 3 | 24,3 µm | 23,5 µm | 41,6 µm | 0,01° | 0,000 µm | 0 (0) | 31,8° | 44,3° | 9 | 10,3 s |
+| lateral atas PL 2,5, tetangga dua sisi | chamfer | 0 µm | kurva 3 | 3,0 µm | 4,5 µm | 0,6 µm | 0,01° | 0,000 µm | 0 (0) | 31,9° | 44,0° | 9 | 10,4 s |
+| lateral atas PL 2,5, tetangga dua sisi | chamfer | 10 µm | kurva 3 | 11,1 µm | 11,0 µm | 14,2 µm | 0,01° | 0,000 µm | 0 (0) | 32,0° | 44,2° | 9 | 10,4 s |
+| lateral atas PL 2,5, tetangga dua sisi | chamfer | 30 µm | kurva 3 | 24,3 µm | 23,5 µm | 41,6 µm | 0,01° | 0,000 µm | 0 (0) | 31,8° | 44,3° | 9 | 10,2 s |
+| insisif bawah PL 3,5, antagonis miring | shoulder | 0 µm | kurva 3 | 3,9 µm | 2,7 µm | 0,5 µm | 0,01° | 0,000 µm | 0 (0) | 34,8° | 45,2° | 9 | 10,4 s |
+| insisif bawah PL 3,5, antagonis miring | shoulder | 10 µm | kurva 3 | 11,8 µm | 10,6 µm | 17,3 µm | 0,01° | 0,000 µm | 0 (0) | 34,8° | 45,4° | 9 | 10,4 s |
+| insisif bawah PL 3,5, antagonis miring | shoulder | 30 µm | kurva 3 | 48,1 µm | 23,9 µm | 54,8 µm | 0,01° | 0,000 µm | 0 (0) | 34,5° | 45,6° | 9 | 10,5 s |
+| insisif bawah PL 3,5, antagonis miring | chamfer | 0 µm | kurva 3 | 3,9 µm | 2,7 µm | 0,5 µm | 0,01° | 0,000 µm | 0 (0) | 34,8° | 45,2° | 9 | 10,2 s |
+| insisif bawah PL 3,5, antagonis miring | chamfer | 10 µm | kurva 3 | 11,8 µm | 10,6 µm | 17,3 µm | 0,01° | 0,000 µm | 0 (0) | 34,8° | 45,4° | 9 | 10,3 s |
+| insisif bawah PL 3,5, antagonis miring | chamfer | 30 µm | kurva 3 | 48,1 µm | 23,9 µm | 54,8 µm | 0,01° | 0,000 µm | 0 (0) | 34,5° | 45,6° | 9 | 10,2 s |
+| molar PL 3,5, antagonis datar | shoulder | 0 µm | kurva 3 | 2,9 µm | 2,5 µm | 0,4 µm | 0,00° | 0,000 µm | 0 (0) | 42,7° | 51,5° | 4 | 4,9 s |
+| molar PL 3,5, antagonis datar | shoulder | 10 µm | kurva 3 | 7,0 µm | 9,8 µm | 16,3 µm | 0,00° | 0,000 µm | 0 (0) | 42,7° | 51,6° | 6 | 6,9 s |
+| molar PL 3,5, antagonis datar | shoulder | 30 µm | kurva 3 | 45,9 µm | 35,1 µm | 9,1 µm | 0,00° | 0,000 µm | 0 (0) | 42,5° | 51,8° | 6 | 7,5 s |
+| molar PL 3,5, antagonis datar | chamfer | 0 µm | kurva 3 | 2,9 µm | 2,5 µm | 0,4 µm | 0,00° | 0,000 µm | 0 (0) | 42,7° | 51,5° | 4 | 5,0 s |
+| molar PL 3,5, antagonis datar | chamfer | 10 µm | kurva 3 | 7,0 µm | 9,8 µm | 16,3 µm | 0,00° | 0,000 µm | 0 (0) | 42,7° | 51,6° | 6 | 6,8 s |
+| molar PL 3,5, antagonis datar | chamfer | 30 µm | kurva 3 | 45,9 µm | 35,1 µm | 9,1 µm | 0,00° | 0,000 µm | 0 (0) | 42,5° | 51,8° | 6 | 7,4 s |
+
+**Set ukur kedua (dijalankan sekali, `f633091`):**
+
+| Kasus | Finish | Derau | Hasil per seed | |galat| kontak mesial | |galat| kontak distal | |galat| jarak oklusal | Galat arah mesial | Tepi servikal ke margin | Lipatan (non-sliver) | Emergence median | Emergence maks | Iterasi | Waktu |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| lateral atas PL 3,4, antagonis miring 15 | shoulder | 0 µm | kurva 3 | 4,8 µm | 3,4 µm | 0,9 µm | 0,01° | 0,000 µm | 0 (0) | 33,3° | 51,5° | 9 | 10,3 s |
+| lateral atas PL 3,4, antagonis miring 15 | shoulder | 10 µm | kurva 3 | 3,5 µm | 12,4 µm | 16,3 µm | 0,01° | 0,000 µm | 0 (0) | 33,2° | 51,7° | 9 | 10,3 s |
+| lateral atas PL 3,4, antagonis miring 15 | shoulder | 30 µm | kurva 3 | 19,2 µm | 23,4 µm | 36,6 µm | 0,01° | 0,000 µm | 0 (0) | 33,1° | 51,8° | 10 | 10,9 s |
+| lateral atas PL 3,4, antagonis miring 15 | chamfer | 0 µm | kurva 3 | 4,8 µm | 3,4 µm | 0,9 µm | 0,01° | 0,000 µm | 0 (0) | 33,3° | 51,5° | 9 | 10,5 s |
+| lateral atas PL 3,4, antagonis miring 15 | chamfer | 10 µm | kurva 3 | 3,5 µm | 12,4 µm | 16,3 µm | 0,01° | 0,000 µm | 0 (0) | 33,2° | 51,7° | 9 | 10,3 s |
+| lateral atas PL 3,4, antagonis miring 15 | chamfer | 30 µm | kurva 3 | 19,2 µm | 23,4 µm | 36,6 µm | 0,01° | 0,000 µm | 0 (0) | 33,1° | 51,8° | 10 | 10,7 s |
+| kaninus bawah PL 3,0, antagonis silinder | shoulder | 0 µm | kurva 3 | 2,7 µm | 3,8 µm | 0,2 µm | 0,01° | 0,000 µm | 0 (0) | 32,4° | 45,2° | 4 | 4,9 s |
+| kaninus bawah PL 3,0, antagonis silinder | shoulder | 10 µm | kurva 3 | 10,8 µm | 10,5 µm | 20,8 µm | 0,01° | 0,000 µm | 0 (0) | 32,3° | 45,4° | 5 | 5,9 s |
+| kaninus bawah PL 3,0, antagonis silinder | shoulder | 30 µm | kurva 3 | 24,7 µm | 21,9 µm | 64,5 µm | 0,00° | 0,000 µm | 0 (0) | 32,3° | 45,0° | 6 | 7,1 s |
+| kaninus bawah PL 3,0, antagonis silinder | chamfer | 0 µm | kurva 3 | 2,7 µm | 3,8 µm | 0,2 µm | 0,01° | 0,000 µm | 0 (0) | 32,4° | 45,2° | 4 | 5,0 s |
+| kaninus bawah PL 3,0, antagonis silinder | chamfer | 10 µm | kurva 3 | 10,8 µm | 10,5 µm | 20,8 µm | 0,01° | 0,000 µm | 0 (0) | 32,3° | 45,4° | 5 | 5,9 s |
+| kaninus bawah PL 3,0, antagonis silinder | chamfer | 30 µm | kurva 3 | 24,7 µm | 21,9 µm | 64,5 µm | 0,00° | 0,000 µm | 0 (0) | 32,3° | 45,0° | 6 | 7,1 s |
+| insisif sentral bawah PL 2,6, tanpa antagonis | shoulder | 0 µm | kurva 3 | 2,8 µm | 3,3 µm | - | 0,01° | 0,000 µm | 0 (0) | 35,8° | 43,3° | 4 | 2,8 s |
+| insisif sentral bawah PL 2,6, tanpa antagonis | shoulder | 10 µm | kurva 3 | 10,6 µm | 9,2 µm | - | 0,01° | 0,000 µm | 0 (0) | 35,9° | 43,5° | 3 | 2,2 s |
+| insisif sentral bawah PL 2,6, tanpa antagonis | shoulder | 30 µm | kurva 3 | 24,5 µm | 23,6 µm | - | 0,01° | 0,000 µm | 0 (0) | 35,7° | 43,6° | 4 | 3,0 s |
+| insisif sentral bawah PL 2,6, tanpa antagonis | chamfer | 0 µm | kurva 3 | 2,8 µm | 3,3 µm | - | 0,01° | 0,000 µm | 0 (0) | 35,8° | 43,3° | 4 | 2,8 s |
+| insisif sentral bawah PL 2,6, tanpa antagonis | chamfer | 10 µm | kurva 3 | 10,6 µm | 9,2 µm | - | 0,01° | 0,000 µm | 0 (0) | 35,9° | 43,5° | 3 | 2,2 s |
+| insisif sentral bawah PL 2,6, tanpa antagonis | chamfer | 30 µm | kurva 3 | 24,5 µm | 23,6 µm | - | 0,01° | 0,000 µm | 0 (0) | 35,7° | 43,6° | 4 | 2,9 s |
+| premolar PL 2,8, tetangga miring 10 | shoulder | 0 µm | kurva 3 | 4,9 µm | 4,2 µm | 0,1 µm | 0,01° | 0,000 µm | 0 (0) | 35,7° | 47,5° | 4 | 4,5 s |
+| premolar PL 2,8, tetangga miring 10 | shoulder | 10 µm | kurva 3 | 8,8 µm | 17,0 µm | 10,6 µm | 0,00° | 0,000 µm | 0 (0) | 35,7° | 47,8° | 4 | 4,5 s |
+| premolar PL 2,8, tetangga miring 10 | shoulder | 30 µm | kurva 3 | 28,1 µm | 24,4 µm | 23,8 µm | 0,00° | 0,000 µm | 0 (0) | 35,4° | 47,7° | 6 | 6,9 s |
+| premolar PL 2,8, tetangga miring 10 | chamfer | 0 µm | kurva 3 | 4,9 µm | 4,2 µm | 0,1 µm | 0,01° | 0,000 µm | 0 (0) | 35,7° | 47,5° | 4 | 4,5 s |
+| premolar PL 2,8, tetangga miring 10 | chamfer | 10 µm | kurva 3 | 8,8 µm | 17,0 µm | 10,6 µm | 0,00° | 0,000 µm | 0 (0) | 35,7° | 47,8° | 4 | 4,6 s |
+| premolar PL 2,8, tetangga miring 10 | chamfer | 30 µm | kurva 3 | 28,1 µm | 24,4 µm | 23,8 µm | 0,00° | 0,000 µm | 0 (0) | 35,4° | 47,7° | 6 | 7,0 s |
+| molar PL 3,8, hanya tetangga distal | shoulder | 0 µm | kurva 3 | - | 2,2 µm | 0,2 µm | 0,01° | 0,000 µm | 0 (0) | 23,1° | 52,1° | 4 | 3,6 s |
+| molar PL 3,8, hanya tetangga distal | shoulder | 10 µm | kurva 3 | - | 9,3 µm | 18,2 µm | 0,01° | 0,000 µm | 0 (0) | 23,1° | 52,2° | 6 | 5,1 s |
+| molar PL 3,8, hanya tetangga distal | shoulder | 30 µm | kurva 3 | - | 33,9 µm | 52,9 µm | 0,01° | 0,000 µm | 0 (0) | 23,1° | 51,7° | 7 | 5,7 s |
+| molar PL 3,8, hanya tetangga distal | chamfer | 0 µm | kurva 3 | - | 2,2 µm | 0,2 µm | 0,01° | 0,000 µm | 0 (0) | 23,1° | 52,1° | 4 | 3,5 s |
+| molar PL 3,8, hanya tetangga distal | chamfer | 10 µm | kurva 3 | - | 9,3 µm | 18,2 µm | 0,01° | 0,000 µm | 0 (0) | 23,1° | 52,2° | 6 | 5,0 s |
+| molar PL 3,8, hanya tetangga distal | chamfer | 30 µm | kurva 3 | - | 33,9 µm | 52,9 µm | 0,01° | 0,000 µm | 0 (0) | 23,1° | 51,7° | 7 | 5,5 s |
+| insisif PL 3,2, tetangga terlalu dekat (error) | shoulder | 0 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 1,2 s |
+| insisif PL 3,2, tetangga terlalu dekat (error) | shoulder | 10 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 1,2 s |
+| insisif PL 3,2, tetangga terlalu dekat (error) | shoulder | 30 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 1,2 s |
+| insisif PL 3,2, tetangga terlalu dekat (error) | chamfer | 0 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 1,2 s |
+| insisif PL 3,2, tetangga terlalu dekat (error) | chamfer | 10 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 1,2 s |
+| insisif PL 3,2, tetangga terlalu dekat (error) | chamfer | 30 µm | error 3 | - | - | - | 0,01° | - | - | - | - | - | 1,2 s |
+
+Kesimpulan perbaikan:
+- **Lipatan: lulus.**
+  - Set ukur kedua: 0 lipatan non-sliver di 90 kurva (dan 0 face berbalik sama sekali). Ini termasuk anterior dengan scallop dalam (lateral PL 3,4, kaninus PL 3,0, insisif PL 2,6) dan molar PL 3,8.
+  - Set tuning: 0 dari 162, termasuk tiga kasus set ukur pertama yang dulu terlipat (41-311 face).
+- **Sudut emergence** (terhadap sumbu insersi, 1 mm pertama di atas margin):
+  - median per kasus 16-43° (tuning) dan 23-36° (ukur); maksimum 59,5° (tuning) dan 52,2° (ukur); tidak ada yang negatif;
+  - jauh di atas 11-15° dari YOT dan DU, walaupun acuannya berbeda;
+  - lebar zona campur hanya sedikit mengubahnya (sensitivitas di atas). Yang menentukan adalah bentuk dinding template (lebar servikal 80-88% dari lebar maksimum, height of contour di 30-40% dinding) dan `contour_bulge_mm` 0,5 mm. Keduanya desain data uji atau perlu kalibrasi, tanpa sumber;
+  - jadi profil emergence proposal saat ini **terlalu cembung** dibanding gigi alami. Ini dicatat dan tidak diperbaiki di sini, karena belum ada ambang lulus.
+- **Kontak** (galat jarak eksak):
+  - tanpa derau ≤ 4,9 µm ke tetangga dan ≤ 0,9 µm ke antagonis (ukur);
+  - pada derau 10 µm ≤ 17 µm dan ≤ 21 µm;
+  - pada derau 30 µm ≤ 34 µm dan ≤ 65 µm (ukur). Di set tuning sampai 57 µm dan 55 µm, lebih besar daripada sebelum perbaikan (≤ 37 µm dan ≤ 29 µm). Bentuk dinding yang berubah memindahkan titik kontak, dan bias derau mesh tetangga atau antagonis bergantung pada titik itu. Tanpa derau, galatnya tetap kecil.
+- **Lainnya:**
+  - arah mesial ≤ 0,012°; tepi servikal = margin (0 µm);
+  - error eksplisit 54 dari 54 (tuning) dan 18 dari 18 (ukur), tanpa error di kasus yang seharusnya bisa;
+  - waktu ≤ 11 s per proposal (insisif dan lateral sampai 9-10 iterasi).
+
 **Pengujian.**
-- Lapis 1 (`tests/core/test_crown.py`, 25 kasus tes):
+- Lapis 1 (`tests/core/test_crown.py`, 35 kasus tes):
   - jenis FDI dan FDI tidak sah ditolak;
   - lebar dan tinggi template tepat (4 jenis × 2 ukuran);
   - tepi servikal = margin dan tanpa lipatan;
   - kontak mencapai target pada permukaan eksak;
   - ruang oklusal dan mesiodistal sempit menjadi error eksplisit;
   - margin yang tidak melingkari sumbu ditolak;
-  - jarak elipsoid eksak di titik yang diketahui.
+  - jarak elipsoid eksak di titik yang diketahui;
+  - dasar template per sudut (tepi servikal setinggi dasar, dinding tetap naik, dasar di atas dinding ditolak);
+  - scallop dalam tanpa lipatan (insisif bawah PL 3,5, insisif sentral PL 3,2, kaninus PL 2,5, molar PL 3,5);
+  - permukaan = template murni di atas `blend_height_mm`;
+  - sudut emergence kerucut −5, 0, 12, dan 20° tepat.
+- Lapis 1 (`tests/core/test_repo_rules.py`): set tuning crown berisi scallop PL 2,5 dan 3,5 mm serta die anterior.
 - Lapis 1 (`tests/core/test_material_db.py`): hanya jarak bertanda yang boleh negatif.
 - Lapis 2 (`run_integration.py`):
   - gerbang spacer;
