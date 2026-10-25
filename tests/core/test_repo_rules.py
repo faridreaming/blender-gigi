@@ -102,3 +102,20 @@ def test_manifest_fields_follow_architecture():
     assert len(m["tagline"]) <= 64 and not m["tagline"].endswith(".")
     assert "network" not in m["permissions"]
     assert all(len(reason) <= 64 for reason in m["permissions"].values())
+
+
+def test_crown_tuning_set_has_deep_scallops_and_anterior_dies():
+    """CLAUDE.md: set tuning fitur crown wajib berisi scallop dalam (PL 2,5 dan 3,5 mm) dan die anterior."""
+    sys.path.insert(0, str(ROOT))
+    try:
+        spec = importlib.util.spec_from_file_location("crown_benchmark", ROOT / "scripts" / "crown_benchmark.py")
+        bench = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(bench)
+        from core.template import fdi_kind
+    finally:
+        sys.path.remove(str(ROOT))
+    cases = [c for c in bench.TUNING.values() if not c.get("expect_error")]
+    peak_to_valley = {round(2 * c["die"].get("scallop_mm", 0.0), 2) for c in cases}
+    assert {2.5, 3.5} <= peak_to_valley
+    anterior = [c for c in cases if fdi_kind(c["fdi"]) in ("incisor", "canine")]
+    assert any(2 * c["die"].get("scallop_mm", 0.0) >= 2.5 for c in anterior)

@@ -1,11 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Proposal crown berlabuh margin (docs/PHASE2.md §5.4 langkah 1 sampai 3).
 
-Bukan morphing mesh: permukaan luar dibangun langsung sebagai S(phi, v) = T(phi, v) + (1 - w(v)) (M(phi) - T(phi, 0)),
-dengan M(phi) titik margin terkonfirmasi pada sudut polar phi di sekitar sumbu insersi, T template parametrik
-(core/template.py), dan w fungsi campuran smoothstep yang mencapai 1 sebelum height of contour. Jadi S(phi, 0) =
-M(phi) menurut konstruksi, tanpa deformasi Laplacian dan tanpa handle/target dari perpotongan garis (paten PAT4),
-dan tanpa arsip kasus atau pencarian kemiripan margin (PAT5).
+Bukan morphing mesh: permukaan luar dibangun langsung sebagai S(phi, v) = T(phi, v) + (1 - w) (M(phi) - T(phi, 0)),
+dengan M(phi) titik margin terkonfirmasi pada sudut polar phi di sekitar sumbu insersi dan T template parametrik
+(core/template.py) yang dasarnya mengikuti tinggi margin per sudut (T(phi, 0) setinggi M(phi), jadi campuran hanya
+menggeser mendatar). w = smoothstep(h / blend_height_mm), h = tinggi titik template di atas margin pada sudut yang
+sama: zona campur dalam mm, tidak bergantung pada tinggi crown. Jadi S(phi, 0) = M(phi) menurut konstruksi, tanpa
+deformasi Laplacian dan tanpa handle/target dari perpotongan garis (paten PAT4), dan tanpa arsip kasus atau
+pencarian kemiripan margin (PAT5).
 
 Penyesuaian ke gigi tetangga dan antagonis mengubah parameter global template (tepi mesial, tepi distal, tinggi)
 dengan iterasi skalar per parameter: setiap tepi digeser sejauh selisih jarak bertanda terukur terhadap target.
@@ -20,6 +22,7 @@ import numpy as np
 
 from .geometry import MeshProjector, face_normals, vertex_normals
 from .mesh_data import MeshData
+from .spacer import SLIVER_MM
 from .template import TemplateParams, fdi_kind, relief_floor_fraction, template_points
 
 N_PHI = 192
@@ -40,7 +43,7 @@ class CrownParams:
     min_thickness_anterior_mm: float = 0.8  # default pabrikan IVO "Minimal thickness" anterior
     cement_gap_mm: float = 0.06  # default pabrikan IVO, untuk tinggi minimum
     contour_bulge_mm: float = 0.5  # perlu kalibrasi, tanpa sumber
-    blend_fraction: float = 0.5  # bagian dinding di bawah height of contour tempat margin dicampur (algoritma)
+    blend_height_mm: float = 1.0  # perlu kalibrasi: tinggi zona campur margin ke template di atas margin
     tolerance_mm: float = 0.001  # konvergensi iterasi (ambang algoritma)
     max_iterations: int = 40
 
@@ -114,14 +117,24 @@ class CrownSurface:
 
 
 def crown_surface(frame: CrownFrame, template: TemplateParams, margin_local: np.ndarray, phi: np.ndarray,
-                  blend_fraction: float = 0.5, n_v: int = N_V) -> CrownSurface:
-    """S(phi, v) berlabuh margin. margin_local dari margin_by_angle (frame yang sama)."""
+                  blend_height_mm: float = 1.0, n_v: int = N_V) -> CrownSurface:
+    """S(phi, v) berlabuh margin. margin_local dari margin_by_angle (frame yang sama).
+
+    Dasar template = tinggi margin per sudut. Versi pertama memakai dasar rata (tinggi rata-rata margin) dan zona
+    campur sebagai fraksi v; pada scallop dalam margin di puncak proksimal 0,85-1,6 mm di atas dasar itu, zona campur
+    hanya 9-12% dari v, dan permukaan terlipat (set ukur pertama §5.4)."""
+    base = margin_local[:, 2]
+    wall = template.wall_top_z - base.max()
+    if wall < blend_height_mm:
+        raise CrownError(f"the highest margin point is {wall:.2f} mm below the occlusal table, less than the blend "
+                         f"height {blend_height_mm:.2f} mm")
     v = np.linspace(0.0, 1.0, n_v)
-    tpl = template_points(template, phi[:, None], v[None, :])
-    v_blend = blend_fraction * template.shape.contour_t * template.v_wall
-    w = _smoothstep(v / v_blend) if v_blend > 0 else np.ones_like(v)
-    offset = margin_local - tpl[:, 0, :]
-    local = tpl + (1.0 - w)[None, :, None] * offset[:, None, :]
+    tpl = template_points(template, phi[:, None], v[None, :], base_z=base[:, None])
+    h = tpl[..., 2] - base[:, None]
+    w = _smoothstep(h / blend_height_mm) if blend_height_mm > 0 else np.ones_like(h)
+    w[:, v > template.v_wall] = 1.0  # meja oklusal: template murni (relief bisa turun di bawah tepi dinding)
+    offset = margin_local - tpl[:, 0, :]  # z = 0: dasar template setinggi margin
+    local = tpl + (1.0 - w)[..., None] * offset[:, None, :]
     local[:, -1, :] = local[0, -1, :]  # titik tengah oklusal sama untuk semua sudut
     n_phi = len(phi)
     grid = local[:, :-1, :].reshape(-1, 3)
@@ -141,9 +154,7 @@ def crown_surface(frame: CrownFrame, template: TemplateParams, margin_local: np.
     return CrownSurface(frame, template, phi, v, local, mesh)
 
 
-def flipped_faces(surface: CrownSurface) -> int:
-    """Lipatan akibat pencampuran margin: face yang normalnya berbalik arah dibanding face yang sama pada template
-    murni (topologi sama, tanpa campuran margin). Template sendiri tidak terlipat (diuji terpisah)."""
+def _flipped_mask(surface: CrownSurface) -> tuple[np.ndarray, np.ndarray]:
     pure = template_points(surface.template, surface.phi[:, None], surface.v[None, :])
     pure[:, -1, :] = pure[0, -1, :]
     pure_vertices = np.vstack([pure[:, :-1, :].reshape(-1, 3), pure[0, -1][None]])
@@ -151,7 +162,43 @@ def flipped_faces(surface: CrownSurface) -> int:
     mixed = surface.frame.to_local(surface.mesh.vertices)
     n_mixed = face_normals(mixed, f, normalize=False)
     n_pure = face_normals(pure_vertices, f, normalize=False)
-    return int(np.sum(np.einsum("ij,ij->i", n_mixed, n_pure) <= 0))
+    corners = mixed[f]
+    longest = np.max(np.stack([np.linalg.norm(corners[:, k] - corners[:, (k + 1) % 3], axis=1) for k in range(3)]),
+                     axis=0)
+    height = np.linalg.norm(n_mixed, axis=1) / np.maximum(longest, 1e-12)
+    return np.einsum("ij,ij->i", n_mixed, n_pure) <= 0, height < SLIVER_MM
+
+
+def flipped_faces(surface: CrownSurface) -> int:
+    """Lipatan: face yang normalnya berbalik arah dibanding face yang sama pada template murni berdasar rata
+    (topologi sama, dasar = tinggi rata-rata margin, tanpa campuran margin). Template itu sendiri tidak terlipat
+    (diuji terpisah)."""
+    return int(_flipped_mask(surface)[0].sum())
+
+
+def non_sliver_folds(surface: CrownSurface) -> int:
+    """Lipatan tanpa segitiga sliver (tinggi segitiga < SLIVER_MM, sama dengan §5.3): sliver bisa berbalik oleh beda
+    normal kecil tanpa permukaan terlipat."""
+    flipped, sliver = _flipped_mask(surface)
+    return int(np.sum(flipped & ~sliver))
+
+
+def emergence_angles(surface: CrownSurface, height_mm: float = 1.0) -> np.ndarray:
+    """Sudut emergence per sudut keliling (derajat): sudut tali busur permukaan luar terhadap sumbu insersi dari tepi
+    servikal sampai height_mm di atasnya, positif bila crown melebar ke luar. Sampai border (langkah 4) ada, tepi
+    servikal adalah margin; sesudahnya diukur dari tepi atas border."""
+    local = surface.local
+    wall = surface.v <= surface.template.v_wall
+    out = np.empty(len(local))
+    for i, column in enumerate(local):
+        col = column[wall]
+        h = col[:, 2] - col[0, 2]
+        if h[-1] < height_mm:
+            raise CrownError("crown wall lower than the emergence measuring height")
+        top = np.array([np.interp(height_mm, h, col[:, k]) for k in range(2)])
+        outward = col[0, :2] / np.linalg.norm(col[0, :2])
+        out[i] = np.degrees(np.arctan2((top - col[0, :2]) @ outward, height_mm))
+    return out
 
 
 def signed_distance(points: np.ndarray, mesh: MeshData, projector: MeshProjector | None = None) -> np.ndarray:
@@ -243,7 +290,8 @@ def fit_crown(fdi: int, margin: np.ndarray, axis, mesial, prep_top_mm: float, me
         width = x_mesial - x_distal
         local_frame = frame.shifted(center)
         tpl = tpl.with_(width_md=width, height=height)
-        surface = crown_surface(local_frame, tpl, m_local - np.array([center, 0.0, 0.0]), phi, params.blend_fraction)
+        surface = crown_surface(local_frame, tpl, m_local - np.array([center, 0.0, 0.0]), phi,
+                                params.blend_height_mm)
         distances = {name: _min_distance(surface, meshes[name], proj) for name, proj in projectors.items()}
         errors = {name: d - targets[name] for name, d in distances.items()}
         if all(abs(e) <= params.tolerance_mm for e in errors.values()):

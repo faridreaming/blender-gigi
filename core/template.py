@@ -7,7 +7,8 @@ selalu datang dari kasus (margin, gigi tetangga, antagonis), tidak dari tabel an
 Frame template: z = sumbu insersi (oklusal), x = mesial, y = z x x. Template T(phi, v):
 - phi = sudut polar di sekitar sumbu z;
 - v in [0, v_wall]: dinding aksial. Penampang superelips dengan setengah lebar f(t) * W/2 dan f(t) * B/2,
-  t = v / v_wall, f = 1 di height of contour (t = contour_t), jadi lebar maksimum tepat W dan B;
+  t = v / v_wall, f = 1 di height of contour (t = contour_t), jadi lebar maksimum tepat W dan B. Tinggi dinding naik
+  linear dari dasar base_z ke tepi atas dinding; dasar boleh berbeda per sudut (crown: tinggi margin per sudut);
 - v in [v_wall, 1]: meja oklusal dari tepi dinding ke titik tengah (v = 1), tinggi = z_wall + relief, dengan relief
   dari cusp gaussian per jenis gigi, dinormalisasi sehingga titik tertinggi tepat di z = height.
 """
@@ -139,9 +140,15 @@ def _relief_range(shape: Shape) -> tuple[float, float]:
     return _RELIEF_RANGE[key]
 
 
-def template_points(params: TemplateParams, phi: np.ndarray, v: np.ndarray) -> np.ndarray:
-    """Titik template T(phi, v) di frame template (broadcast phi dan v)."""
-    phi, v = np.broadcast_arrays(np.asarray(phi, float), np.asarray(v, float))
+def template_points(params: TemplateParams, phi: np.ndarray, v: np.ndarray, base_z=None) -> np.ndarray:
+    """Titik template T(phi, v) di frame template (broadcast phi, v, dan base_z).
+
+    base_z: z tepi servikal per titik (misalnya per sudut phi); None = params.base_z. Wajib di bawah tepi atas
+    dinding."""
+    base = params.base_z if base_z is None else base_z
+    phi, v, base = np.broadcast_arrays(np.asarray(phi, float), np.asarray(v, float), np.asarray(base, float))
+    if np.any(base >= params.wall_top_z):
+        raise ValueError("dasar template wajib di bawah tepi atas dinding")
     s = params.shape
     a, b = 0.5 * params.width_md, 0.5 * params.width_bl
     r_max = _superellipse_radius(phi, a, b, s.exponent)
@@ -149,7 +156,7 @@ def template_points(params: TemplateParams, phi: np.ndarray, v: np.ndarray) -> n
     wall = v <= params.v_wall
     t = np.clip(v / params.v_wall, 0.0, 1.0)
     f = _width_factor(t, s)
-    z_wall = params.base_z + t * (params.wall_top_z - params.base_z)
+    z_wall = base + t * (params.wall_top_z - base)
     # Meja oklusal: dari tepi atas dinding (rim = 1) ke titik tengah (rim = 0).
     rim = np.clip((1.0 - v) / (1.0 - params.v_wall), 0.0, 1.0)
     r_top = s.wall_top_f * r_max * rim

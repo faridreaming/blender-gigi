@@ -52,6 +52,7 @@ python -m venv .venv && .venv/Scripts/python -m pip install -r requirements-dev.
 - Lapis 1: `pytest tests/core` dengan Python 3.13, tanpa Blender. rootdir pytest adalah `tests/` (lihat `tests/pytest.ini`), karena root repo adalah paket yang `__init__.py`-nya butuh bpy.
 - Lapis 2: `blender --background --python-exit-code 1 --python tests/blender/run_integration.py -- tests/golden`, terhadap extension yang terinstal dari zip. Flag `--python-exit-code 1` wajib ada sebelum `--python`, kalau tidak exception di skrip tetap menghasilkan exit code 0.
 - `tests/core/test_repo_rules.py` menegakkan sebagian aturan di file ini (tanpa bpy di `core/`, tanpa em/en dash, manifest sama dengan skrip wheel dan contoh di ARCHITECTURE.md). Jangan melemahkan tes itu untuk meloloskan perubahan.
+- Setiap set tuning untuk fitur crown dan margin wajib berisi scallop dalam (PL 2,5 dan 3,5 mm; PL = 2 × `DieSpec.scallop_mm`) dan die anterior, bukan hanya posterior. Untuk crown, `test_crown_tuning_set_has_deep_scallops_and_anterior_dies` menegakkannya.
 - Kalau menulis karakter em/en dash di kode tes (misalnya untuk mendeteksinya), pakai `chr(0x2014)` / `chr(0x2013)`, jangan literal atau escape `\u` yang bisa tersimpan sebagai karakter asli.
 
 ## Data pasien

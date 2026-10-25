@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Benchmark proposal crown langkah 1 sampai 3 terhadap gigi tetangga dan antagonis sintetis (PHASE2.md §5.4).
 
-    python scripts/crown_benchmark.py --set tuning     # dipakai saat menyetel (iterasi, campuran margin)
+    python scripts/crown_benchmark.py --set tuning     # dipakai saat menyetel (iterasi, zona campur margin)
     python scripts/crown_benchmark.py --set ukur       # dikunci bersama kode sebelum dijalankan, lalu sekali
     python scripts/crown_benchmark.py --seeds 1 --json hasil.json
 
@@ -11,7 +11,10 @@ generator die (jitter, derau, rotasi die); jawaban benar dari bentuk analitis:
   silinder antagonis, dibanding target (approximal -20 um, oklusal 0 um, Nagata 2025);
 - arah mesial: sudut antara arah mesial dari tetangga dan sumbu mesial die yang diketahui;
 - tepi servikal: jarak tepi bawah crown ke margin yang dipakai (0 menurut konstruksi);
-- lipatan: face yang berbalik dibanding template murni;
+- lipatan: face yang berbalik dibanding template murni berdasar rata; "non-sliver" tanpa segitiga dengan tinggi
+  < 0,01 mm (SLIVER_MM, sama dengan §5.3);
+- sudut emergence: sudut permukaan luar terhadap sumbu insersi pada 1 mm pertama di atas tepi servikal, per sudut
+  keliling (median dan maksimum per kasus, tanpa ambang lulus);
 - kasus "sempit" harus berakhir dengan CrownError (error eksplisit), bukan crown yang menembus.
 """
 
@@ -43,13 +46,14 @@ def _rot(axis: str, deg: float) -> np.ndarray:
 
 # Kasus: die, FDI, tetangga (celah dari tepi margin + tonjolan kontur ke permukaan dalam elipsoid, mm; None = tanpa),
 # kemiringan tetangga, antagonis (jenis, jarak dari puncak preparasi, kemiringan), dan apakah error diharapkan.
+# Scallop ditulis sebagai puncak-lembah PL = 2 x scallop_mm. Aturan CLAUDE.md: set tuning wajib berisi scallop dalam
+# (PL 2,5 dan 3,5 mm) dan die anterior (ditegakkan tests/core/test_repo_rules.py).
 TUNING = {
     "molar, tetangga simetris, antagonis datar": dict(die={}, fdi=46, gaps=(0.6, 0.6), ant=("plane", 3.6, 0.0)),
     "molar scallop PL 2, tetangga asimetris": dict(die={"scallop_mm": 1.0}, fdi=26, gaps=(1.2, 0.3), ant=("plane", 3.8, 0.0)),
     "molar, antagonis terlalu dekat (error)": dict(die={}, fdi=46, gaps=(0.6, 0.6), ant=("plane", 2.5, 0.0), expect_error=True),
     "molar, tetangga terlalu dekat (error)": dict(die={}, fdi=46, gaps=(-1.6, -1.6), ant=("plane", 3.6, 0.0), expect_error=True),
-}
-UJI = {
+    # Set ukur pertama (commit 931ae46, dijalankan sekali) menjadi bagian set tuning sejak perbaikan lipatan.
     "premolar kecil, tetangga miring 15": dict(die=dict(radius_x_mm=3.8, radius_y_mm=3.4, prep_height_mm=4.0, taper_deg=4.0,
                                                          scallop_mm=0.5), fdi=15, gaps=(0.4, 0.8), tilt=15.0,
                                                 ant=("plane", 3.4, 8.0)),
@@ -64,8 +68,40 @@ UJI = {
     "premolar, antagonis miring terlalu dekat (error)": dict(die=dict(radius_x_mm=4.0, radius_y_mm=3.6, prep_height_mm=4.5,
                                                                        taper_deg=7.0, scallop_mm=0.8), fdi=24,
                                                               gaps=(0.5, 0.5), ant=("plane", 2.0, 10.0), expect_error=True),
+    # Scallop dalam PL 2,5 dan 3,5 mm (lengkungan CEJ GLC, §5.1) dan die anterior, ditambahkan bersama perbaikan.
+    "lateral atas PL 2,5, tetangga dua sisi": dict(die=dict(radius_x_mm=3.2, radius_y_mm=2.9, prep_height_mm=5.0,
+                                                             taper_deg=6.0, finish_width_mm=0.7, scallop_mm=1.25),
+                                                    fdi=12, gaps=(0.5, 0.5), ant=("plane", 2.6, 12.0)),
+    "insisif bawah PL 3,5, antagonis miring": dict(die=dict(radius_x_mm=2.8, radius_y_mm=3.0, prep_height_mm=5.0,
+                                                             taper_deg=6.0, finish_width_mm=0.7, scallop_mm=1.75),
+                                                    fdi=41, gaps=(0.4, 0.4), ant=("plane", 2.6, 10.0)),
+    "molar PL 3,5, antagonis datar": dict(die=dict(prep_height_mm=5.5, scallop_mm=1.75), fdi=36, gaps=(0.6, 0.6),
+                                           ant=("plane", 3.6, 0.0)),
 }
-SETS = {"tuning": TUNING, "ukur": UJI}
+# Set ukur kedua: didefinisikan dan dikunci bersama kode SEBELUM dijalankan, lalu dijalankan sekali. Kriteria: nol
+# lipatan non-sliver. Ukuran, FDI, scallop, kemiringan, dan antagonis baru; anterior dengan scallop dalam.
+UKUR = {
+    "lateral atas PL 3,4, antagonis miring 15": dict(die=dict(radius_x_mm=3.0, radius_y_mm=2.7, prep_height_mm=5.2,
+                                                               taper_deg=7.0, finish_width_mm=0.7, scallop_mm=1.7),
+                                                      fdi=22, gaps=(0.5, 0.7), ant=("plane", 2.8, 15.0)),
+    "kaninus bawah PL 3,0, antagonis silinder": dict(die=dict(radius_x_mm=3.5, radius_y_mm=3.9, prep_height_mm=6.0,
+                                                               taper_deg=6.0, scallop_mm=1.5),
+                                                      fdi=43, gaps=(0.6, 0.4), ant=("cylinder", 3.0, 0.0)),
+    "insisif sentral bawah PL 2,6, tanpa antagonis": dict(die=dict(radius_x_mm=2.6, radius_y_mm=2.9, prep_height_mm=4.6,
+                                                                    taper_deg=5.0, finish_width_mm=0.6, scallop_mm=1.3),
+                                                           fdi=31, gaps=(0.4, 0.4), ant=None),
+    "premolar PL 2,8, tetangga miring 10": dict(die=dict(radius_x_mm=4.0, radius_y_mm=3.6, prep_height_mm=5.0,
+                                                          taper_deg=8.0, scallop_mm=1.4),
+                                                 fdi=34, gaps=(0.5, 0.6), tilt=10.0, ant=("plane", 3.2, 6.0)),
+    "molar PL 3,8, hanya tetangga distal": dict(die=dict(radius_x_mm=5.4, radius_y_mm=4.8, prep_height_mm=6.0,
+                                                          taper_deg=9.0, scallop_mm=1.9),
+                                                 fdi=47, gaps=(None, 0.6), ant=("plane", 3.6, 0.0)),
+    "insisif PL 3,2, tetangga terlalu dekat (error)": dict(die=dict(radius_x_mm=3.6, radius_y_mm=3.2, prep_height_mm=5.5,
+                                                                     taper_deg=8.0, finish_width_mm=0.8, scallop_mm=1.6),
+                                                            fdi=21, gaps=(-1.4, -1.4), ant=("plane", 2.8, 10.0),
+                                                            expect_error=True),
+}
+SETS = {"tuning": TUNING, "ukur": UKUR}
 
 
 def build_case(case: dict, finish: str, noise_um: int, seed: int):
@@ -134,6 +170,8 @@ def run_case(case: dict, finish: str, noise_um: int, seed: int) -> dict:
     bottom = fit.surface.frame.to_world(fit.surface.local[:, 0, :])
     out["cervical_um"] = 1000 * float(synthetic.distance_to_polyline(bottom, margin).max())
     out["flipped"] = crown.flipped_faces(fit.surface)
+    out["folds"] = crown.non_sliver_folds(fit.surface)
+    out["emergence_deg"] = [float(a) for a in crown.emergence_angles(fit.surface)]
     return out
 
 
@@ -157,8 +195,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Set: {args.set}. Nilai = terburuk dari {args.seeds} seed. Target: approximal -20 um, oklusal 0 um "
           "(Nagata 2025, literatur, perlu kalibrasi).\n")
     print("| Kasus | Finish | Derau | Hasil per seed | |galat| kontak mesial | |galat| kontak distal | "
-          "|galat| jarak oklusal | Galat arah mesial | Tepi servikal ke margin | Lipatan | Iterasi | Waktu |")
-    print("|---|---|---|---|---|---|---|---|---|---|---|---|")
+          "|galat| jarak oklusal | Galat arah mesial | Tepi servikal ke margin | Lipatan (non-sliver) | "
+          "Emergence median | Emergence maks | Iterasi | Waktu |")
+    print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in rows:
         runs = r["runs"]
         outcome = {}
@@ -171,7 +210,9 @@ def main(argv: list[str] | None = None) -> int:
                  worst_abs(ok_runs, "antagonist_err_um"),
                  f"{max(mes):.2f} deg" if mes else "- (dari pengguna)",
                  f"{max(x['cervical_um'] for x in ok_runs):.3f} um" if ok_runs else "-",
-                 str(max(x["flipped"] for x in ok_runs)) if ok_runs else "-",
+                 (f"{max(x['flipped'] for x in ok_runs)} ({max(x['folds'] for x in ok_runs)})" if ok_runs else "-"),
+                 f"{np.median([a for x in ok_runs for a in x['emergence_deg']]):.1f} deg" if ok_runs else "-",
+                 f"{max(a for x in ok_runs for a in x['emergence_deg']):.1f} deg" if ok_runs else "-",
                  str(max(x["iterations"] for x in ok_runs)) if ok_runs else "-",
                  f"{max(x['seconds'] for x in runs):.1f} s"]
         print(f"| {r['case']} | {r['finish']} | {r['noise_um']} um | " + " | ".join(cells) + " |")
@@ -182,6 +223,8 @@ def main(argv: list[str] | None = None) -> int:
           f"dari {len(expected)}; error di kasus yang seharusnya bisa: {len(unexpected)}")
     for x in unexpected[:5]:
         print("  error tak terduga:", x["message"])
+    curves = [x for x in all_runs if x["status"] == "kurva"]
+    print(f"Kurva dengan lipatan non-sliver: {sum(x['folds'] > 0 for x in curves)} dari {len(curves)}")
     if args.json:
         args.json.write_text(json.dumps(rows, indent=2, default=float), encoding="utf-8")
     return 0
